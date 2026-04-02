@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, Lock, User, ArrowRight, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
+import { authService } from '@/src/services/auth.service';
 
 export default function Login({ onLogin }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   
   const leftPaneRef = useRef(null);
   const rightPaneRef = useRef(null);
@@ -50,17 +52,35 @@ export default function Login({ onLogin }) {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    gsap.to([leftPaneRef.current, rightPaneRef.current], {
-      opacity: 0,
-      y: -20,
-      duration: 0.6,
-      ease: 'power2.in',
-      onComplete: onLogin
-    });
+    setErrorMessage('');
+
+    try {
+      const response = await authService.login({
+        username: username.trim(),
+        password,
+      });
+
+      const authData = response?.data || {};
+      const token = authData?.token;
+
+      if (!token) {
+        throw new Error('Login succeeded but token was not returned by API.');
+      }
+
+      gsap.to([leftPaneRef.current, rightPaneRef.current], {
+        opacity: 0,
+        y: -20,
+        duration: 0.6,
+        ease: 'power2.in',
+        onComplete: () => onLogin(authData),
+      });
+    } catch (requestError) {
+      setIsLoading(false);
+      setErrorMessage(requestError.message || 'Invalid username or password.');
+    }
   };
 
   return (
@@ -136,6 +156,12 @@ export default function Login({ onLogin }) {
                 </>
               )}
             </button>
+
+            {errorMessage && (
+              <div className="px-4 py-3 bg-rose-50 border border-rose-100 rounded-xl text-sm text-rose-700 font-medium">
+                {errorMessage}
+              </div>
+            )}
           </form>
 
           <div className="reveal-item mt-12 pt-8 border-t border-gray-100 flex items-center justify-between">

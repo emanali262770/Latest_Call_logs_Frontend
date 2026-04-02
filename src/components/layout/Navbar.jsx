@@ -2,10 +2,11 @@ import {
   Search, 
   Bell, 
   Moon,
-  Sun
+  Sun,
+  LogOut
 } from 'lucide-react';
 
-export default function Navbar({ darkMode, setDarkMode }) {
+export default function Navbar({ darkMode, setDarkMode, onLogout }) {
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 z-40 sticky top-0">
       <div className="flex items-center flex-1">
@@ -33,6 +34,14 @@ export default function Navbar({ darkMode, setDarkMode }) {
         </button>
 
         <div className="h-8 w-px bg-gray-200 mx-2"></div>
+
+        <button
+          onClick={onLogout}
+          className="p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors"
+          title="Sign out"
+        >
+          <LogOut className="w-5 h-5" />
+        </button>
 
         <div className="flex items-center gap-3 group cursor-pointer">
           <div className="text-right hidden sm:block">

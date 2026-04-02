@@ -1,38 +1,58 @@
-import { useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Users, 
-  UserCircle, 
   ShieldCheck, 
+  BriefcaseBusiness,
   Settings, 
   ChevronLeft, 
   ChevronRight,
-  Lock,
-  Menu
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import gsap from 'gsap';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion as Motion } from 'motion/react';
 
 const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'employees', label: 'Employees', icon: Users },
-  { id: 'users', label: 'Users', icon: UserCircle },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
+  { id: 'employees', label: 'Employees', icon: Users, path: '/employees' },
   { 
     id: 'access-control', 
     label: 'Access Control', 
     icon: ShieldCheck,
     subItems: [
-      { id: 'groups', label: 'Groups', icon: Menu },
-      { id: 'permissions', label: 'Permissions', icon: Lock },
+      { id: 'groups', label: 'Groups', path: '/groups' },
+      { id: 'users', label: 'Users', path: '/users' },
+      { id: 'permissions', label: 'Permissions', path: '/permissions' },
     ]
   },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  {
+    id: 'setup',
+    label: 'Setup',
+    icon: BriefcaseBusiness,
+    subItems: [
+      { id: 'setup-departments', label: 'Departments', path: '/setup/departments' },
+      { id: 'setup-designations', label: 'Designations', path: '/setup/designations' },
+      { id: 'setup-employee-types', label: 'Employee Types', path: '/setup/employee-types' },
+      { id: 'setup-duty-shifts', label: 'Duty Shifts', path: '/setup/duty-shifts' },
+      { id: 'setup-banks', label: 'Banks', path: '/setup/banks' },
+    ],
+  },
+  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
-export default function Sidebar({ activePage, setActivePage, isCollapsed, setIsCollapsed }) {
+export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const sidebarRef = useRef(null);
-  const [expandedSubMenu, setExpandedSubMenu] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const pathName = location.pathname;
+  const autoExpandedSubMenu = useMemo(
+    () =>
+      navItems.find((item) => item.subItems && item.subItems.some((sub) => sub.path === pathName))?.id || null,
+    [pathName],
+  );
+  const [manualExpandedSubMenu, setManualExpandedSubMenu] = useState(null);
+  const expandedSubMenu = manualExpandedSubMenu ?? autoExpandedSubMenu;
 
   useEffect(() => {
     if (sidebarRef.current) {
@@ -45,16 +65,24 @@ export default function Sidebar({ activePage, setActivePage, isCollapsed, setIsC
     }
   }, [isCollapsed]);
 
-  const handleNavClick = (id, hasSubItems) => {
-    if (hasSubItems) {
+  const isItemActive = (item) => {
+    if (item.subItems) {
+      return item.subItems.some((sub) => sub.path === pathName);
+    }
+
+    return item.path === pathName;
+  };
+
+  const handleNavClick = (item) => {
+    if (item.subItems) {
       if (isCollapsed) {
         setIsCollapsed(false);
-        setExpandedSubMenu(id);
+        setManualExpandedSubMenu(item.id);
       } else {
-        setExpandedSubMenu(expandedSubMenu === id ? null : id);
+        setManualExpandedSubMenu(expandedSubMenu === item.id ? null : item.id);
       }
     } else {
-      setActivePage(id);
+      navigate(item.path);
     }
   };
 
@@ -84,17 +112,18 @@ export default function Sidebar({ activePage, setActivePage, isCollapsed, setIsC
         {navItems.map((item) => (
           <div key={item.id}>
             <button
-              onClick={() => handleNavClick(item.id, !!item.subItems)}
+              type="button"
+              onClick={() => handleNavClick(item)}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-[background-color,color] duration-200 group",
-                activePage === item.id || (item.subItems?.some(sub => sub.id === activePage))
+                isItemActive(item)
                   ? "bg-brand-light text-brand" 
                   : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
               )}
             >
               <item.icon className={cn(
                 "w-5 h-5 shrink-0",
-                activePage === item.id || (item.subItems?.some(sub => sub.id === activePage))
+                isItemActive(item)
                   ? "text-brand" 
                   : "text-gray-400 group-hover:text-gray-900"
               )} />
@@ -111,7 +140,7 @@ export default function Sidebar({ activePage, setActivePage, isCollapsed, setIsC
 
             <AnimatePresence>
               {!isCollapsed && item.subItems && expandedSubMenu === item.id && (
-                <motion.div 
+                <Motion.div 
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
@@ -120,11 +149,12 @@ export default function Sidebar({ activePage, setActivePage, isCollapsed, setIsC
                 >
                   {item.subItems.map((sub) => (
                     <button
+                      type="button"
                       key={sub.id}
-                      onClick={() => setActivePage(sub.id)}
+                      onClick={() => navigate(sub.path)}
                       className={cn(
                         "w-full text-left px-3 py-2 rounded-lg text-sm transition-[background-color,color] duration-200",
-                        activePage === sub.id 
+                        pathName === sub.path 
                           ? "text-brand font-semibold" 
                           : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                       )}
@@ -132,7 +162,7 @@ export default function Sidebar({ activePage, setActivePage, isCollapsed, setIsC
                       {sub.label}
                     </button>
                   ))}
-                </motion.div>
+                </Motion.div>
               )}
             </AnimatePresence>
           </div>
@@ -141,6 +171,7 @@ export default function Sidebar({ activePage, setActivePage, isCollapsed, setIsC
 
       <div className="p-4 border-t border-gray-100">
         <button 
+          type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="w-full flex items-center justify-center p-2 rounded-xl bg-gray-50 text-gray-500 hover:bg-gray-100 transition-colors"
         >

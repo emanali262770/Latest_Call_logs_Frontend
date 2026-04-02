@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import { cn } from '@/src/lib/utils';
 import gsap from 'gsap';
 
-export default function Layout({ children, activePage, setActivePage }) {
+export default function Layout({ onLogout }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const contentRef = useRef(null);
+  const location = useLocation();
 
   useEffect(() => {
     if (contentRef.current) {
@@ -25,26 +27,24 @@ export default function Layout({ children, activePage, setActivePage }) {
         }
       );
     }
-  }, [activePage]);
+  }, [location.pathname]);
 
   return (
     <div className={cn("flex h-screen bg-white font-sans", darkMode && "dark")}>
       <Sidebar 
-        activePage={activePage} 
-        setActivePage={setActivePage} 
         isCollapsed={isCollapsed} 
         setIsCollapsed={setIsCollapsed} 
       />
       
       <div className="flex flex-col flex-1 overflow-hidden bg-gray-50/30">
-        <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
+        <Navbar darkMode={darkMode} setDarkMode={setDarkMode} onLogout={onLogout} />
         
         <main 
           ref={contentRef}
           className="flex-1 overflow-y-auto p-8"
         >
           <div className="max-w-7xl mx-auto">
-            {children}
+            <Outlet />
           </div>
         </main>
       </div>

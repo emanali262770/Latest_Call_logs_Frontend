@@ -1,236 +1,285 @@
-import { useState, useRef, useEffect } from 'react';
-import { 
-  UserCircle, 
-  Search, 
-  Plus, 
-  Filter, 
-  Lock, 
-  User, 
-  Save, 
-  ChevronDown,
-  Edit2,
-  Eye,
-  Trash2,
-  MoreHorizontal
-} from 'lucide-react';
-import { Card } from '@/src/components/ui/Card';
-import { Button, Badge } from '@/src/components/ui/Card';
-import { revealForm } from '@/src/animations/gsapAnimations';
+import { useMemo, useState } from 'react';
+import { KeyRound, Search, Shield, Trash2, UserPlus, Users as UsersIcon } from 'lucide-react';
+import { Button } from '@/src/components/ui/Card';
+import { AccessControlShell, Modal } from '@/src/components/access-control/AccessControlShell';
+import { useAccessControl } from '@/src/context/AccessControlContext';
 
-const initialUsers = [
-  { id: '1', username: 'sjenkins', linkedEmployee: 'Sarah Jenkins', group: 'Admin', status: 'Active', lastLogin: '2 mins ago' },
-  { id: '2', username: 'mchen', linkedEmployee: 'Michael Chen', group: 'Developer', status: 'Active', lastLogin: '1 hour ago' },
-  { id: '3', username: 'erodriguez', linkedEmployee: 'Emily Rodriguez', group: 'HR Manager', status: 'Active', lastLogin: 'Yesterday' },
-  { id: '4', username: 'dkim', linkedEmployee: 'David Kim', group: 'Marketing', status: 'Inactive', lastLogin: '3 days ago' },
-  { id: '5', username: 'jtaylor', linkedEmployee: 'Jessica Taylor', group: 'QA', status: 'Active', lastLogin: '5 mins ago' },
-];
+function formatDate(value) {
+  return new Date(value).toLocaleDateString('en-US');
+}
 
 export default function UsersPage() {
-  const [users, setUsers] = useState(initialUsers);
-  const [showForm, setShowForm] = useState(false);
-  const tableContainerRef = useRef(null);
-  const formContainerRef = useRef(null);
+  const { users, groups, createUser, assignGroupsToUser, resetPassword, deleteUser } = useAccessControl();
+  const [search, setSearch] = useState('');
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [assigningUserId, setAssigningUserId] = useState(null);
+  const [resetUserId, setResetUserId] = useState(null);
+  const [createForm, setCreateForm] = useState({ fullName: '', username: '', password: '' });
+  const [password, setPassword] = useState('');
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
 
-  useEffect(() => {
-    revealForm(tableContainerRef.current, formContainerRef.current, showForm);
-  }, [showForm]);
+  const visibleUsers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return users;
+    return users.filter((user) =>
+      `${user.fullName} ${user.username}`.toLowerCase().includes(query),
+    );
+  }, [search, users]);
+
+  const assigningUser = users.find((user) => user.id === assigningUserId) || null;
+  const resetUser = users.find((user) => user.id === resetUserId) || null;
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">System Users</h1>
-          <p className="text-gray-500 mt-1">Manage user accounts and their access levels.</p>
-        </div>
-        {!showForm && (
-          <Button onClick={() => setShowForm(true)} icon={<Plus className="w-4 h-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">Create User</Button>
-        )}
-      </div>
-
-      <div ref={tableContainerRef} className="space-y-6">
-        <Card className="p-0 border-none shadow-xl shadow-gray-200/50">
-          <div className="p-6 border-b border-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="relative w-full sm:w-96">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input 
-                type="text" 
-                placeholder="Search users by username or employee..." 
-                className="w-full pl-11 pr-4 py-3 bg-gray-50/50 border border-gray-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand transition-all text-sm placeholder:text-gray-400"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm" icon={<Filter className="w-4 h-4" />}>Filter</Button>
-              <div className="h-6 w-px bg-gray-200"></div>
-              <p className="text-sm text-gray-400 font-medium">
-                <span className="text-gray-900 font-bold">{users.length}</span> Total Users
-              </p>
-            </div>
-          </div>
-          <div className="w-full overflow-hidden rounded-[2rem] border border-gray-100 bg-white/80 backdrop-blur-xl shadow-2xl shadow-gray-200/30">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-separate border-spacing-0">
-                <thead>
-                  <tr className="bg-gradient-to-r from-gray-50/80 via-gray-50/40 to-transparent">
-                    <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60 first:rounded-tl-[2rem]">Username</th>
-                    <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60">Linked Employee</th>
-                    <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60">Security Group</th>
-                    <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60">Status</th>
-                    <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60">Last Login</th>
-                    <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60 text-right last:rounded-tr-[2rem]">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50/50">
-                  {users.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-8 py-32 text-center">
-                        <div className="flex flex-col items-center justify-center gap-6">
-                          <div className="w-20 h-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center text-gray-200 shadow-inner">
-                            <MoreHorizontal className="w-10 h-10" />
-                          </div>
-                          <div className="space-y-2">
-                            <p className="text-lg font-bold text-gray-900 tracking-tight">No records found</p>
-                            <p className="text-sm text-gray-400 font-medium max-w-xs mx-auto">We couldn&apos;t find any users matching your current search or filter criteria.</p>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    users.map((item, rowIdx) => (
-                      <tr 
-                        key={item.id || rowIdx} 
-                        className="hover:bg-brand-light/40 transition-all duration-500 group relative"
-                      >
-                        <td className="px-8 py-7 text-sm text-gray-600 font-bold border-b border-gray-50/30 group-last:border-none transition-colors group-hover:text-gray-900">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-brand-light flex items-center justify-center text-brand font-bold text-xs border border-brand/10">
-                              {item.username[0].toUpperCase()}
-                            </div>
-                            <span className="font-bold text-gray-900 tracking-tight font-mono">{item.username}</span>
-                          </div>
-                        </td>
-                        <td className="px-8 py-7 text-sm text-gray-600 font-bold border-b border-gray-50/30 group-last:border-none transition-colors group-hover:text-gray-900">
-                          {item.linkedEmployee}
-                        </td>
-                        <td className="px-8 py-7 text-sm text-gray-600 font-bold border-b border-gray-50/30 group-last:border-none transition-colors group-hover:text-gray-900">
-                          <Badge variant="indigo">{item.group}</Badge>
-                        </td>
-                        <td className="px-8 py-7 text-sm text-gray-600 font-bold border-b border-gray-50/30 group-last:border-none transition-colors group-hover:text-gray-900">
-                          <Badge variant={item.status === 'Active' ? 'green' : 'red'}>{item.status}</Badge>
-                        </td>
-                        <td className="px-8 py-7 text-sm text-gray-600 font-bold border-b border-gray-50/30 group-last:border-none transition-colors group-hover:text-gray-900 font-mono">
-                          {item.lastLogin}
-                        </td>
-                        <td className="px-8 py-7 text-right border-b border-gray-50/30 group-last:border-none">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
-                            <button 
-                              className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-brand hover:bg-white hover:shadow-xl hover:shadow-brand/20 rounded-2xl transition-all duration-300 active:scale-95"
-                              title="View Details"
-                            >
-                              <Eye className="w-4.5 h-4.5" />
-                            </button>
-                            <button 
-                              className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-brand hover:bg-white hover:shadow-xl hover:shadow-brand/20 rounded-2xl transition-all duration-300 active:scale-95"
-                              title="Edit Record"
-                            >
-                              <Edit2 className="w-4.5 h-4.5" />
-                            </button>
-                            <button 
-                              onClick={() => setUsers(users.filter(u => u.id !== item.id))}
-                              className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-rose-600 hover:bg-white hover:shadow-xl hover:shadow-rose-100/50 rounded-2xl transition-all duration-300 active:scale-95"
-                              title="Delete Record"
-                            >
-                              <Trash2 className="w-4.5 h-4.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <div ref={formContainerRef} className="hidden">
-        <div className="bg-white rounded-2xl border-l-[6px] border-brand shadow-2xl shadow-brand/10 overflow-hidden">
-          <div className="p-8 pb-6 flex items-start gap-5">
-            <div className="w-12 h-12 bg-brand-light rounded-xl flex items-center justify-center text-brand">
-              <UserCircle className="w-6 h-6" />
+    <AccessControlShell
+      title="Access Control"
+      subtitle="Manage groups, permissions, and user assignments."
+    >
+      <section className="overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-xl shadow-gray-200/50">
+        <div className="flex flex-col gap-4 border-b border-gray-100 px-5 py-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="rounded-2xl bg-brand-light p-3 text-brand">
+              <UsersIcon className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 tracking-tight">Create New User</h2>
-              <p className="text-sm text-gray-500 mt-1">Assign a username and link it to an existing employee profile.</p>
+              <h2 className="text-2xl font-bold tracking-tight text-gray-900">User Management</h2>
+              <p className="text-base text-gray-500">Create users, assign security groups, and manage credentials.</p>
             </div>
           </div>
 
-          <div className="px-8 pb-8 space-y-8">
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 py-2 px-4 bg-brand-light/50 rounded-lg border border-brand/10">
-                <div className="w-1 h-5 bg-brand rounded-full"></div>
-                <span className="text-sm font-bold text-gray-900 tracking-tight">Account Credentials</span>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Username <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <input type="text" placeholder="e.g. jdoe" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 focus:outline-none transition-all" />
-                    <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Password <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <input type="password" placeholder="••••••••" className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 focus:outline-none transition-all" />
-                    <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Link Employee <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <select className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 focus:outline-none appearance-none transition-all">
-                      <option>Select an employee...</option>
-                      <option>Sarah Jenkins</option>
-                      <option>Michael Chen</option>
-                      <option>Emily Rodriguez</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Security Group <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <select className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 focus:outline-none appearance-none transition-all">
-                      <option>Admin</option>
-                      <option>Developer</option>
-                      <option>HR Manager</option>
-                      <option>Marketing</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  </div>
-                </div>
-              </div>
-            </div>
+          <Button
+            icon={<UserPlus className="h-4 w-4" />}
+            onClick={() => setIsCreateOpen(true)}
+            className="bg-brand hover:bg-brand-hover"
+          >
+            New User
+          </Button>
+        </div>
 
-            <div className="pt-6 border-t border-gray-100 flex items-center justify-end gap-3">
-              <button 
-                onClick={() => setShowForm(false)}
-                className="px-8 py-3 bg-white border border-gray-200 text-gray-500 rounded-xl font-bold hover:bg-gray-50 transition-all"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => setShowForm(false)}
-                className="flex items-center gap-3 px-8 py-3 bg-brand text-white rounded-xl font-bold hover:bg-brand-hover transition-all shadow-lg shadow-brand/20"
-              >
-                <Save className="w-5 h-5" /> Create User
-              </button>
-            </div>
+        <div className="border-b border-gray-100 px-5 py-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <label className="relative block w-full max-w-md">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search users..."
+                className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
+              />
+            </label>
+            <p className="text-sm font-medium text-gray-500">{visibleUsers.length} users found</p>
           </div>
         </div>
-      </div>
-    </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] text-left">
+            <thead className="bg-gray-50/80 text-sm text-gray-500">
+              <tr>
+                <th className="px-6 py-4 font-bold">Full Name</th>
+                <th className="px-6 py-4 font-bold">Username</th>
+                <th className="px-6 py-4 font-bold">Created</th>
+                <th className="px-6 py-4 text-right font-bold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleUsers.map((user) => (
+                <tr key={user.id} className="border-t border-gray-100">
+                  <td className="px-6 py-4 text-lg font-semibold text-gray-900">{user.fullName}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-light text-sm font-bold text-brand">
+                        {user.username[0].toUpperCase()}
+                      </span>
+                      <span className="text-lg text-gray-700">{user.username}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-gray-500">{formatDate(user.createdAt)}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAssigningUserId(user.id);
+                          setSelectedGroupIds(user.groupIds);
+                        }}
+                        className="rounded-2xl border border-gray-200 px-4 py-2 font-semibold text-gray-700 transition-colors hover:border-brand/20 hover:bg-brand-light/40"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          Groups
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setResetUserId(user.id)}
+                        className="rounded-2xl border border-gray-200 px-4 py-2 font-semibold text-gray-700 transition-colors hover:border-brand/20 hover:bg-brand-light/40"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <KeyRound className="h-4 w-4" />
+                          Reset Pwd
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteUser(user.id)}
+                        className="rounded-2xl p-2 text-rose-500 transition-colors hover:bg-rose-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <Modal
+        open={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Create User"
+        description="Create a new user account. Access control is managed via groups."
+      >
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Full Name</label>
+            <input
+              value={createForm.fullName}
+              onChange={(event) => setCreateForm((prev) => ({ ...prev, fullName: event.target.value }))}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Username</label>
+            <input
+              value={createForm.username}
+              onChange={(event) => setCreateForm((prev) => ({ ...prev, username: event.target.value }))}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Initial Password</label>
+            <input
+              type="password"
+              value={createForm.password}
+              onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-3">
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(false)}
+              className="rounded-2xl border border-gray-200 px-5 py-3 font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <Button
+              onClick={() => {
+                if (!createForm.fullName.trim() || !createForm.username.trim() || !createForm.password.trim()) return;
+                createUser(createForm);
+                setCreateForm({ fullName: '', username: '', password: '' });
+                setIsCreateOpen(false);
+              }}
+              className="bg-brand hover:bg-brand-hover"
+            >
+              Create User
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!assigningUser}
+        onClose={() => setAssigningUserId(null)}
+        title="Assign Groups"
+        description={assigningUser ? `Select security groups for ${assigningUser.username}` : ''}
+      >
+        <div className="space-y-4">
+          <div className="max-h-[380px] space-y-3 overflow-auto pr-2">
+            {groups.map((group) => (
+              <label
+                key={group.id}
+                className="flex cursor-pointer items-start gap-4 rounded-2xl border border-gray-200 px-4 py-4 hover:border-brand/20 hover:bg-brand-light/30"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedGroupIds.includes(group.id)}
+                  onChange={(event) =>
+                    setSelectedGroupIds((prev) =>
+                      event.target.checked
+                        ? [...prev, group.id]
+                        : prev.filter((id) => id !== group.id),
+                    )
+                  }
+                  className="mt-1 h-4 w-4 rounded accent-[var(--color-brand)]"
+                />
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">{group.name}</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.25em] text-gray-400">{group.code}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-end gap-3 pt-3">
+            <button
+              type="button"
+              onClick={() => setAssigningUserId(null)}
+              className="rounded-2xl border border-gray-200 px-5 py-3 font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <Button
+              onClick={() => {
+                assignGroupsToUser(assigningUser.id, selectedGroupIds);
+                setAssigningUserId(null);
+              }}
+              className="bg-brand hover:bg-brand-hover"
+            >
+              Save Assignments
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!resetUser}
+        onClose={() => setResetUserId(null)}
+        title="Reset Password"
+        description={resetUser ? `Set a new password for ${resetUser.username}` : ''}
+      >
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">New Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-3">
+            <button
+              type="button"
+              onClick={() => setResetUserId(null)}
+              className="rounded-2xl border border-gray-200 px-5 py-3 font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <Button
+              onClick={() => {
+                if (!password.trim()) return;
+                resetPassword(resetUser.id, password);
+                setPassword('');
+                setResetUserId(null);
+              }}
+              className="bg-brand hover:bg-brand-hover"
+            >
+              Update Password
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </AccessControlShell>
   );
 }
