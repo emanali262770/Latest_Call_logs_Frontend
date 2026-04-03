@@ -228,10 +228,8 @@ function DraggableTreeBranch({
   });
 
   return (
-    <button
+    <div
       ref={ref}
-      type="button"
-      onClick={() => onToggle(node.id)}
       className={cn(
         'relative flex w-full items-center gap-1.5 rounded-xl py-1 text-left hover:bg-gray-50',
         isAvailablePanel && 'cursor-grab',
@@ -242,13 +240,20 @@ function DraggableTreeBranch({
       {depth > 0 ? (
         <span className="pointer-events-none absolute left-0 top-1/2 h-px w-3 -translate-y-1/2 bg-gray-200/90" />
       ) : null}
-      <span className="relative z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-200 bg-white shadow-[0_0_0_1px_rgba(255,255,255,0.9)]">
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onToggle(node.id);
+        }}
+        className="relative z-10 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white shadow-[0_0_0_1px_rgba(255,255,255,0.9)]"
+      >
         {isOpen ? (
           <ChevronDown className="h-3 w-3 text-gray-400" />
         ) : (
           <ChevronRight className="h-3 w-3 text-gray-400" />
         )}
-      </span>
+      </button>
       <TreeNodeCheckbox
         checked={checked}
         indeterminate={indeterminate}
@@ -259,7 +264,7 @@ function DraggableTreeBranch({
       <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold leading-none text-gray-500">
         {count}
       </span>
-    </button>
+    </div>
   );
 }
 
