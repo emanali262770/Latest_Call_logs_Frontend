@@ -10,6 +10,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { getReadPermissionsForPath, hasAnyPermission } from '@/src/lib/auth';
 import gsap from 'gsap';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 
@@ -46,10 +47,20 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const navigate = useNavigate();
   const location = useLocation();
   const pathName = location.pathname;
+  const visibleNavItems = useMemo(
+    () =>
+      navItems.map((item) => ({
+        ...item,
+        visibleSubItems:
+          item.subItems?.filter((subItem) => hasAnyPermission(getReadPermissionsForPath(subItem.path))) || [],
+      })),
+    [],
+  );
+
   const autoExpandedSubMenu = useMemo(
     () =>
-      navItems.find((item) => item.subItems && item.subItems.some((sub) => sub.path === pathName))?.id || null,
-    [pathName],
+      visibleNavItems.find((item) => item.visibleSubItems?.some((sub) => sub.path === pathName))?.id || null,
+    [pathName, visibleNavItems],
   );
   const [manualExpandedSubMenu, setManualExpandedSubMenu] = useState(null);
   const expandedSubMenu = manualExpandedSubMenu ?? autoExpandedSubMenu;
@@ -66,15 +77,20 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   }, [isCollapsed]);
 
   const isItemActive = (item) => {
-    if (item.subItems) {
-      return item.subItems.some((sub) => sub.path === pathName);
+    if (item.visibleSubItems?.length) {
+      return item.visibleSubItems.some((sub) => sub.path === pathName);
     }
 
     return item.path === pathName;
   };
 
   const handleNavClick = (item) => {
-    if (item.subItems) {
+    if (item.subItems?.length) {
+      if (!item.visibleSubItems?.length) {
+        navigate('/access-denied');
+        return;
+      }
+
       if (isCollapsed) {
         setIsCollapsed(false);
         setManualExpandedSubMenu(item.id);
@@ -82,7 +98,12 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         setManualExpandedSubMenu(expandedSubMenu === item.id ? null : item.id);
       }
     } else {
-      navigate(item.path);
+      if (hasAnyPermission(getReadPermissionsForPath(item.path))) {
+        navigate(item.path);
+        return;
+      }
+
+      navigate('/access-denied');
     }
   };
 
@@ -109,7 +130,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
       </div>
 
       <nav className="flex-1 px-4 space-y-2 mt-4">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <div key={item.id}>
             <button
               type="button"
@@ -130,7 +151,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
               {!isCollapsed && (
                 <span className="font-medium flex-1 text-left">{item.label}</span>
               )}
-              {!isCollapsed && item.subItems && (
+              {!isCollapsed && item.visibleSubItems?.length > 0 && (
                 <ChevronRight className={cn(
                   "w-4 h-4 transition-transform duration-200",
                   expandedSubMenu === item.id && "rotate-90"
@@ -139,7 +160,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
             </button>
 
             <AnimatePresence>
-              {!isCollapsed && item.subItems && expandedSubMenu === item.id && (
+              {!isCollapsed && item.visibleSubItems?.length > 0 && expandedSubMenu === item.id && (
                 <Motion.div 
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
@@ -147,7 +168,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                   transition={{ duration: 0.3, ease: 'easeInOut' }}
                   className="ml-9 mt-2 space-y-1 overflow-hidden"
                 >
-                  {item.subItems.map((sub) => (
+                  {item.visibleSubItems.map((sub) => (
                     <button
                       type="button"
                       key={sub.id}

@@ -25,6 +25,7 @@ import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { revealForm } from '@/src/animations/gsapAnimations';
+import { useAccessControl } from '@/src/context/AccessControlContext';
 import { employeeService } from '@/src/services/employee.service';
 import { bankService } from '@/src/services/bank.service';
 import { departmentService } from '@/src/services/department.service';
@@ -158,6 +159,7 @@ export default function Employees() {
   const formContainerRef = useRef(null);
   const fileInputRef = useRef(null);
   const { toasts, toast, removeToast } = useThemeToast();
+  const { loadUsers } = useAccessControl();
 
   const canCreate = hasPermission('employees.create');
   const canEdit = hasPermission('employees.update');
@@ -324,7 +326,10 @@ export default function Employees() {
       await employeeService.remove(deleteTarget.id);
       toast.success('Employee deleted', 'The employee record has been removed.');
       setDeleteTarget(null);
-      await loadEmployees(searchQuery.trim());
+      await Promise.all([
+        loadEmployees(searchQuery.trim()),
+        loadUsers(),
+      ]);
     } catch (requestError) {
       toast.error('Delete failed', requestError.message || 'Could not delete employee.');
     }
@@ -395,7 +400,10 @@ export default function Employees() {
         toast.success('Employee created', createdMessage);
       }
 
-      await loadEmployees(searchQuery.trim());
+      await Promise.all([
+        loadEmployees(searchQuery.trim()),
+        loadUsers(),
+      ]);
       closeForm();
     } catch (requestError) {
       const message = requestError.message || 'Could not save employee record.';
@@ -451,7 +459,10 @@ export default function Employees() {
 
       toast.success('Software user created', response?.message || 'User account created successfully.');
       closeForm();
-      await loadEmployees(searchQuery.trim());
+      await Promise.all([
+        loadEmployees(searchQuery.trim()),
+        loadUsers(),
+      ]);
     } catch (requestError) {
       const message = requestError.message || 'Could not create software user.';
       setApiError(message);

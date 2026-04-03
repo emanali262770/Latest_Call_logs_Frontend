@@ -4,7 +4,7 @@ import { AccessControlShell } from '@/src/components/access-control/AccessContro
 import { useAccessControl } from '@/src/context/AccessControlContext';
 
 export default function Permissions() {
-  const { permissionCatalog } = useAccessControl();
+  const { permissionCatalog, permissionsLoading, permissionsError } = useAccessControl();
   const [query, setQuery] = useState('');
 
   const filteredCatalog = useMemo(() => {
@@ -54,36 +54,46 @@ export default function Permissions() {
           </div>
 
           <div className="grid gap-4 xl:grid-cols-3">
-            {filteredCatalog.map((section) => (
-              <div
-                key={section.id}
-                className="overflow-hidden rounded-[1.6rem] border border-gray-200 bg-white"
-              >
-                <div className="flex items-center justify-between border-b border-gray-100 px-4 py-4">
-                  <div>
-                    <h3 className="text-xl font-bold tracking-tight text-gray-900">{section.title}</h3>
-                    <p className="text-sm text-gray-500">{section.permissions.length} permissions</p>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
-                </div>
-
-                <div className="max-h-[280px] overflow-auto">
-                  {section.permissions.map((permission) => (
-                    <div key={permission.id} className="border-b border-gray-100 px-4 py-3 last:border-b-0">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-bold uppercase tracking-tight text-gray-700">
-                          {permission.subject}
-                        </p>
-                        <span className="rounded-md bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                          {permission.action}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-xs font-medium text-gray-400">{permission.key}</p>
-                    </div>
-                  ))}
-                </div>
+            {permissionsLoading ? (
+              <div className="xl:col-span-3 rounded-[1.6rem] border border-gray-200 bg-white px-4 py-8 text-center text-sm font-medium text-gray-500">
+                Loading permissions...
               </div>
-            ))}
+            ) : permissionsError ? (
+              <div className="xl:col-span-3 rounded-[1.6rem] border border-rose-100 bg-rose-50 px-4 py-4 text-sm font-medium text-rose-700">
+                {permissionsError}
+              </div>
+            ) : (
+              filteredCatalog.map((section) => (
+                <div
+                  key={section.id}
+                  className="overflow-hidden rounded-[1.6rem] border border-gray-200 bg-white"
+                >
+                  <div className="flex items-center justify-between border-b border-gray-100 px-4 py-4">
+                    <div>
+                      <h3 className="text-xl font-bold tracking-tight text-gray-900">{section.title}</h3>
+                      <p className="text-sm text-gray-500">{section.permissions.length} permissions</p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-gray-400" />
+                  </div>
+
+                  <div className="max-h-[280px] overflow-auto">
+                    {section.permissions.map((permission) => (
+                      <div key={permission.id} className="border-b border-gray-100 px-4 py-3 last:border-b-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-bold uppercase tracking-tight text-gray-700">
+                            {permission.subject}
+                          </p>
+                          <span className="rounded-md bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                            {permission.action}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs font-medium text-gray-400">{permission.key}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </section>

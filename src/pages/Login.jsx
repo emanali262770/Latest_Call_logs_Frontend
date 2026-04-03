@@ -63,8 +63,8 @@ export default function Login({ onLogin }) {
         password,
       });
 
-      const authData = response?.data || {};
-      const token = authData?.token;
+      const authData = response?.data ? response.data : response;
+      const token = authData?.token || authData?.data?.token;
 
       if (!token) {
         throw new Error('Login succeeded but token was not returned by API.');

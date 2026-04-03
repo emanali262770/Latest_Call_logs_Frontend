@@ -42,7 +42,17 @@ export function AccessControlShell({ title, subtitle, children }) {
   );
 }
 
-export function Modal({ open, title, description, onClose, children, widthClass = 'max-w-lg' }) {
+export function Modal({
+  open,
+  title,
+  description,
+  onClose,
+  children,
+  widthClass = 'max-w-lg',
+  titleClassName = '',
+  descriptionClassName = '',
+  bodyClassName = '',
+}) {
   if (!open) return null;
 
   return createPortal(
@@ -56,8 +66,10 @@ export function Modal({ open, title, description, onClose, children, widthClass 
       <div className={cn('relative z-10 w-full rounded-[2rem] bg-white shadow-2xl', widthClass)}>
         <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">{title}</h2>
-            {description ? <p className="mt-1 text-base text-gray-500">{description}</p> : null}
+            <h2 className={cn('text-2xl font-bold tracking-tight text-gray-900', titleClassName)}>{title}</h2>
+            {description ? (
+              <p className={cn('mt-1 text-base text-gray-500', descriptionClassName)}>{description}</p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -67,7 +79,7 @@ export function Modal({ open, title, description, onClose, children, widthClass 
             ×
           </button>
         </div>
-        <div className="px-6 py-5">{children}</div>
+        <div className={cn('px-6 py-5', bodyClassName)}>{children}</div>
       </div>
     </div>,
     document.body,

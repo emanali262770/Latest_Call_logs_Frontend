@@ -13,35 +13,43 @@ import {
 } from 'lucide-react';
 import { Button } from '@/src/components/ui/Card';
 import { AccessControlShell, Modal } from '@/src/components/access-control/AccessControlShell';
+import TableLoader from '@/src/components/ui/TableLoader';
+import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useAccessControl } from '@/src/context/AccessControlContext';
+import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { cn } from '@/src/lib/utils';
 
 const ASSIGNED_DROP_ID = 'assigned-group-permissions';
+
+function arePermissionListsEqual(left = [], right = []) {
+  if (left.length !== right.length) return false;
+
+  const leftSorted = [...left].sort((a, b) => String(a).localeCompare(String(b)));
+  const rightSorted = [...right].sort((a, b) => String(a).localeCompare(String(b)));
+
+  return leftSorted.every((permissionId, index) => permissionId === rightSorted[index]);
+}
 
 function countLeaves(node) {
   if (!node.children?.length) return 1;
   return node.children.reduce((sum, child) => sum + countLeaves(child), 0);
 }
 
-function filterTree(nodes, query, assignedSet, showAssigned) {
+function collectLeafIds(node) {
+  if (!node.children?.length) return [node.id];
+
+  return node.children.flatMap((child) => collectLeafIds(child));
+}
+
+function filterTree(nodes, query) {
   return nodes
     .map((node) => {
       if (!node.children?.length) {
-        const matchesText = !query || node.label.toLowerCase().includes(query);
-        const matchesSide = showAssigned ? assignedSet.has(node.id) : !assignedSet.has(node.id);
-        return matchesText && matchesSide ? node : null;
+        return !query || node.label.toLowerCase().includes(query) ? node : null;
       }
 
-      const children = filterTree(node.children, query, assignedSet, showAssigned);
+      const children = filterTree(node.children, query);
       const matchesSelf = !query || node.label.toLowerCase().includes(query);
-
-      if (showAssigned) {
-        if (children.length) {
-          return { ...node, children };
-        }
-
-        return null;
-      }
 
       if (matchesSelf || children.length) {
         return { ...node, children };
@@ -50,6 +58,50 @@ function filterTree(nodes, query, assignedSet, showAssigned) {
       return null;
     })
     .filter(Boolean);
+}
+
+function buildPermissionTree(items) {
+  const moduleMap = new Map();
+
+  items.forEach((permission) => {
+    if (!moduleMap.has(permission.module)) {
+      moduleMap.set(permission.module, {
+        id: permission.module.toLowerCase(),
+        label: permission.module,
+        children: [],
+        subModuleMap: new Map(),
+      });
+    }
+
+    const moduleNode = moduleMap.get(permission.module);
+
+    if (!moduleNode.subModuleMap.has(permission.subModule)) {
+      const subModuleNode = {
+        id: `${permission.module.toLowerCase()}-${permission.subModule.toLowerCase()}`,
+        label: permission.subModule,
+        children: [],
+      };
+
+      moduleNode.subModuleMap.set(permission.subModule, subModuleNode);
+      moduleNode.children.push(subModuleNode);
+    }
+
+    const subModuleNode = moduleNode.subModuleMap.get(permission.subModule);
+    subModuleNode.children.push({
+      id: permission.id,
+      label: permission.action,
+      key: permission.key,
+      description: permission.description,
+    });
+  });
+
+  return Array.from(moduleMap.values()).map(({ subModuleMap, ...moduleNode }) => ({
+    ...moduleNode,
+    children: moduleNode.children.map((subModuleNode) => ({
+      ...subModuleNode,
+      children: subModuleNode.children.sort((left, right) => left.label.localeCompare(right.label)),
+    })),
+  }));
 }
 
 function AssignedDropPanel({ children }) {
@@ -128,6 +180,89 @@ function TreeLeafRow({ node, isAssigned, onAssign, onRemove, panel, activeId, de
   );
 }
 
+function TreeNodeCheckbox({ checked, indeterminate, onChange }) {
+  return (
+    <input
+      type="checkbox"
+      checked={checked}
+      ref={(element) => {
+        if (element) {
+          element.indeterminate = indeterminate;
+        }
+      }}
+      onClick={(event) => event.stopPropagation()}
+      onChange={(event) => {
+        event.stopPropagation();
+        onChange(event);
+      }}
+      className="h-4 w-4 rounded accent-[var(--color-brand)]"
+    />
+  );
+}
+
+function DraggableTreeBranch({
+  node,
+  isOpen,
+  depth,
+  count,
+  checked,
+  indeterminate,
+  onToggle,
+  onCheckChange,
+  panel,
+  activeId,
+  permissionIds,
+}) {
+  const draggableId = `permission-group:${node.id}`;
+  const isAvailablePanel = panel === 'available';
+  const { ref, isDragging } = useDraggable({
+    id: draggableId,
+    disabled: !isAvailablePanel,
+    data: {
+      type: 'permission-group',
+      permissionIds,
+      label: node.label,
+      panel,
+      count,
+    },
+  });
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={() => onToggle(node.id)}
+      className={cn(
+        'relative flex w-full items-center gap-1.5 rounded-xl py-1 text-left hover:bg-gray-50',
+        isAvailablePanel && 'cursor-grab',
+        (isDragging || activeId === draggableId) && 'opacity-40',
+      )}
+      style={{ paddingLeft: depth > 0 ? '20px' : '0px' }}
+    >
+      {depth > 0 ? (
+        <span className="pointer-events-none absolute left-0 top-1/2 h-px w-3 -translate-y-1/2 bg-gray-200/90" />
+      ) : null}
+      <span className="relative z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-200 bg-white shadow-[0_0_0_1px_rgba(255,255,255,0.9)]">
+        {isOpen ? (
+          <ChevronDown className="h-3 w-3 text-gray-400" />
+        ) : (
+          <ChevronRight className="h-3 w-3 text-gray-400" />
+        )}
+      </span>
+      <TreeNodeCheckbox
+        checked={checked}
+        indeterminate={indeterminate}
+        onChange={onCheckChange}
+      />
+      <Folder className="h-[14px] w-[14px] text-brand" />
+      <span className="text-[11px] font-bold tracking-tight text-gray-800">{node.label}</span>
+      <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold leading-none text-gray-500">
+        {count}
+      </span>
+    </button>
+  );
+}
+
 function PermissionTree({
   nodes,
   expanded,
@@ -145,6 +280,27 @@ function PermissionTree({
         const isLeaf = !node.children?.length;
         const isOpen = expanded[node.id] ?? true;
         const isAssigned = assignedSet.has(node.id);
+        const descendantLeafIds = isLeaf ? [node.id] : collectLeafIds(node);
+        const assignedLeafCount = descendantLeafIds.filter((id) => assignedSet.has(id)).length;
+        const isNodeChecked = assignedLeafCount > 0 && assignedLeafCount === descendantLeafIds.length;
+        const isNodeIndeterminate = assignedLeafCount > 0 && assignedLeafCount < descendantLeafIds.length;
+
+        const handleNodeCheckboxChange = () => {
+          const shouldAssign = !isNodeChecked;
+
+          descendantLeafIds.forEach((permissionId) => {
+            if (shouldAssign) {
+              if (!assignedSet.has(permissionId)) {
+                onAssign(permissionId);
+              }
+              return;
+            }
+
+            if (assignedSet.has(permissionId)) {
+              onRemove(permissionId);
+            }
+          });
+        };
 
         if (isLeaf) {
           return (
@@ -163,34 +319,19 @@ function PermissionTree({
 
         return (
           <li key={node.id} className="relative list-none">
-            <button
-              type="button"
-              onClick={() => onToggle(node.id)}
-              className="relative flex w-full items-center gap-1.5 rounded-xl py-1 text-left hover:bg-gray-50"
-              style={{ paddingLeft: depth > 0 ? '20px' : '0px' }}
-            >
-              {depth > 0 ? (
-                <span className="pointer-events-none absolute left-0 top-1/2 h-px w-3 -translate-y-1/2 bg-gray-200/90" />
-              ) : null}
-              <span className="relative z-10 flex h-4 w-4 items-center justify-center rounded-full border border-gray-200 bg-white shadow-[0_0_0_1px_rgba(255,255,255,0.9)]">
-                {isOpen ? (
-                  <ChevronDown className="h-3 w-3 text-gray-400" />
-                ) : (
-                  <ChevronRight className="h-3 w-3 text-gray-400" />
-                )}
-              </span>
-              <input
-                type="checkbox"
-                checked={isAssigned}
-                onChange={() => (panel === 'available' ? onAssign(node.id) : onRemove(node.id))}
-                className="h-4 w-4 rounded accent-[var(--color-brand)]"
-              />
-              <Folder className="h-[14px] w-[14px] text-brand" />
-              <span className="text-[11px] font-bold tracking-tight text-gray-800">{node.label}</span>
-              <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold leading-none text-gray-500">
-                {countLeaves(node)}
-              </span>
-            </button>
+            <DraggableTreeBranch
+              node={node}
+              isOpen={isOpen}
+              depth={depth}
+              count={countLeaves(node)}
+              checked={isNodeChecked}
+              indeterminate={isNodeIndeterminate}
+              onToggle={onToggle}
+              onCheckChange={handleNodeCheckboxChange}
+              panel={panel}
+              activeId={activeId}
+              permissionIds={descendantLeafIds}
+            />
 
             {isOpen ? (
               <div className="relative ml-[7px] pl-[13px]">
@@ -222,6 +363,7 @@ function DragPermissionOverlay({ activeDragItem }) {
         activeDragItem ? (
           <div className="min-w-56 rounded-2xl border-2 border-brand bg-white px-5 py-3 text-lg font-bold tracking-tight text-gray-800 shadow-2xl shadow-brand/20">
             {activeDragItem.label}
+            {activeDragItem.count > 1 ? ` (${activeDragItem.count})` : ''}
           </div>
         ) : null
       }
@@ -232,10 +374,16 @@ function DragPermissionOverlay({ activeDragItem }) {
 export default function Groups() {
   const {
     groups,
-    permissionTree,
     createGroup,
+    loadGroups,
+    loadGroupPermissions,
+    savedGroupPermissions,
+    groupPermissionsByGroup,
+    groupPermissionsLoadingByGroup,
+    groupPermissionsErrorByGroup,
     assignPermissionToGroup,
     removePermissionFromGroup,
+    saveGroupPermissions,
   } = useAccessControl();
   const [selectedGroupId, setSelectedGroupId] = useState(groups[0]?.id || '');
   const [availableExpanded, setAvailableExpanded] = useState({});
@@ -244,27 +392,54 @@ export default function Groups() {
   const [assignedSearch, setAssignedSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
+  const [createError, setCreateError] = useState('');
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [activeDragItem, setActiveDragItem] = useState(null);
   const [activeDragId, setActiveDragId] = useState(null);
   const [animatedAssignedCount, setAnimatedAssignedCount] = useState(0);
   const [availableCollapsed, setAvailableCollapsed] = useState(false);
   const [assignedCollapsed, setAssignedCollapsed] = useState(false);
+  const [isSavingPermissions, setIsSavingPermissions] = useState(false);
+  const { toasts, toast, removeToast } = useThemeToast();
 
   const selectedGroup = groups.find((group) => group.id === selectedGroupId) || groups[0];
-  const assignedSet = useMemo(() => new Set(selectedGroup?.permissions || []), [selectedGroup]);
+  const currentGroupPermissions = groupPermissionsByGroup[selectedGroup?.id] || {
+    availableItems: [],
+    assignedItems: [],
+    savedAssignedIds: [],
+  };
+  const availableSourceTree = useMemo(
+    () => buildPermissionTree(currentGroupPermissions.availableItems),
+    [currentGroupPermissions.availableItems],
+  );
+  const assignedSourceTree = useMemo(
+    () => buildPermissionTree(currentGroupPermissions.assignedItems),
+    [currentGroupPermissions.assignedItems],
+  );
+  const assignedSet = useMemo(
+    () => new Set(currentGroupPermissions.assignedItems.map((permission) => permission.id)),
+    [currentGroupPermissions.assignedItems],
+  );
+  const savedPermissions = savedGroupPermissions[selectedGroup?.id] || [];
+  const groupPermissionsLoading = groupPermissionsLoadingByGroup[selectedGroup?.id] ?? false;
+  const groupPermissionsError = groupPermissionsErrorByGroup[selectedGroup?.id] || '';
+  const hasUnsavedChanges = useMemo(
+    () => !arePermissionListsEqual(currentGroupPermissions.assignedItems.map((item) => item.id), savedPermissions),
+    [currentGroupPermissions.assignedItems, savedPermissions],
+  );
 
   const availableTree = useMemo(
-    () => filterTree(permissionTree, availableSearch.trim().toLowerCase(), assignedSet, false),
-    [availableSearch, assignedSet, permissionTree],
+    () => filterTree(availableSourceTree, availableSearch.trim().toLowerCase()),
+    [availableSearch, availableSourceTree],
   );
 
   const assignedTree = useMemo(
-    () => filterTree(permissionTree, assignedSearch.trim().toLowerCase(), assignedSet, true),
-    [assignedSearch, assignedSet, permissionTree],
+    () => filterTree(assignedSourceTree, assignedSearch.trim().toLowerCase()),
+    [assignedSearch, assignedSourceTree],
   );
 
   useEffect(() => {
-    const nextCount = selectedGroup?.permissions.length || 0;
+    const nextCount = currentGroupPermissions.assignedItems.length || 0;
 
     if (animatedAssignedCount === nextCount) return;
 
@@ -294,7 +469,7 @@ export default function Groups() {
     }, 60);
 
     return () => window.clearInterval(interval);
-  }, [animatedAssignedCount, selectedGroup]);
+  }, [animatedAssignedCount, currentGroupPermissions.assignedItems.length]);
 
   const handleToggle = (id) => {
     setAvailableExpanded((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }));
@@ -323,21 +498,75 @@ export default function Groups() {
   const handleAvailableCollapseToggle = () => {
     const next = !availableCollapsed;
     setAvailableCollapsed(next);
-    setTreeExpansion(permissionTree, next, setAvailableExpanded);
+    setTreeExpansion(availableSourceTree, next, setAvailableExpanded);
   };
 
   const handleAssignedCollapseToggle = () => {
     const next = !assignedCollapsed;
     setAssignedCollapsed(next);
-    setTreeExpansion(permissionTree, next, setAssignedExpanded);
+    setTreeExpansion(assignedSourceTree, next, setAssignedExpanded);
   };
 
-  const handleCreateGroup = () => {
-    if (!form.name.trim()) return;
-    const nextId = createGroup(form);
-    setSelectedGroupId(nextId);
-    setForm({ name: '', description: '' });
+  useEffect(() => {
+    if (!selectedGroupId && groups[0]?.id) {
+      setSelectedGroupId(groups[0].id);
+    }
+  }, [groups, selectedGroupId]);
+
+  useEffect(() => {
+    if (!selectedGroup?.id) return;
+    loadGroupPermissions(selectedGroup.id).catch(() => {});
+  }, [loadGroupPermissions, selectedGroup?.id]);
+
+  const closeCreateModal = () => {
     setIsModalOpen(false);
+    setForm({ name: '', description: '' });
+    setCreateError('');
+  };
+
+  const handleCreateGroup = async () => {
+    if (!form.name.trim()) {
+      setCreateError('Group name is required.');
+      return;
+    }
+
+    setCreateError('');
+    setIsCreatingGroup(true);
+
+    try {
+      const response = await createGroup(form);
+      await loadGroups();
+
+      const createdGroupId = response?.data?.id;
+      if (createdGroupId) {
+        setSelectedGroupId(createdGroupId);
+      }
+
+      toast.success('Group created', response?.message || 'Group created successfully.');
+      closeCreateModal();
+    } catch (requestError) {
+      const message = requestError.message || 'Could not create group.';
+      setCreateError(message);
+      toast.error('Create group failed', message);
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  };
+
+  const handleSavePermissions = async () => {
+    if (!selectedGroup?.id || isSavingPermissions || !hasUnsavedChanges) return;
+
+    setIsSavingPermissions(true);
+
+    try {
+      const response = await saveGroupPermissions(selectedGroup.id);
+      await loadGroupPermissions(selectedGroup.id);
+      toast.success('Permissions saved', response?.message || 'Group permissions updated successfully.');
+    } catch (requestError) {
+      toast.error('Save failed', requestError.message || 'Could not update group permissions.');
+    } finally {
+      setIsSavingPermissions(false);
+    }
   };
 
   return (
@@ -348,18 +577,40 @@ export default function Groups() {
       <DragDropProvider
         onDragStart={(event) => {
           const permissionId = event.operation.source?.data?.permissionId;
+          const permissionIds = event.operation.source?.data?.permissionIds;
           const label = event.operation.source?.data?.label;
-          if (permissionId) {
+          const count =
+            Array.isArray(permissionIds) && permissionIds.length
+              ? permissionIds.length
+              : permissionId
+                ? 1
+                : 0;
+
+          if (permissionId || count > 0) {
             setActiveDragId(event.operation.source.id);
-            setActiveDragItem({ permissionId, label });
+            setActiveDragItem({
+              permissionId,
+              permissionIds,
+              label,
+              count,
+            });
           }
         }}
         onDragEnd={(event) => {
           const permissionId = event.operation.source?.data?.permissionId;
+          const permissionIds = event.operation.source?.data?.permissionIds;
           const targetId = event.operation.target?.id;
 
-          if (!event.canceled && permissionId && targetId === ASSIGNED_DROP_ID) {
-            assignPermissionToGroup(selectedGroup.id, permissionId);
+          if (!event.canceled && targetId === ASSIGNED_DROP_ID) {
+            if (Array.isArray(permissionIds) && permissionIds.length) {
+              permissionIds.forEach((id) => {
+                if (!assignedSet.has(id)) {
+                  assignPermissionToGroup(selectedGroup.id, id);
+                }
+              });
+            } else if (permissionId) {
+              assignPermissionToGroup(selectedGroup.id, permissionId);
+            }
           }
 
           setActiveDragItem(null);
@@ -424,8 +675,14 @@ export default function Groups() {
                 </div>
               </div>
 
-              <Button icon={<Save className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover text-[14px]">
-                Save Changes
+              <Button
+                icon={<Save className="h-4 w-4" />}
+                isLoading={isSavingPermissions}
+                disabled={!selectedGroup?.id || !hasUnsavedChanges}
+                onClick={handleSavePermissions}
+                className="bg-brand hover:bg-brand-hover text-[14px]"
+              >
+                {isSavingPermissions ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
 
@@ -457,16 +714,24 @@ export default function Groups() {
                   />
                 </label>
                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-[1.4rem] border border-gray-100 bg-gray-50/40 p-3">
-                  <PermissionTree
-                    nodes={availableTree}
-                    expanded={availableExpanded}
-                    onToggle={handleToggle}
-                    assignedSet={assignedSet}
-                    panel="available"
-                    onAssign={(permissionId) => assignPermissionToGroup(selectedGroup.id, permissionId)}
-                    onRemove={(permissionId) => removePermissionFromGroup(selectedGroup.id, permissionId)}
-                    activeId={activeDragId}
-                  />
+                  {groupPermissionsLoading ? (
+                    <TableLoader label="Loading permissions..." />
+                  ) : groupPermissionsError ? (
+                    <div className="flex h-full min-h-[320px] items-center justify-center text-center text-sm font-medium text-rose-600">
+                      {groupPermissionsError}
+                    </div>
+                  ) : (
+                    <PermissionTree
+                      nodes={availableTree}
+                      expanded={availableExpanded}
+                      onToggle={handleToggle}
+                      assignedSet={assignedSet}
+                      panel="available"
+                      onAssign={(permissionId) => assignPermissionToGroup(selectedGroup.id, permissionId)}
+                      onRemove={(permissionId) => removePermissionFromGroup(selectedGroup.id, permissionId)}
+                      activeId={activeDragId}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -486,12 +751,12 @@ export default function Groups() {
                         <ChevronsUpDown className="h-3.5 w-3.5" />
                         {assignedCollapsed ? 'Expand' : 'Collapse'}
                       </button>
-                      {!!selectedGroup?.permissions.length && (
+                      {!!currentGroupPermissions.assignedItems.length && (
                         <button
                           type="button"
                           onClick={() =>
-                            selectedGroup.permissions.forEach((permissionId) =>
-                              removePermissionFromGroup(selectedGroup.id, permissionId),
+                            currentGroupPermissions.assignedItems.forEach((permission) =>
+                              removePermissionFromGroup(selectedGroup.id, permission.id),
                             )
                           }
                           className="inline-flex items-center gap-1.5 text-[12px] font-medium text-rose-500 hover:text-rose-600"
@@ -513,7 +778,15 @@ export default function Groups() {
                   />
                 </label>
                 <AssignedDropPanel>
-                  {assignedTree.length ? (
+                  {groupPermissionsLoading ? (
+                    <div className="flex h-full min-h-[320px] items-center justify-center text-center">
+                      <TableLoader label="Loading permissions..." />
+                    </div>
+                  ) : groupPermissionsError ? (
+                    <div className="flex h-full min-h-[320px] items-center justify-center text-center text-sm font-medium text-rose-600">
+                      {groupPermissionsError}
+                    </div>
+                  ) : assignedTree.length ? (
                     <PermissionTree
                       nodes={assignedTree}
                       expanded={assignedExpanded}
@@ -541,7 +814,7 @@ export default function Groups() {
 
       <Modal
         open={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={closeCreateModal}
         title="Create New Group"
         description="Add a new role group to the system."
       >
@@ -550,7 +823,10 @@ export default function Groups() {
             <label className="text-sm font-semibold text-gray-700">Group Name</label>
             <input
               value={form.name}
-              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+              onChange={(event) => {
+                setForm((prev) => ({ ...prev, name: event.target.value }));
+                if (createError) setCreateError('');
+              }}
               placeholder="e.g. Billing Clerk"
               className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
             />
@@ -559,25 +835,36 @@ export default function Groups() {
             <label className="text-sm font-semibold text-gray-700">Description</label>
             <input
               value={form.description}
-              onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+              onChange={(event) => {
+                setForm((prev) => ({ ...prev, description: event.target.value }));
+                if (createError) setCreateError('');
+              }}
               placeholder="Optional description"
               className="w-full rounded-2xl border border-gray-200 px-4 py-3 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
             />
           </div>
+          {createError ? (
+            <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+              {createError}
+            </div>
+          ) : null}
           <div className="flex justify-end gap-3 pt-3">
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
+              onClick={closeCreateModal}
+              disabled={isCreatingGroup}
               className="rounded-2xl border border-gray-200 px-5 py-3 font-semibold text-gray-600 hover:bg-gray-50"
             >
               Cancel
             </button>
-            <Button onClick={handleCreateGroup} className="bg-brand hover:bg-brand-hover">
-              Create Group
+            <Button onClick={handleCreateGroup} disabled={isCreatingGroup} className="bg-brand hover:bg-brand-hover">
+              {isCreatingGroup ? 'Creating...' : 'Create Group'}
             </Button>
           </div>
         </div>
       </Modal>
+
+      <ThemeToastViewport toasts={toasts} onClose={removeToast} />
     </AccessControlShell>
   );
 }

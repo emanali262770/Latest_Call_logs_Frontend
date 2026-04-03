@@ -5,8 +5,26 @@ import {
   Sun,
   LogOut
 } from 'lucide-react';
+import { getStoredUser } from '@/src/lib/auth';
+
+function getInitials(name, username) {
+  const source = String(name || username || '').trim();
+  if (!source) return 'U';
+
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase();
+  }
+
+  return source.slice(0, 2).toUpperCase();
+}
 
 export default function Navbar({ darkMode, setDarkMode, onLogout }) {
+  const user = getStoredUser();
+  const fullName = user?.fullName || user?.username || 'User';
+  const role = user?.role || 'Logged In User';
+  const initials = getInitials(user?.fullName, user?.username);
+
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 z-40 sticky top-0">
       <div className="flex items-center flex-1">
@@ -45,11 +63,11 @@ export default function Navbar({ darkMode, setDarkMode, onLogout }) {
 
         <div className="flex items-center gap-3 group cursor-pointer">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-semibold text-gray-900 leading-none">Eman Ali</p>
-            <p className="text-xs text-gray-500 mt-1">Super Admin</p>
+            <p className="text-sm font-semibold text-gray-900 leading-none">{fullName}</p>
+            <p className="text-xs text-gray-500 mt-1">{role}</p>
           </div>
           <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-bold border-2 border-white shadow-sm group-hover:shadow-md transition-all">
-            EA
+            {initials}
           </div>
         </div>
       </div>
