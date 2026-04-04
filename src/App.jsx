@@ -14,6 +14,13 @@ import DesignationSetup from './pages/setup/DesignationSetup';
 import EmployeeTypeSetup from './pages/setup/EmployeeTypeSetup';
 import DutyShiftSetup from './pages/setup/DutyShiftSetup';
 import BankSetup from './pages/setup/BankSetup';
+import ItemTypesSetup from './pages/setup/ItemTypesSetup';
+import CategoriesSetup from './pages/setup/CategoriesSetup';
+import SubCategoriesSetup from './pages/setup/SubCategoriesSetup';
+import ManufacturersSetup from './pages/setup/ManufacturersSetup';
+import UnitsSetup from './pages/setup/UnitsSetup';
+import LocationsSetup from './pages/setup/LocationsSetup';
+import ItemDefinition from './pages/stock/ItemDefinition';
 import { AccessControlProvider } from './context/AccessControlContext';
 import {
   clearAuthToken,
@@ -114,6 +121,13 @@ export default function App() {
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/banks')} />}>
             <Route path="/setup/banks" element={<BankSetup />} />
           </Route>
+          <Route path="/setup/items/item-types" element={<ItemTypesSetup />} />
+          <Route path="/setup/items/categories" element={<CategoriesSetup />} />
+          <Route path="/setup/items/sub-categories" element={<SubCategoriesSetup />} />
+          <Route path="/setup/items/manufacturers" element={<ManufacturersSetup />} />
+          <Route path="/setup/items/units" element={<UnitsSetup />} />
+          <Route path="/setup/items/locations" element={<LocationsSetup />} />
+          <Route path="/stock/item-definition" element={<ItemDefinition />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>

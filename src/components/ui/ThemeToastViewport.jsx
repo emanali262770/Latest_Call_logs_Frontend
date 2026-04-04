@@ -1,4 +1,5 @@
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 
 const TOAST_THEME = {
   success: {
@@ -24,8 +25,8 @@ const TOAST_THEME = {
 export default function ThemeToastViewport({ toasts, onClose }) {
   if (!toasts.length) return null;
 
-  return (
-    <div className="fixed top-5 right-5 z-[95] w-[min(92vw,24rem)] space-y-3">
+  return createPortal(
+    <div className="fixed top-5 right-5 z-[130] w-[min(92vw,24rem)] space-y-3">
       {toasts.map((item) => {
         const theme = TOAST_THEME[item.type] || TOAST_THEME.info;
         const Icon = theme.icon;
@@ -51,6 +52,7 @@ export default function ThemeToastViewport({ toasts, onClose }) {
           </div>
         );
       })}
-    </div>
+    </div>,
+    document.body,
   );
 }

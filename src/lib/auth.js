@@ -3,7 +3,7 @@ const TOKEN_KEY = 'cms_token';
 const LEGACY_TOKEN_KEYS = ['auth_token', 'token', 'access_token'];
 const PERMISSIONS_KEY = 'cms_permissions';
 const USER_KEY = 'cms_user';
-const UNPROTECTED_PATHS = new Set(['dashboard', 'settings', 'access-denied', 'login']);
+const UNPROTECTED_PATHS = new Set(['dashboard', 'settings', 'access-denied', 'login', 'stock']);
 
 function resolveAuthPayload(authData) {
   if (authData?.token || authData?.user || authData?.permissions) {
@@ -27,6 +27,13 @@ export function setStoredAuthState(value) {
 
 export function clearStoredAuthState() {
   localStorage.removeItem(AUTH_KEY);
+}
+
+export function clearAuthSession() {
+  clearAuthToken();
+  clearStoredPermissions();
+  clearStoredUser();
+  clearStoredAuthState();
 }
 
 export function getAuthToken() {
@@ -259,13 +266,17 @@ export function getReadPermissionForPath(path) {
   const segments = normalizePathSegments(path);
   if (!segments.length) return null;
 
-  const [firstSegment, secondSegment] = segments;
+  const [firstSegment, secondSegment, thirdSegment] = segments;
 
   if (UNPROTECTED_PATHS.has(firstSegment)) {
     return null;
   }
 
   if (firstSegment === 'setup' && secondSegment) {
+    if (secondSegment === 'items' && thirdSegment) {
+      return null;
+    }
+
     return `EMPLOYEE.${normalizePermissionKey(secondSegment)}.READ`;
   }
 

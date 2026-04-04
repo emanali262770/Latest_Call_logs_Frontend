@@ -17,6 +17,7 @@ import {
   Settings,
   Shield,
   Search,
+  ArrowLeft,
 } from 'lucide-react';
 import { Card } from '@/src/components/ui/Card';
 import { Button, Badge } from '@/src/components/ui/Card';
@@ -34,7 +35,7 @@ import { dutyShiftService } from '@/src/services/dutyShift.service';
 import { employeeTypeService } from '@/src/services/employeeType.service';
 import { userService } from '@/src/services/user.service';
 import { required, validateEmail, validateForm } from '@/src/lib/validation';
-import { hasPermission } from '@/src/lib/auth';
+import { clearAuthSession, getStoredUser, hasPermission } from '@/src/lib/auth';
 
 const EMPTY_FORM = {
   emp_id: '',
@@ -66,20 +67,15 @@ const EMPTY_FORM = {
 
 const FORM_RULES = {
   employee_name: [(value) => required(value, 'Employee name')],
-  father_name: [(value) => required(value, 'Father name')],
   address: [(value) => required(value, 'Address')],
   city: [(value) => required(value, 'City')],
   sex: [(value) => required(value, 'Sex')],
+  phone: [(value) => required(value, 'Phone number')],
   email: [(value) => required(value, 'Email'), (value) => validateEmail(value)],
-  mobile: [(value) => required(value, 'Mobile')],
   cnic_no: [(value) => required(value, 'CNIC')],
-  date_of_birth: [(value) => required(value, 'Date of birth')],
-  qualification: [(value) => required(value, 'Qualification')],
-  blood_group: [(value) => required(value, 'Blood group')],
   department: [(value) => required(value, 'Department')],
   designation: [(value) => required(value, 'Designation')],
   employee_type: [(value) => required(value, 'Employee type')],
-  hiring_date: [(value) => required(value, 'Hiring date')],
   duty_shift: [(value) => required(value, 'Duty shift')],
   bank: [(value) => required(value, 'Bank')],
   account_number: [(value) => required(value, 'Account number')],
@@ -128,6 +124,58 @@ function getNextEmployeeId(employees) {
 
   const nextNumber = best.number + 1;
   return `${best.prefix}${String(nextNumber).padStart(best.width, '0')}`;
+}
+
+function toComparableSet(values) {
+  return new Set(
+    values
+      .flatMap((value) => {
+        if (value === null || value === undefined || value === '') return [];
+        return [String(value).trim(), String(value).trim().toLowerCase()];
+      })
+      .filter(Boolean),
+  );
+}
+
+function isCurrentUsersEmployee(employee) {
+  const storedUser = getStoredUser();
+  if (!storedUser || !employee) return false;
+
+  const currentUserKeys = toComparableSet([
+    storedUser.id,
+    storedUser.employeeId,
+    storedUser.username,
+    storedUser.fullName,
+  ]);
+
+  const employeeKeys = toComparableSet([
+    employee.id,
+    employee.emp_id,
+    employee.employee_name,
+    employee.email,
+    employee.raw?.id,
+    employee.raw?._id,
+    employee.raw?.uuid,
+    employee.raw?.employee_id,
+    employee.raw?.emp_id,
+    employee.raw?.linked_user_id,
+    employee.raw?.linked_user?.id,
+    employee.raw?.linked_user?.employee_id,
+    employee.raw?.linked_user?.username,
+    employee.raw?.linked_user?.UserName,
+    employee.raw?.linked_user?.employee_name,
+  ]);
+
+  return Array.from(currentUserKeys).some((key) => employeeKeys.has(key));
+}
+
+function FieldLabel({ children, required: isRequired = false }) {
+  return (
+    <label className="text-xs font-bold text-gray-600 ml-1">
+      {children}
+      {isRequired ? <span className="ml-1 text-rose-500">*</span> : null}
+    </label>
+  );
 }
 
 export default function Employees() {
@@ -323,9 +371,17 @@ export default function Employees() {
     if (!deleteTarget) return;
 
     try {
+      const shouldLogoutAfterDelete = isCurrentUsersEmployee(deleteTarget);
       await employeeService.remove(deleteTarget.id);
       toast.success('Employee deleted', 'The employee record has been removed.');
       setDeleteTarget(null);
+
+      if (shouldLogoutAfterDelete) {
+        clearAuthSession();
+        window.location.replace('/login');
+        return;
+      }
+
       await Promise.all([
         loadEmployees(searchQuery.trim()),
         loadUsers(),
@@ -473,12 +529,12 @@ export default function Employees() {
   };
 
   const inputClassName = (field) =>
-    `w-full px-4 py-3 bg-white border rounded-xl text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none ${
+    `h-9 w-full rounded-[10px] border mt-[2px] bg-white px-3.5 text-[15px] text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none ${
       formErrors[field] ? 'border-rose-400' : 'border-gray-200'
     }`;
 
   const selectClassName = (field) =>
-    `w-full px-4 py-3 bg-white border rounded-xl text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none appearance-none ${
+    `h-9 w-full rounded-[10px] border bg-white px-3.5 pr-10 text-[15px] text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none appearance-none ${
       formErrors[field] ? 'border-rose-400' : 'border-gray-200'
     }`;
 
@@ -625,20 +681,30 @@ export default function Employees() {
 
       <div ref={formContainerRef} className="hidden max-w-5xl">
         <div className="bg-white rounded-3xl border-l-[6px] border-brand shadow-2xl shadow-brand/10 overflow-hidden">
-          <div className="p-8 pb-6 flex items-start gap-6">
-            <div className="w-14 h-14 bg-brand-light rounded-2xl flex items-center justify-center text-brand shadow-inner">
-              <FileText className="w-7 h-7" />
+          <div className="p-8 pb-6 flex items-start justify-between gap-6">
+            <div className="flex items-start gap-6">
+              <div className="w-14 h-14 bg-brand-light rounded-2xl flex items-center justify-center text-brand shadow-inner">
+                <FileText className="w-7 h-7" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+                  {formMode === 'create' ? 'New Employee Entry' : 'Edit Employee'}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {formMode === 'create'
+                    ? 'Register a new employee into the system database with full details.'
+                    : 'Update the employee record in the system.'}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-                {formMode === 'create' ? 'New Employee Entry' : 'Edit Employee'}
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {formMode === 'create'
-                  ? 'Register a new employee into the system database with full details.'
-                  : 'Update the employee record in the system.'}
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={closeForm}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-gray-500 transition-all hover:border-brand/20 hover:bg-brand-light/30 hover:text-brand"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Go Back
+            </button>
           </div>
 
           <div className="px-8 pb-8 space-y-10">
@@ -661,7 +727,7 @@ export default function Employees() {
                     value={previewEmpId}
                     readOnly
                     disabled
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-500 focus:outline-none cursor-not-allowed font-mono"
+                    className="w-full px-4 py-3 h-9 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-500 focus:outline-none cursor-not-allowed font-mono"
                   />
                 </div>
               </div>
@@ -702,17 +768,17 @@ export default function Employees() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1"><User className="inline w-3 h-3 mr-1 -mt-0.5" /> Employee Name</label>
+                  <FieldLabel required><User className="inline w-3 h-3 mr-1 -mt-0.5" /> Employee Name</FieldLabel>
                   <input type="text" value={formData.employee_name} onChange={(event) => updateFormField('employee_name', event.target.value)} placeholder="Full name" className={inputClassName('employee_name')} />
                   {formErrors.employee_name && <p className="text-xs text-rose-600 ml-1">{formErrors.employee_name}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Father Name</label>
+                  <FieldLabel>Father Name</FieldLabel>
                   <input type="text" value={formData.father_name} onChange={(event) => updateFormField('father_name', event.target.value)} placeholder="Father name" className={inputClassName('father_name')} />
                   {formErrors.father_name && <p className="text-xs text-rose-600 ml-1">{formErrors.father_name}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Address</label>
+                  <FieldLabel required>Address</FieldLabel>
                   <input type="text" value={formData.address} onChange={(event) => updateFormField('address', event.target.value)} placeholder="Address" className={inputClassName('address')} />
                   {formErrors.address && <p className="text-xs text-rose-600 ml-1">{formErrors.address}</p>}
                 </div>
@@ -720,12 +786,12 @@ export default function Employees() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">City</label>
+                  <FieldLabel required>City</FieldLabel>
                   <input type="text" value={formData.city} onChange={(event) => updateFormField('city', event.target.value)} placeholder="City" className={inputClassName('city')} />
                   {formErrors.city && <p className="text-xs text-rose-600 ml-1">{formErrors.city}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Sex</label>
+                  <FieldLabel required>Sex</FieldLabel>
                   <div className="relative">
                     <select value={formData.sex} onChange={(event) => updateFormField('sex', event.target.value)} className={selectClassName('sex')}>
                       <option value="">Select Sex</option>
@@ -738,14 +804,15 @@ export default function Employees() {
                   {formErrors.sex && <p className="text-xs text-rose-600 ml-1">{formErrors.sex}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Phone</label>
+                  <FieldLabel required>Phone</FieldLabel>
                   <input type="tel" value={formData.phone} onChange={(event) => updateFormField('phone', event.target.value)} placeholder="Phone" className={inputClassName('phone')} />
+                  {formErrors.phone && <p className="text-xs text-rose-600 ml-1">{formErrors.phone}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Email</label>
+                  <FieldLabel required>Email</FieldLabel>
                   <input
                     type="email"
                     value={formData.email}
@@ -756,17 +823,17 @@ export default function Employees() {
                   {formErrors.email && <p className="text-xs text-rose-600 ml-1">{formErrors.email}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Mobile</label>
+                  <FieldLabel>Mobile</FieldLabel>
                   <input type="tel" value={formData.mobile} onChange={(event) => updateFormField('mobile', event.target.value)} placeholder="Mobile" className={inputClassName('mobile')} />
                   {formErrors.mobile && <p className="text-xs text-rose-600 ml-1">{formErrors.mobile}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">CNIC No</label>
+                  <FieldLabel required>CNIC No</FieldLabel>
                   <input type="text" value={formData.cnic_no} onChange={(event) => updateFormField('cnic_no', event.target.value)} placeholder="XXXXX-XXXXXXX-X" className={`${inputClassName('cnic_no')} font-mono`} />
                   {formErrors.cnic_no && <p className="text-xs text-rose-600 ml-1">{formErrors.cnic_no}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Date of Birth</label>
+                  <FieldLabel>Date of Birth</FieldLabel>
                   <input type="date" value={formData.date_of_birth} onChange={(event) => updateFormField('date_of_birth', event.target.value)} className={inputClassName('date_of_birth')} />
                   {formErrors.date_of_birth && <p className="text-xs text-rose-600 ml-1">{formErrors.date_of_birth}</p>}
                 </div>
@@ -774,12 +841,12 @@ export default function Employees() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Qualification</label>
+                  <FieldLabel>Qualification</FieldLabel>
                   <input type="text" value={formData.qualification} onChange={(event) => updateFormField('qualification', event.target.value)} placeholder="e.g. BS Computer Science" className={inputClassName('qualification')} />
                   {formErrors.qualification && <p className="text-xs text-rose-600 ml-1">{formErrors.qualification}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Blood Group</label>
+                  <FieldLabel>Blood Group</FieldLabel>
                   <input type="text" value={formData.blood_group} onChange={(event) => updateFormField('blood_group', event.target.value)} placeholder="e.g. O+" className={inputClassName('blood_group')} />
                   {formErrors.blood_group && <p className="text-xs text-rose-600 ml-1">{formErrors.blood_group}</p>}
                 </div>
@@ -795,7 +862,7 @@ export default function Employees() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Department</label>
+                  <FieldLabel required>Department</FieldLabel>
                   <div className="relative">
                     <select value={formData.department} onChange={(event) => updateFormField('department', event.target.value)} className={selectClassName('department')}>
                       <option value="">Select department</option>
@@ -808,7 +875,7 @@ export default function Employees() {
                   {formErrors.department && <p className="text-xs text-rose-600 ml-1">{formErrors.department}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Designation</label>
+                  <FieldLabel required>Designation</FieldLabel>
                   <div className="relative">
                     <select value={formData.designation} onChange={(event) => updateFormField('designation', event.target.value)} className={selectClassName('designation')}>
                       <option value="">Select designation</option>
@@ -821,7 +888,7 @@ export default function Employees() {
                   {formErrors.designation && <p className="text-xs text-rose-600 ml-1">{formErrors.designation}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Employee Type</label>
+                  <FieldLabel required>Employee Type</FieldLabel>
                   <div className="relative">
                     <select value={formData.employee_type} onChange={(event) => updateFormField('employee_type', event.target.value)} className={selectClassName('employee_type')}>
                       <option value="">Select type</option>
@@ -836,12 +903,12 @@ export default function Employees() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1"><Calendar className="inline w-3 h-3 mr-1 -mt-0.5" /> Hiring Date</label>
+                  <FieldLabel><Calendar className="inline w-3 h-3 mr-1 -mt-0.5" /> Hiring Date</FieldLabel>
                   <input type="date" value={formData.hiring_date} onChange={(event) => updateFormField('hiring_date', event.target.value)} className={inputClassName('hiring_date')} />
                   {formErrors.hiring_date && <p className="text-xs text-rose-600 ml-1">{formErrors.hiring_date}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Duty Shift</label>
+                  <FieldLabel required>Duty Shift</FieldLabel>
                   <div className="relative">
                     <select value={formData.duty_shift} onChange={(event) => updateFormField('duty_shift', event.target.value)} className={selectClassName('duty_shift')}>
                       <option value="">Select duty shift</option>
@@ -865,7 +932,7 @@ export default function Employees() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Bank</label>
+                  <FieldLabel required>Bank</FieldLabel>
                   <div className="relative">
                     <select value={formData.bank} onChange={(event) => updateFormField('bank', event.target.value)} className={selectClassName('bank')}>
                       <option value="">Select bank</option>
@@ -878,7 +945,7 @@ export default function Employees() {
                   {formErrors.bank && <p className="text-xs text-rose-600 ml-1">{formErrors.bank}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-600 ml-1">Account Number</label>
+                  <FieldLabel required>Account Number</FieldLabel>
                   <input type="text" value={formData.account_number} onChange={(event) => updateFormField('account_number', event.target.value)} placeholder="e.g. 1234-5678-9012" className={`${inputClassName('account_number')} font-mono`} />
                   {formErrors.account_number && <p className="text-xs text-rose-600 ml-1">{formErrors.account_number}</p>}
                 </div>
@@ -925,7 +992,7 @@ export default function Employees() {
                 {createUser && (
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-600 ml-1">Username</label>
+                      <FieldLabel required>Username</FieldLabel>
                       <input
                         type="text"
                         value={formData.software_username}
@@ -937,7 +1004,7 @@ export default function Employees() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-600 ml-1">Password</label>
+                      <FieldLabel required>Password</FieldLabel>
                       <input
                         type="password"
                         value={formData.software_password}
@@ -949,7 +1016,7 @@ export default function Employees() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-600 ml-1">Confirm Password</label>
+                      <FieldLabel required>Confirm Password</FieldLabel>
                       <input
                         type="password"
                         value={formData.software_confirm_password}

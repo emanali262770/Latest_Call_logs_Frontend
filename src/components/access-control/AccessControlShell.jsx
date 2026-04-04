@@ -48,7 +48,7 @@ export function Modal({
   description,
   onClose,
   children,
-  widthClass = 'max-w-lg',
+  widthClass = 'max-w-[430px]',
   titleClassName = '',
   descriptionClassName = '',
   bodyClassName = '',
@@ -56,7 +56,7 @@ export function Modal({
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 sm:p-6">
       <button
         type="button"
         className="absolute inset-0 bg-slate-950/48"
@@ -64,22 +64,22 @@ export function Modal({
         aria-label="Close modal"
       />
       <div className={cn('relative z-10 w-full rounded-[2rem] bg-white shadow-2xl', widthClass)}>
-        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-4.5">
           <div>
-            <h2 className={cn('text-2xl font-bold tracking-tight text-gray-900', titleClassName)}>{title}</h2>
+            <h2 className={cn('text-[1.35rem] font-bold tracking-tight text-gray-900', titleClassName)}>{title}</h2>
             {description ? (
-              <p className={cn('mt-1 text-base text-gray-500', descriptionClassName)}>{description}</p>
+              <p className={cn('mt-1 text-sm leading-6 text-gray-500', descriptionClassName)}>{description}</p>
             ) : null}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl px-3 py-2 text-2xl leading-none text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700"
+            className="rounded-xl px-3 py-2 text-xl leading-none text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700"
           >
             ×
           </button>
         </div>
-        <div className={cn('px-6 py-5', bodyClassName)}>{children}</div>
+        <div className={cn('px-6 py-4.5', bodyClassName)}>{children}</div>
       </div>
     </div>,
     document.body,

@@ -241,18 +241,18 @@ export default function DepartmentSetup() {
 
       {isModalOpen &&
         createPortal(
-        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 sm:p-8">
+        <div className="fixed inset-0 z-70 flex items-center justify-center p-4 sm:p-6">
           <button type="button" className="absolute inset-0 bg-slate-950/48" onClick={closeModal} aria-label="Close modal"></button>
 
-          <div className="relative z-10 w-full max-w-xl overflow-hidden rounded-3xl border-l-[6px] border-brand bg-white shadow-2xl shadow-brand/10">
-            <div className="p-8 pb-6 flex items-start justify-between gap-4">
+          <div className="relative z-10 w-full max-w-[430px] overflow-hidden rounded-3xl border-l-[6px] border-brand bg-white shadow-2xl shadow-brand/10">
+            <div className="flex items-start justify-between gap-4 p-6 pb-4">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-brand-light rounded-xl flex items-center justify-center text-brand">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand">
                   <Building2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900 tracking-tight">{modalTitle}</h2>
-                  <p className="text-sm text-gray-500 mt-1">Create or update a department record.</p>
+                  <h2 className="text-lg font-bold text-gray-900 tracking-tight">{modalTitle}</h2>
+                  <p className="mt-1 text-sm text-gray-500">Create or update a department record.</p>
                 </div>
               </div>
               <button
@@ -264,8 +264,8 @@ export default function DepartmentSetup() {
               </button>
             </div>
 
-            <div className="px-8 pb-8 space-y-8">
-              <div className="space-y-6">
+            <div className="space-y-6 px-6 pb-6">
+              <div className="space-y-4">
                 <div className="flex items-center gap-3 py-2 px-4 bg-brand-light/50 rounded-lg border border-brand/10">
                   <div className="w-1 h-5 bg-brand rounded-full"></div>
                   <span className="text-sm font-bold text-gray-900 tracking-tight">Department Details</span>
@@ -304,7 +304,7 @@ export default function DepartmentSetup() {
                 </div>
               )}
 
-              <div className="pt-6 border-t border-gray-100 flex items-center justify-end gap-3">
+              <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
                 <button
                   onClick={closeModal}
                   className="px-8 py-3 bg-white border border-gray-200 text-gray-500 rounded-xl font-bold hover:bg-gray-50 transition-all"
