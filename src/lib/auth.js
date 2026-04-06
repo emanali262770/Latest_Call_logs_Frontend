@@ -36,6 +36,17 @@ export function clearAuthSession() {
   clearStoredAuthState();
 }
 
+export function redirectToLoginOnSessionExpiry() {
+  clearAuthSession();
+
+  if (typeof window === 'undefined') return;
+
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (currentPath === '/login') return;
+
+  window.location.replace('/login');
+}
+
 export function getAuthToken() {
   const directToken = localStorage.getItem(TOKEN_KEY);
   if (directToken) return directToken;
@@ -273,6 +284,10 @@ export function getReadPermissionForPath(path) {
   }
 
   if (firstSegment === 'setup' && secondSegment) {
+    if (secondSegment === 'company') {
+      return null;
+    }
+
     if (secondSegment === 'items' && thirdSegment) {
       return null;
     }

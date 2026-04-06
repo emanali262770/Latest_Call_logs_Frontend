@@ -17,6 +17,13 @@ const initialGroupPermissionState = {
   savedAssignedIds: [],
 };
 
+const ACTION_SEQUENCE = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'ASSIGN'];
+const MODULE_SEQUENCE = ['EMPLOYEE', 'ACCESS'];
+const SUBMODULE_SEQUENCE = {
+  EMPLOYEE: ['EMPLOYEE', 'DEPARTMENT', 'DESIGNATION', 'EMPLOYEE_TYPE', 'DUTY_SHIFT', 'BANK'],
+  ACCESS: ['USERS', 'GROUPS', 'PERMISSIONS'],
+};
+
 function toGroupCode(groupName = '') {
   return groupName.trim().toUpperCase().replace(/\s+/g, ' ');
 }
@@ -75,12 +82,43 @@ function buildGroupPermissionSnapshot(items) {
   }, {});
 }
 
+function getSequenceIndex(sequence, value) {
+  const index = sequence.indexOf(String(value || '').toUpperCase());
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function comparePermissionDisplayOrder(left, right) {
+  const moduleIndexDiff =
+    getSequenceIndex(MODULE_SEQUENCE, left.module) - getSequenceIndex(MODULE_SEQUENCE, right.module);
+  if (moduleIndexDiff !== 0) return moduleIndexDiff;
+
+  const moduleLabelDiff = String(left.module || '').localeCompare(String(right.module || ''));
+  if (moduleLabelDiff !== 0 && getSequenceIndex(MODULE_SEQUENCE, left.module) === Number.MAX_SAFE_INTEGER) {
+    return moduleLabelDiff;
+  }
+
+  const submoduleSequence = SUBMODULE_SEQUENCE[String(left.module || '').toUpperCase()] || [];
+  const submoduleIndexDiff =
+    getSequenceIndex(submoduleSequence, left.subModule) - getSequenceIndex(submoduleSequence, right.subModule);
+  if (submoduleIndexDiff !== 0) return submoduleIndexDiff;
+
+  const submoduleLabelDiff = String(left.subModule || '').localeCompare(String(right.subModule || ''));
+  if (submoduleLabelDiff !== 0 && getSequenceIndex(submoduleSequence, left.subModule) === Number.MAX_SAFE_INTEGER) {
+    return submoduleLabelDiff;
+  }
+
+  const actionIndexDiff =
+    getSequenceIndex(ACTION_SEQUENCE, left.action) - getSequenceIndex(ACTION_SEQUENCE, right.action);
+  if (actionIndexDiff !== 0) return actionIndexDiff;
+
+  const actionLabelDiff = String(left.action || '').localeCompare(String(right.action || ''));
+  if (actionLabelDiff !== 0) return actionLabelDiff;
+
+  return String(left.id || '').localeCompare(String(right.id || ''));
+}
+
 function sortPermissionItems(items) {
-  return [...items].sort((left, right) => {
-    const leftKey = `${left.module}.${left.subModule}.${left.action}.${left.id}`;
-    const rightKey = `${right.module}.${right.subModule}.${right.action}.${right.id}`;
-    return leftKey.localeCompare(rightKey);
-  });
+  return [...items].sort(comparePermissionDisplayOrder);
 }
 
 function mapApiGroup(group) {
@@ -110,6 +148,7 @@ function mapApiUser(user) {
 
   return {
     id: user.id,
+    userId: user.user_id || user.userId || '',
     fullName:
       user.employee_name ||
       [user.first_name, user.last_name].filter(Boolean).join(' ').trim() ||
@@ -191,13 +230,28 @@ function buildPermissionTree(items) {
     });
   });
 
-  return Array.from(moduleMap.values()).map(({ subModuleMap, ...moduleNode }) => ({
-    ...moduleNode,
-    children: moduleNode.children.map((subModuleNode) => ({
-      ...subModuleNode,
-      children: subModuleNode.children.sort((left, right) => left.label.localeCompare(right.label)),
-    })),
-  }));
+  return Array.from(moduleMap.values())
+    .sort((left, right) => comparePermissionDisplayOrder(
+      { module: left.label, subModule: '', action: '', id: left.id },
+      { module: right.label, subModule: '', action: '', id: right.id },
+    ))
+    .map(({ subModuleMap, ...moduleNode }) => ({
+      ...moduleNode,
+      children: moduleNode.children
+        .sort((left, right) => comparePermissionDisplayOrder(
+          { module: moduleNode.label, subModule: left.label, action: '', id: left.id },
+          { module: moduleNode.label, subModule: right.label, action: '', id: right.id },
+        ))
+        .map((subModuleNode) => ({
+          ...subModuleNode,
+          children: subModuleNode.children.sort((left, right) =>
+            comparePermissionDisplayOrder(
+              { module: moduleNode.label, subModule: subModuleNode.label, action: left.label, id: left.id },
+              { module: moduleNode.label, subModule: subModuleNode.label, action: right.label, id: right.id },
+            ),
+          ),
+        })),
+    }));
 }
 
 function flattenPermissionLeaves(nodes) {
@@ -264,7 +318,25 @@ export function AccessControlProvider({ children }) {
         });
       });
 
-      return Array.from(sectionMap.values());
+      return Array.from(sectionMap.values()).map((section) => ({
+        ...section,
+        permissions: [...section.permissions].sort((left, right) =>
+          comparePermissionDisplayOrder(
+            {
+              module: section.title,
+              subModule: left.subject.replace(`${section.title} `, ''),
+              action: left.action,
+              id: left.id,
+            },
+            {
+              module: section.title,
+              subModule: right.subject.replace(`${section.title} `, ''),
+              action: right.action,
+              id: right.id,
+            },
+          ),
+        ),
+      }));
     }
 
     return catalogFromTree(permissionTree);
@@ -540,6 +612,23 @@ export function AccessControlProvider({ children }) {
     return userService.changePassword(userId, { password });
   };
 
+  const toggleUserStatus = async (userId, lock) => {
+    const response = await userService.updateLock(userId, { lock });
+
+    setUsers((prev) =>
+      prev.map((user) =>
+        user.id === userId
+          ? {
+              ...user,
+              status: lock ? 'inactive' : 'active',
+            }
+          : user,
+      ),
+    );
+
+    return response;
+  };
+
   const deleteUser = (userId) => {
     setUsers((prev) => prev.filter((user) => user.id !== userId));
   };
@@ -571,6 +660,7 @@ export function AccessControlProvider({ children }) {
     loadUserGroups,
     assignGroupsToUser,
     resetPassword,
+    toggleUserStatus,
     deleteUser,
   };
 

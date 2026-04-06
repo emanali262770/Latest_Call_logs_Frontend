@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getAuthToken } from '@/src/lib/auth';
+import { getAuthToken, redirectToLoginOnSessionExpiry } from '@/src/lib/auth';
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
@@ -31,10 +31,17 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     const payload = error?.response?.data;
+    const status = error?.response?.status;
+    const isExpired = payload?.error?.isExpired === true;
+
+    if (status === 401 && isExpired) {
+      redirectToLoginOnSessionExpiry();
+    }
+
     const message = payload?.message || error.message || 'Request failed.';
     const normalizedError = new Error(message);
     normalizedError.payload = payload;
-    normalizedError.status = error?.response?.status;
+    normalizedError.status = status;
     return Promise.reject(normalizedError);
   },
 );

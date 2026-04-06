@@ -178,6 +178,23 @@ function FieldLabel({ children, required: isRequired = false }) {
   );
 }
 
+function FormSection({ icon: Icon, title, children, className = '' }) {
+  return (
+    <section
+      className={`rounded-[28px] border border-brand/15 bg-linear-to-br from-brand-light/80 via-white to-brand-light/35 px-6 py-6 ${className}`}
+    >
+      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-brand/12 bg-white/90 px-4 py-3">
+        <div className="h-7 w-1.5 rounded-full bg-linear-to-b from-brand to-brand-hover"></div>
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/10 bg-linear-to-br from-brand-light to-white text-brand">
+          <Icon className="h-4 w-4" />
+        </div>
+        <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-brand">{title}</h3>
+      </div>
+      <div className="space-y-6">{children}</div>
+    </section>
+  );
+}
+
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
   const [isListLoading, setIsListLoading] = useState(true);
@@ -470,63 +487,7 @@ export default function Employees() {
     }
   };
 
-  const handleCreateSoftwareUser = async () => {
-    const errors = {};
-
-    if (!formData.software_username.trim()) {
-      errors.software_username = 'Username is required.';
-    }
-
-    if (!formData.software_password.trim()) {
-      errors.software_password = 'Password is required.';
-    }
-
-    if (!formData.software_confirm_password.trim()) {
-      errors.software_confirm_password = 'Confirm password is required.';
-    } else if (formData.software_password !== formData.software_confirm_password) {
-      errors.software_confirm_password = 'Confirm password must match password.';
-    }
-
-    if (!activeEmployeeId) {
-      errors.software_username = errors.software_username || 'Please save the employee first.';
-    }
-
-    if (Object.keys(errors).length) {
-      setFormErrors((prev) => ({ ...prev, ...errors }));
-      setApiError('Please complete the software user fields correctly.');
-      return;
-    }
-
-    setFormErrors((prev) => ({
-      ...prev,
-      software_username: '',
-      software_password: '',
-      software_confirm_password: '',
-    }));
-    setApiError('');
-    setIsCreatingUser(true);
-
-    try {
-      const response = await userService.create({
-        username: formData.software_username.trim(),
-        password: formData.software_password,
-        employee_id: activeEmployeeId,
-      });
-
-      toast.success('Software user created', response?.message || 'User account created successfully.');
-      closeForm();
-      await Promise.all([
-        loadEmployees(searchQuery.trim()),
-        loadUsers(),
-      ]);
-    } catch (requestError) {
-      const message = requestError.message || 'Could not create software user.';
-      setApiError(message);
-      toast.error('User creation failed', message);
-    } finally {
-      setIsCreatingUser(false);
-    }
-  };
+ 
 
   const inputClassName = (field) =>
     `h-9 w-full rounded-[10px] border mt-[2px] bg-white px-3.5 text-[15px] text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none ${
@@ -715,10 +676,7 @@ export default function Employees() {
             )}
 
             <div className="space-y-6">
-              <div className="flex items-center gap-3 py-2.5 px-5 bg-brand-light/50 rounded-xl border border-brand/10">
-                <div className="w-1.5 h-5 bg-brand rounded-full"></div>
-                <span className="text-sm font-extrabold text-brand uppercase tracking-wider"># Identity</span>
-              </div>
+           
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-500 ml-1"># Emp ID</label>
@@ -733,14 +691,7 @@ export default function Employees() {
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 py-2.5 px-5 bg-brand-light/50 rounded-xl border border-brand/10">
-                <div className="w-1.5 h-5 bg-brand rounded-full"></div>
-                <span className="text-sm font-extrabold text-brand uppercase tracking-wider">
-                  <User className="inline w-4 h-4 mr-1 -mt-0.5" /> Personal Info
-                </span>
-              </div>
-
+            <FormSection icon={User} title="Personal Info">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-gray-600 ml-1">Profile Image</label>
                 <div className="flex items-center gap-5">
@@ -791,10 +742,10 @@ export default function Employees() {
                   {formErrors.city && <p className="text-xs text-rose-600 ml-1">{formErrors.city}</p>}
                 </div>
                 <div className="space-y-2">
-                  <FieldLabel required>Sex</FieldLabel>
+                  <FieldLabel required>Gender</FieldLabel>
                   <div className="relative">
                     <select value={formData.sex} onChange={(event) => updateFormField('sex', event.target.value)} className={selectClassName('sex')}>
-                      <option value="">Select Sex</option>
+                      <option value="">Select Gender</option>
                       <option>Male</option>
                       <option>Female</option>
                       <option>Other</option>
@@ -851,15 +802,9 @@ export default function Employees() {
                   {formErrors.blood_group && <p className="text-xs text-rose-600 ml-1">{formErrors.blood_group}</p>}
                 </div>
               </div>
-            </div>
+            </FormSection>
 
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 py-2.5 px-5 bg-brand-light/50 rounded-xl border border-brand/10">
-                <div className="w-1.5 h-5 bg-brand rounded-full"></div>
-                <span className="text-sm font-extrabold text-brand uppercase tracking-wider">
-                  <Building2 className="inline w-4 h-4 mr-1 -mt-0.5" /> Job Info
-                </span>
-              </div>
+            <FormSection icon={Building2} title="Job Info">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <FieldLabel required>Department</FieldLabel>
@@ -921,15 +866,9 @@ export default function Employees() {
                   {formErrors.duty_shift && <p className="text-xs text-rose-600 ml-1">{formErrors.duty_shift}</p>}
                 </div>
               </div>
-            </div>
+            </FormSection>
 
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 py-2.5 px-5 bg-brand-light/50 rounded-xl border border-brand/10">
-                <div className="w-1.5 h-5 bg-brand rounded-full"></div>
-                <span className="text-sm font-extrabold text-brand uppercase tracking-wider">
-                  <Landmark className="inline w-4 h-4 mr-1 -mt-0.5" /> Bank Info
-                </span>
-              </div>
+            <FormSection icon={Landmark} title="Bank Info">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <FieldLabel required>Bank</FieldLabel>
@@ -950,16 +889,10 @@ export default function Employees() {
                   {formErrors.account_number && <p className="text-xs text-rose-600 ml-1">{formErrors.account_number}</p>}
                 </div>
               </div>
-            </div>
+            </FormSection>
 
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 py-2.5 px-5 bg-brand-light/50 rounded-xl border border-brand/10">
-                <div className="w-1.5 h-5 bg-brand rounded-full"></div>
-                <span className="text-sm font-extrabold text-brand uppercase tracking-wider">
-                  <Settings className="inline w-4 h-4 mr-1 -mt-0.5" /> Settings
-                </span>
-              </div>
-              <label className="flex items-center gap-3 cursor-pointer w-fit">
+            <FormSection icon={Settings} title="Settings">
+              <label className="flex w-fit items-center gap-3 rounded-2xl border border-white/70 bg-white/75 px-4 py-3 shadow-sm backdrop-blur-sm cursor-pointer">
                 <input
                   type="checkbox"
                   checked={enabledEmployee}
@@ -968,82 +901,7 @@ export default function Employees() {
                 />
                 <span className="text-sm font-semibold text-gray-700">Enabled Employee</span>
               </label>
-            </div>
-
-            {showCreateSoftwareUser && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 py-2.5 px-5 bg-brand-light/50 rounded-xl border border-brand/10">
-                  <div className="w-1.5 h-5 bg-brand rounded-full"></div>
-                  <span className="text-sm font-extrabold text-brand uppercase tracking-wider">
-                    <Shield className="inline w-4 h-4 mr-1 -mt-0.5" /> Create Software User
-                  </span>
-                </div>
-
-                <label className="flex items-center gap-3 cursor-pointer w-fit">
-                  <input
-                    type="checkbox"
-                    checked={createUser}
-                    onChange={(event) => setCreateUser(event.target.checked)}
-                    className="w-4 h-4 rounded accent-brand"
-                  />
-                  <span className="text-sm font-semibold text-gray-700">Create software user for this employee</span>
-                </label>
-
-                {createUser && (
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <div className="space-y-2">
-                      <FieldLabel required>Username</FieldLabel>
-                      <input
-                        type="text"
-                        value={formData.software_username}
-                        onChange={(event) => updateFormField('software_username', event.target.value)}
-                        placeholder="Enter username"
-                        className={inputClassName('software_username')}
-                      />
-                      {formErrors.software_username && <p className="text-xs text-rose-600 ml-1">{formErrors.software_username}</p>}
-                    </div>
-
-                    <div className="space-y-2">
-                      <FieldLabel required>Password</FieldLabel>
-                      <input
-                        type="password"
-                        value={formData.software_password}
-                        onChange={(event) => updateFormField('software_password', event.target.value)}
-                        placeholder="Enter password"
-                        className={inputClassName('software_password')}
-                      />
-                      {formErrors.software_password && <p className="text-xs text-rose-600 ml-1">{formErrors.software_password}</p>}
-                    </div>
-
-                    <div className="space-y-2">
-                      <FieldLabel required>Confirm Password</FieldLabel>
-                      <input
-                        type="password"
-                        value={formData.software_confirm_password}
-                        onChange={(event) => updateFormField('software_confirm_password', event.target.value)}
-                        placeholder="Confirm password"
-                        className={inputClassName('software_confirm_password')}
-                      />
-                      {formErrors.software_confirm_password && <p className="text-xs text-rose-600 ml-1">{formErrors.software_confirm_password}</p>}
-                    </div>
-                  </div>
-                )}
-
-                {createUser && (
-                  <div className="flex justify-end pt-1">
-                    <button
-                      type="button"
-                      onClick={handleCreateSoftwareUser}
-                      disabled={isCreatingUser}
-                      className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-bold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-70"
-                    >
-                      <Save className="h-4 w-4" />
-                      {isCreatingUser ? 'Saving User...' : 'Save User'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+            </FormSection>
 
             <div className="flex justify-end gap-4 pt-2">
               <button

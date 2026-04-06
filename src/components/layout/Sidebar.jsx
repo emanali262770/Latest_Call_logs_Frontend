@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Building2,
+  Building,
   IdCard,
   Tags,
   Clock3,
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { getReadPermissionsForPath, hasAnyPermission } from '@/src/lib/auth';
+import { companyService } from '@/src/services/company.service';
 import gsap from 'gsap';
 import { AnimatePresence, motion as Motion } from 'motion/react';
 
@@ -59,6 +61,12 @@ const navItems = [
     label: 'Setup',
     icon: BriefcaseBusiness,
     subItems: [
+      {
+        id: 'setup-company',
+        label: 'Company',
+        path: '/setup/company',
+        icon: Building,
+      },
       {
         id: 'setup-employee-setup',
         label: 'Employee Setup',
@@ -119,6 +127,11 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const navigate = useNavigate();
   const location = useLocation();
   const pathName = location.pathname;
+  const [brandProfile, setBrandProfile] = useState({
+    name: 'CMS',
+    subtitle: 'Control Panel',
+    logo: '',
+  });
   const visibleNavItems = useMemo(() => attachVisibleSubItems(navItems), []);
 
   const autoExpandedSubMenu = useMemo(() => {
@@ -145,6 +158,23 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const [manualExpandedSubMenus, setManualExpandedSubMenus] = useState([]);
   const expandedSubMenus = manualExpandedSubMenus.length ? manualExpandedSubMenus : autoExpandedSubMenu;
 
+  const applyBrandProfile = (company) => {
+    if (company?.company_name || company?.logo_url) {
+      setBrandProfile({
+        name: company?.company_name || 'CMS',
+        subtitle: 'Control Panel',
+        logo: company?.logo_url || '',
+      });
+      return;
+    }
+
+    setBrandProfile({
+      name: 'CMS',
+      subtitle: 'Control Panel',
+      logo: '',
+    });
+  };
+
   useEffect(() => {
     if (sidebarRef.current) {
       gsap.to(sidebarRef.current, {
@@ -155,6 +185,36 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
       });
     }
   }, [isCollapsed]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadBrandProfile = async () => {
+      try {
+        const response = await companyService.get();
+        const company = response?.data;
+
+        if (!isMounted) return;
+        applyBrandProfile(company);
+      } catch {
+        if (!isMounted) return;
+        applyBrandProfile(null);
+      }
+    };
+
+    const handleCompanyProfileUpdated = (event) => {
+      if (!isMounted) return;
+      applyBrandProfile(event?.detail || null);
+    };
+
+    loadBrandProfile();
+    window.addEventListener('company-profile-updated', handleCompanyProfileUpdated);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('company-profile-updated', handleCompanyProfileUpdated);
+    };
+  }, []);
 
   const isItemActive = (item) => hasActiveDescendant(item, pathName);
 
@@ -256,18 +316,30 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         {!isCollapsed ? (
           <div className="rounded-[1.5rem] border border-indigo-100 bg-white px-3.5 py-3 shadow-[0_14px_34px_rgba(79,70,229,0.10)]">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-brand-hover text-white shadow-[0_12px_24px_rgba(79,70,229,0.35)]">
-                <ShieldCheck className="h-5 w-5" />
+              <div className="flex h-15 w-10 items-center justify-center overflow-hidden rounded-2xl  text-white ">
+                {brandProfile.logo ? (
+                  <img src={brandProfile.logo} alt={brandProfile.name} className="h-full w-full object-cover" />
+                ) : (
+                  <ShieldCheck className="h-5 w-5" />
+                )}
               </div>
               <div className="min-w-0">
-                <span className="block truncate text-xl font-black tracking-tight text-gray-900 uppercase">CMS</span>
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.22em] text-indigo-400">Control Panel</span>
+                <span className="block truncate text-xl font-black tracking-tight text-brand uppercase">
+                  {brandProfile.name}
+                </span>
+                <span className="block text-[11px] font-semibold uppercase tracking-[0.22em] text-indigo-400">
+                  {brandProfile.subtitle}
+                </span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-brand to-brand-hover text-white shadow-[0_12px_24px_rgba(79,70,229,0.35)]">
-            <ShieldCheck className="h-5 w-5" />
+          <div className="mx-auto flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-linear-to-br from-brand to-brand-hover text-white shadow-[0_12px_24px_rgba(79,70,229,0.35)]">
+            {brandProfile.logo ? (
+              <img src={brandProfile.logo} alt={brandProfile.name} className="h-full w-full object-cover" />
+            ) : (
+              <ShieldCheck className="h-5 w-5" />
+            )}
           </div>
         )}
       </div>

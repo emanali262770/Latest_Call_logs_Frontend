@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
@@ -20,19 +20,19 @@ import SubCategoriesSetup from './pages/setup/SubCategoriesSetup';
 import ManufacturersSetup from './pages/setup/ManufacturersSetup';
 import UnitsSetup from './pages/setup/UnitsSetup';
 import LocationsSetup from './pages/setup/LocationsSetup';
+import CompanySetup from './pages/setup/CompanySetup';
 import ItemDefinition from './pages/stock/ItemDefinition';
 import { AccessControlProvider } from './context/AccessControlContext';
+import { authService } from './services/auth.service';
 import {
-  clearAuthToken,
-  clearStoredPermissions,
-  clearStoredUser,
+  clearAuthSession,
   extractPermissionsFromAuthData,
   extractTokenFromAuthData,
-  clearStoredAuthState,
   getReadPermissionsForPath,
   getAuthToken,
   getStoredAuthState,
   hasAnyPermission,
+  redirectToLoginOnSessionExpiry,
   setAuthToken,
   setStoredPermissions,
   setStoredAuthState,
@@ -70,11 +70,35 @@ export default function App() {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    clearAuthToken();
-    clearStoredPermissions();
-    clearStoredUser();
-    clearStoredAuthState();
+    clearAuthSession();
   };
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!isAuthenticated || !getAuthToken()) {
+      return undefined;
+    }
+
+    const validateToken = async () => {
+      try {
+        await authService.checkToken();
+      } catch (error) {
+        if (!isActive) return;
+
+        if (error?.status === 401 && error?.payload?.error?.isExpired) {
+          setIsAuthenticated(false);
+          redirectToLoginOnSessionExpiry();
+        }
+      }
+    };
+
+    validateToken();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isAuthenticated]);
 
   return (
     <Routes>
@@ -120,6 +144,9 @@ export default function App() {
           </Route>
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/banks')} />}>
             <Route path="/setup/banks" element={<BankSetup />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/company')} />}>
+            <Route path="/setup/company" element={<CompanySetup />} />
           </Route>
           <Route path="/setup/items/item-types" element={<ItemTypesSetup />} />
           <Route path="/setup/items/categories" element={<CategoriesSetup />} />

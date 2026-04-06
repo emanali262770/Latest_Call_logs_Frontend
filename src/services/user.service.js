@@ -17,6 +17,10 @@ export const userService = {
     return axiosInstance.put(`/users/${id}/change-password`, payload);
   },
 
+  updateLock(id, payload) {
+    return axiosInstance.patch(`/users/${id}/lock`, payload);
+  },
+
   create(payload) {
     return axiosInstance.post('/users', payload);
   },

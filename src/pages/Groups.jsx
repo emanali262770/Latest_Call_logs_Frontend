@@ -20,6 +20,45 @@ import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { cn } from '@/src/lib/utils';
 
 const ASSIGNED_DROP_ID = 'assigned-group-permissions';
+const ACTION_SEQUENCE = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'ASSIGN'];
+const TREE_LEVEL_SEQUENCE = {
+  ROOT: ['DASHBOARD', 'EMPLOYEES', 'ACCESS CONTROL', 'STOCK', 'SETUP', 'SETTINGS'],
+  'ACCESS CONTROL': ['GROUPS', 'USERS', 'PERMISSIONS'],
+  SETUP: ['EMPLOYEE SETUP', 'ITEMS'],
+  'EMPLOYEE SETUP': ['DEPARTMENTS', 'DESIGNATIONS', 'EMPLOYEE TYPES', 'DUTY SHIFTS', 'BANKS'],
+  ITEMS: ['ITEM TYPES', 'CATEGORIES', 'SUB CATEGORIES', 'MANUFACTURERS', 'UNITS', 'LOCATIONS'],
+  EMPLOYEES: ['EMPLOYEE'],
+};
+const EMPLOYEE_SETUP_SUBMODULES = new Set(['DEPARTMENT', 'DESIGNATION', 'EMPLOYEE_TYPE', 'DUTY_SHIFT', 'BANK']);
+const ITEM_SETUP_SUBMODULES = new Set(['ITEM_TYPE', 'ITEM_TYPES', 'CATEGORY', 'CATEGORIES', 'SUB_CATEGORY', 'SUB_CATEGORIES', 'MANUFACTURER', 'MANUFACTURERS', 'UNIT', 'UNITS', 'LOCATION', 'LOCATIONS']);
+const LABEL_OVERRIDES = {
+  EMPLOYEE: 'Employee',
+  EMPLOYEES: 'Employees',
+  ACCESS: 'Access',
+  USERS: 'Users',
+  GROUPS: 'Groups',
+  PERMISSIONS: 'Permissions',
+  SETUP: 'Setup',
+  STOCK: 'Stock',
+  SETTINGS: 'Settings',
+  DEPARTMENT: 'Departments',
+  DESIGNATION: 'Designations',
+  EMPLOYEE_TYPE: 'Employee Types',
+  DUTY_SHIFT: 'Duty Shifts',
+  BANK: 'Banks',
+  ITEM_TYPE: 'Item Types',
+  ITEM_TYPES: 'Item Types',
+  CATEGORY: 'Categories',
+  CATEGORIES: 'Categories',
+  SUB_CATEGORY: 'Sub Categories',
+  SUB_CATEGORIES: 'Sub Categories',
+  MANUFACTURER: 'Manufacturers',
+  MANUFACTURERS: 'Manufacturers',
+  UNIT: 'Units',
+  UNITS: 'Units',
+  LOCATION: 'Locations',
+  LOCATIONS: 'Locations',
+};
 
 function arePermissionListsEqual(left = [], right = []) {
   if (left.length !== right.length) return false;
@@ -60,34 +99,100 @@ function filterTree(nodes, query) {
     .filter(Boolean);
 }
 
-function buildPermissionTree(items) {
-  const moduleMap = new Map();
+function getSequenceIndex(sequence, value) {
+  const index = sequence.indexOf(String(value || '').toUpperCase());
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
 
-  items.forEach((permission) => {
-    if (!moduleMap.has(permission.module)) {
-      moduleMap.set(permission.module, {
-        id: permission.module.toLowerCase(),
-        label: permission.module,
+function formatTreeLabel(value = '') {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (!normalized) return '';
+  if (LABEL_OVERRIDES[normalized]) return LABEL_OVERRIDES[normalized];
+
+  return normalized
+    .split('_')
+    .filter(Boolean)
+    .map((part) => `${part.slice(0, 1)}${part.slice(1).toLowerCase()}`)
+    .join(' ');
+}
+
+function normalizeTreeToken(value = '') {
+  return String(value || '').trim().toUpperCase();
+}
+
+function getPermissionTreePath(permission) {
+  const moduleName = normalizeTreeToken(permission.module);
+  const subModuleName = normalizeTreeToken(permission.subModule);
+
+  if (moduleName === 'EMPLOYEE' && subModuleName === 'EMPLOYEE') {
+    return ['EMPLOYEES', 'EMPLOYEE'];
+  }
+
+  if (moduleName === 'EMPLOYEE' && EMPLOYEE_SETUP_SUBMODULES.has(subModuleName)) {
+    return ['SETUP', 'EMPLOYEE SETUP', subModuleName];
+  }
+
+  if (moduleName === 'ACCESS') {
+    return ['ACCESS CONTROL', subModuleName];
+  }
+
+  if (ITEM_SETUP_SUBMODULES.has(subModuleName) || moduleName === 'ITEMS' || moduleName === 'STOCK_SETUP') {
+    return ['SETUP', 'ITEMS', subModuleName];
+  }
+
+  if (moduleName === 'STOCK' && subModuleName) {
+    return ['STOCK', subModuleName];
+  }
+
+  return subModuleName ? [moduleName, subModuleName] : [moduleName];
+}
+
+function compareTreeLabels(left, right, parentLabel = 'ROOT') {
+  const sequence = TREE_LEVEL_SEQUENCE[normalizeTreeToken(parentLabel)] || [];
+  const leftKey = normalizeTreeToken(left);
+  const rightKey = normalizeTreeToken(right);
+  const sequenceDiff = getSequenceIndex(sequence, leftKey) - getSequenceIndex(sequence, rightKey);
+  if (sequenceDiff !== 0) return sequenceDiff;
+
+  return formatTreeLabel(leftKey).localeCompare(formatTreeLabel(rightKey));
+}
+
+function buildPermissionTree(items) {
+  const rootMap = new Map();
+
+  const ensureBranchNode = (map, parentPath, rawLabel) => {
+    const key = normalizeTreeToken(rawLabel);
+    if (!map.has(key)) {
+      map.set(key, {
+        id: [...parentPath, key.toLowerCase()].join('-'),
+        label: formatTreeLabel(key),
+        rawLabel: key,
         children: [],
-        subModuleMap: new Map(),
+        childMap: new Map(),
       });
     }
 
-    const moduleNode = moduleMap.get(permission.module);
+    return map.get(key);
+  };
 
-    if (!moduleNode.subModuleMap.has(permission.subModule)) {
-      const subModuleNode = {
-        id: `${permission.module.toLowerCase()}-${permission.subModule.toLowerCase()}`,
-        label: permission.subModule,
-        children: [],
-      };
+  items.forEach((permission) => {
+    const path = getPermissionTreePath(permission);
+    let currentMap = rootMap;
+    const parentPath = [];
 
-      moduleNode.subModuleMap.set(permission.subModule, subModuleNode);
-      moduleNode.children.push(subModuleNode);
+    path.forEach((segment) => {
+      const node = ensureBranchNode(currentMap, parentPath, segment);
+      parentPath.push(normalizeTreeToken(segment));
+      currentMap = node.childMap;
+    });
+
+    const leafContainer = ensureBranchNode(currentMap, parentPath, '__LEAVES__');
+    if (!leafContainer.isLeafBucket) {
+      leafContainer.isLeafBucket = true;
+      leafContainer.children = [];
     }
 
-    const subModuleNode = moduleNode.subModuleMap.get(permission.subModule);
-    subModuleNode.children.push({
+    leafContainer.children.push({
       id: permission.id,
       label: permission.action,
       key: permission.key,
@@ -95,13 +200,30 @@ function buildPermissionTree(items) {
     });
   });
 
-  return Array.from(moduleMap.values()).map(({ subModuleMap, ...moduleNode }) => ({
-    ...moduleNode,
-    children: moduleNode.children.map((subModuleNode) => ({
-      ...subModuleNode,
-      children: subModuleNode.children.sort((left, right) => left.label.localeCompare(right.label)),
-    })),
-  }));
+  const finalizeNodes = (map, parentLabel = 'ROOT') =>
+    Array.from(map.values())
+      .filter((node) => node.rawLabel !== '__LEAVES__')
+      .sort((left, right) => compareTreeLabels(left.rawLabel, right.rawLabel, parentLabel))
+      .map((node) => {
+        const leafBucket = node.childMap.get('__LEAVES__');
+        const nestedChildren = finalizeNodes(node.childMap, node.rawLabel);
+        const leafChildren = leafBucket
+          ? [...leafBucket.children].sort((left, right) => {
+              const actionDiff =
+                getSequenceIndex(ACTION_SEQUENCE, left.label) - getSequenceIndex(ACTION_SEQUENCE, right.label);
+              if (actionDiff !== 0) return actionDiff;
+              return String(left.label || '').localeCompare(String(right.label || ''));
+            })
+          : [];
+
+        return {
+          id: node.id,
+          label: node.label,
+          children: [...nestedChildren, ...leafChildren],
+        };
+      });
+
+  return finalizeNodes(rootMap);
 }
 
 function AssignedDropPanel({ children }) {

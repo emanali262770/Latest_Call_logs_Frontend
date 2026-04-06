@@ -1,5 +1,24 @@
 import axiosInstance from '@/src/lib/axiosInstance';
 
+function resolveAssetUrl(value) {
+  const assetPath = String(value || '').trim();
+  if (!assetPath) return '';
+
+  if (/^https?:\/\//i.test(assetPath)) {
+    return assetPath;
+  }
+
+  const baseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+  if (!baseUrl) return assetPath;
+
+  try {
+    const apiUrl = new URL(baseUrl);
+    return new URL(assetPath, apiUrl.origin).toString();
+  } catch {
+    return assetPath;
+  }
+}
+
 function normalizeEmployee(item) {
   const name = item.employee_name || item.first_name || '';
   const enabled = typeof item.enabled === 'boolean'
@@ -10,7 +29,7 @@ function normalizeEmployee(item) {
     id: item.id || item._id || item.uuid || item.emp_id || crypto.randomUUID(),
     employee_name: name,
     emp_id: item.emp_id || '',
-    profile_image: item.profile_image || '',
+    profile_image: resolveAssetUrl(item.profile_image),
     father_name: item.father_name || '',
     address: item.address || '',
     city: item.city || '',
