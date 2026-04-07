@@ -1,16 +1,16 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Search, Edit2, Trash2, X, Save, Factory } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, X, Save, Truck } from 'lucide-react';
 import { Card, Button, Badge } from '@/src/components/ui/Card';
 import TableLoader from '@/src/components/ui/TableLoader';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
-import { manufacturerService } from '@/src/services/manufacturer.service';
+import { supplierService } from '@/src/services/supplier.service';
 import { required } from '@/src/lib/validation';
 import { hasPermission } from '@/src/lib/auth';
 
-export default function ManufacturersSetup() {
+export default function SuppliersSetup() {
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -27,15 +27,15 @@ export default function ManufacturersSetup() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { toasts, toast, removeToast } = useThemeToast();
 
-  const canCreate = hasPermission('INVENTORY.MANUFACTURER.CREATE');
-  const canEdit = hasPermission('INVENTORY.MANUFACTURER.UPDATE');
-  const canDelete = hasPermission('INVENTORY.MANUFACTURER.DELETE');
+  const canCreate = hasPermission('INVENTORY.SUPPLIER.CREATE');
+  const canEdit = hasPermission('INVENTORY.SUPPLIER.UPDATE');
+  const canDelete = hasPermission('INVENTORY.SUPPLIER.DELETE');
 
   const loadItems = useCallback(async (query = '') => {
     setIsLoading(true);
     setListError('');
     try {
-      const response = await manufacturerService.list(query);
+      const response = await supplierService.list(query);
       setItems(Array.isArray(response?.data) ? response.data : []);
     } catch (requestError) {
       setListError(requestError.message || 'Failed to load records.');
@@ -97,11 +97,11 @@ export default function ManufacturersSetup() {
 
     try {
       if (editingItem) {
-        const response = await manufacturerService.update(editingItem.id, { name: trimmedName, phone: phone.trim(), address: address.trim(), status });
-        toast.success('Manufacturer updated', response?.message || 'Manufacturer updated successfully.');
+        const response = await supplierService.update(editingItem.id, { name: trimmedName, phone: phone.trim(), address: address.trim(), status });
+        toast.success('Supplier updated', response?.message || 'Supplier updated successfully.');
       } else {
-        const response = await manufacturerService.create({ name: trimmedName, phone: phone.trim(), address: address.trim(), status });
-        toast.success('Manufacturer created', response?.message || 'Manufacturer created successfully.');
+        const response = await supplierService.create({ name: trimmedName, phone: phone.trim(), address: address.trim(), status });
+        toast.success('Supplier created', response?.message || 'Supplier created successfully.');
       }
       closeModal();
       await loadItems(searchQuery.trim());
@@ -116,8 +116,8 @@ export default function ManufacturersSetup() {
     if (!deleteTarget) return;
     setIsSaving(true);
     try {
-      const response = await manufacturerService.remove(deleteTarget.id);
-      toast.success('Manufacturer deleted', response?.message || 'Manufacturer deleted successfully.');
+      const response = await supplierService.remove(deleteTarget.id);
+      toast.success('Supplier deleted', response?.message || 'Supplier deleted successfully.');
       setDeleteTarget(null);
       await loadItems(searchQuery.trim());
     } catch (requestError) {
@@ -132,12 +132,12 @@ export default function ManufacturersSetup() {
       <div className="space-y-8">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Manufacturers</h1>
-            <p className="mt-1 text-gray-500">Manage manufacturers linked to stock item definitions.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Suppliers</h1>
+            <p className="mt-1 text-gray-500">Manage suppliers linked to stock item definitions.</p>
           </div>
           {canCreate && (
             <Button onClick={openAddModal} icon={<Plus className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
-              Add Manufacturer
+              Add Supplier
             </Button>
           )}
         </div>
@@ -146,7 +146,7 @@ export default function ManufacturersSetup() {
           <div className="flex flex-col gap-4 border-b border-gray-50 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative w-full sm:w-96">
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Search manufacturers..." value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 py-3 pl-11 pr-4 text-sm placeholder:text-gray-400 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10" />
+              <input type="text" placeholder="Search suppliers..." value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 py-3 pl-11 pr-4 text-sm placeholder:text-gray-400 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10" />
             </div>
             <p className="text-sm font-medium text-gray-400"><span className="font-bold text-gray-900">{items.length}</span> Records</p>
           </div>
@@ -160,7 +160,7 @@ export default function ManufacturersSetup() {
               <table className="w-full min-w-[920px] border-separate border-spacing-0 text-left">
                 <thead>
                   <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
-                    <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Manufacturer Name</th>
+                    <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Supplier Name</th>
                     <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Phone</th>
                     <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Address</th>
                     <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Status</th>
@@ -169,13 +169,13 @@ export default function ManufacturersSetup() {
                 </thead>
                 <tbody className="divide-y divide-gray-50/50">
                   {isLoading ? (
-                    <tr><td colSpan={5} className="px-8 py-6 text-center"><TableLoader label="Loading manufacturer records..." /></td></tr>
+                    <tr><td colSpan={5} className="px-8 py-6 text-center"><TableLoader label="Loading supplier records..." /></td></tr>
                   ) : items.length === 0 ? (
                     <tr><td colSpan={5} className="px-8 py-20 text-center text-sm font-medium text-gray-400">No records found.</td></tr>
                   ) : (
                     items.map((item) => (
                       <tr key={item.id} className="group transition-all duration-300 hover:bg-brand-light/40">
-                        <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/10 bg-brand-light text-brand"><Factory className="h-4 w-4" /></div><span className="text-gray-900">{item.name}</span></div></td>
+                        <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/10 bg-brand-light text-brand"><Truck className="h-4 w-4" /></div><span className="text-gray-900">{item.name}</span></div></td>
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">{item.phone || '-'}</td>
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">{item.address || '-'}</td>
                         <td className="border-b border-gray-50/30 px-8 py-6"><Badge variant={item.status === 'active' ? 'green' : 'gray'}>{item.status === 'active' ? 'Active' : 'Inactive'}</Badge></td>
@@ -201,10 +201,10 @@ export default function ManufacturersSetup() {
           <div className="relative z-10 w-full max-w-[430px] overflow-hidden rounded-3xl border-l-[6px] border-brand bg-white shadow-2xl shadow-brand/10">
             <div className="flex items-start justify-between gap-4 p-6 pb-4">
               <div className="flex items-start gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand"><Factory className="w-6 h-6" /></div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand"><Truck className="w-6 h-6" /></div>
                 <div>
-                  <h2 className="text-lg font-bold tracking-tight text-gray-900">{editingItem ? 'Edit Manufacturer' : 'Add Manufacturer'}</h2>
-                  <p className="mt-1 text-sm text-gray-500">Manufacturer info + active status</p>
+                  <h2 className="text-lg font-bold tracking-tight text-gray-900">{editingItem ? 'Edit Supplier' : 'Add Supplier'}</h2>
+                  <p className="mt-1 text-sm text-gray-500">Supplier info + active status</p>
                 </div>
               </div>
               <button type="button" onClick={closeModal} className="w-10 h-10 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors" title="Close"><X className="w-5 h-5 mx-auto" /></button>
@@ -213,11 +213,11 @@ export default function ManufacturersSetup() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3 py-2 px-4 bg-brand-light/50 rounded-lg border border-brand/10">
                   <div className="w-1 h-5 bg-brand rounded-full"></div>
-                  <span className="text-sm font-bold tracking-tight text-gray-900">Manufacturer Details</span>
+                  <span className="text-sm font-bold tracking-tight text-gray-900">Supplier Details</span>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Name <span className="text-red-500">*</span></label>
-                  <input type="text" value={name} onChange={(event) => { setName(event.target.value); setValidationError(''); }} placeholder="Manufacturer name" className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationError ? 'border-rose-400' : 'border-gray-200'}`} />
+                  <input type="text" value={name} onChange={(event) => { setName(event.target.value); setValidationError(''); }} placeholder="Supplier name" className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationError ? 'border-rose-400' : 'border-gray-200'}`} />
                   {validationError ? <p className="text-xs text-rose-600">{validationError}</p> : null}
                 </div>
                 <div className="space-y-2">
@@ -247,7 +247,7 @@ export default function ManufacturersSetup() {
         document.body,
       ) : null}
 
-      <ConfirmDialog isOpen={!!deleteTarget} title="Delete Manufacturer" description={deleteTarget ? `Are you sure you want to delete ${deleteTarget.name || 'manufacturer'}?` : ''} confirmLabel="Delete" onCancel={() => setDeleteTarget(null)} onConfirm={handleDelete} isLoading={isSaving} />
+      <ConfirmDialog isOpen={!!deleteTarget} title="Delete Supplier" description={deleteTarget ? `Are you sure you want to delete ${deleteTarget.name || 'supplier'}?` : ''} confirmLabel="Delete" onCancel={() => setDeleteTarget(null)} onConfirm={handleDelete} isLoading={isSaving} />
       <ThemeToastViewport toasts={toasts} onClose={removeToast} />
     </>
   );

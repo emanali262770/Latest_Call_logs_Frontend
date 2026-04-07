@@ -171,26 +171,26 @@ function isCurrentUsersEmployee(employee) {
 
 function FieldLabel({ children, required: isRequired = false }) {
   return (
-    <label className="text-xs font-bold text-gray-600 ml-1">
+    <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
       {children}
       {isRequired ? <span className="ml-1 text-rose-500">*</span> : null}
     </label>
   );
 }
 
-function FormSection({ icon: Icon, title, children, className = '' }) {
+function FormSection({ icon: Icon, title, subtitle, children, className = '' }) {
   return (
-    <section
-      className={`rounded-[28px] border border-brand/15 bg-linear-to-br from-brand-light/80 via-white to-brand-light/35 px-6 py-6 ${className}`}
-    >
-      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-brand/12 bg-white/90 px-4 py-3">
-        <div className="h-7 w-1.5 rounded-full bg-linear-to-b from-brand to-brand-hover"></div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/10 bg-linear-to-br from-brand-light to-white text-brand">
+    <section className={`rounded-[1.5rem] border border-gray-200 bg-white ${className}`}>
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-gray-700">{title}</h3>
+          {subtitle ? <p className="mt-1 text-xs text-gray-400">{subtitle}</p> : null}
+        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-brand">
           <Icon className="h-4 w-4" />
         </div>
-        <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-brand">{title}</h3>
       </div>
-      <div className="space-y-6">{children}</div>
+      <div className="space-y-5 p-6">{children}</div>
     </section>
   );
 }
@@ -490,12 +490,12 @@ export default function Employees() {
  
 
   const inputClassName = (field) =>
-    `h-9 w-full rounded-[10px] border mt-[2px] bg-white px-3.5 text-[15px] text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none ${
+    `mt-[2px] h-10 w-full rounded-xl border bg-white px-3.5 text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none ${
       formErrors[field] ? 'border-rose-400' : 'border-gray-200'
     }`;
 
   const selectClassName = (field) =>
-    `h-9 w-full rounded-[10px] border bg-white px-3.5 pr-10 text-[15px] text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none appearance-none ${
+    `mt-[2px] h-10 w-full rounded-xl border bg-white px-3.5 pr-10 text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none appearance-none ${
       formErrors[field] ? 'border-rose-400' : 'border-gray-200'
     }`;
 
@@ -641,63 +641,60 @@ export default function Employees() {
       </div>
 
       <div ref={formContainerRef} className="hidden max-w-5xl">
-        <div className="bg-white rounded-3xl border-l-[6px] border-brand shadow-2xl shadow-brand/10 overflow-hidden">
-          <div className="p-8 pb-6 flex items-start justify-between gap-6">
-            <div className="flex items-start gap-6">
-              <div className="w-14 h-14 bg-brand-light rounded-2xl flex items-center justify-center text-brand shadow-inner">
-                <FileText className="w-7 h-7" />
+        <div className="overflow-hidden rounded-[1.75rem] border border-gray-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+          <div className="border-b border-gray-200 bg-gray-50/70 px-8 py-6">
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-brand shadow-sm">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-400">Employee Form</p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {formMode === 'create'
+                      ? 'Register a new employee into the system database with full details.'
+                      : 'Update the employee record in the system.'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-                  {formMode === 'create' ? 'New Employee Entry' : 'Edit Employee'}
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  {formMode === 'create'
-                    ? 'Register a new employee into the system database with full details.'
-                    : 'Update the employee record in the system.'}
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-gray-500 transition-all hover:border-brand/20 hover:bg-brand-light/30 hover:text-brand"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={closeForm}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-gray-500 transition-all hover:border-brand/20 hover:bg-brand-light/30 hover:text-brand"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Go Back
-            </button>
           </div>
 
-          <div className="px-8 pb-8 space-y-10">
+          <div className="space-y-8 px-8 py-8">
             {apiError && (
               <div className="px-4 py-3 bg-rose-50 border border-rose-100 rounded-xl text-sm text-rose-700 font-medium">
                 {apiError}
               </div>
             )}
 
-            <div className="space-y-6">
-           
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 ml-1"># Emp ID</label>
-                  <input
-                    type="text"
-                    value={previewEmpId}
-                    readOnly
-                    disabled
-                    className="w-full px-4 py-3 h-9 bg-gray-50 border border-gray-100 rounded-xl text-sm text-gray-500 focus:outline-none cursor-not-allowed font-mono"
-                  />
-                </div>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500"># Emp ID</label>
+                <input
+                  type="text"
+                  value={previewEmpId}
+                  readOnly
+                  disabled
+                  className="mt-[2px] h-10 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-3.5 font-mono text-sm text-gray-500 outline-none"
+                />
               </div>
             </div>
 
-            <FormSection icon={User} title="Personal Info">
+            <FormSection icon={User} title="Personal Info" subtitle="Basic personal details and contact information.">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-600 ml-1">Profile Image</label>
+                <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">Profile Image</label>
                 <div className="flex items-center gap-5">
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-brand/40 hover:bg-brand-light/20 transition-all overflow-hidden"
+                    className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-brand/40 hover:bg-brand-light/20 transition-all overflow-hidden bg-gray-50/70"
                   >
                     {profileImagePreview ? (
                       <img src={profileImagePreview} alt="Profile" className="w-full h-full object-cover" />
@@ -717,7 +714,7 @@ export default function Employees() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <FieldLabel required><User className="inline w-3 h-3 mr-1 -mt-0.5" /> Employee Name</FieldLabel>
                   <input type="text" value={formData.employee_name} onChange={(event) => updateFormField('employee_name', event.target.value)} placeholder="Full name" className={inputClassName('employee_name')} />
@@ -735,7 +732,7 @@ export default function Employees() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <FieldLabel required>City</FieldLabel>
                   <input type="text" value={formData.city} onChange={(event) => updateFormField('city', event.target.value)} placeholder="City" className={inputClassName('city')} />
@@ -761,7 +758,7 @@ export default function Employees() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <FieldLabel required>Email</FieldLabel>
                   <input
@@ -790,7 +787,7 @@ export default function Employees() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <FieldLabel>Qualification</FieldLabel>
                   <input type="text" value={formData.qualification} onChange={(event) => updateFormField('qualification', event.target.value)} placeholder="e.g. BS Computer Science" className={inputClassName('qualification')} />
@@ -804,8 +801,8 @@ export default function Employees() {
               </div>
             </FormSection>
 
-            <FormSection icon={Building2} title="Job Info">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <FormSection icon={Building2} title="Job Info" subtitle="Department, designation, and shift assignment.">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <FieldLabel required>Department</FieldLabel>
                   <div className="relative">
@@ -846,7 +843,7 @@ export default function Employees() {
                   {formErrors.employee_type && <p className="text-xs text-rose-600 ml-1">{formErrors.employee_type}</p>}
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <FieldLabel><Calendar className="inline w-3 h-3 mr-1 -mt-0.5" /> Hiring Date</FieldLabel>
                   <input type="date" value={formData.hiring_date} onChange={(event) => updateFormField('hiring_date', event.target.value)} className={inputClassName('hiring_date')} />
@@ -868,8 +865,8 @@ export default function Employees() {
               </div>
             </FormSection>
 
-            <FormSection icon={Landmark} title="Bank Info">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormSection icon={Landmark} title="Bank Info" subtitle="Banking details for salary disbursement.">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <FieldLabel required>Bank</FieldLabel>
                   <div className="relative">
@@ -891,33 +888,49 @@ export default function Employees() {
               </div>
             </FormSection>
 
-            <FormSection icon={Settings} title="Settings">
-              <label className="flex w-fit items-center gap-3 rounded-2xl border border-white/70 bg-white/75 px-4 py-3 shadow-sm backdrop-blur-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={enabledEmployee}
-                  onChange={(event) => setEnabledEmployee(event.target.checked)}
-                  className="w-4 h-4 rounded accent-brand"
-                />
-                <span className="text-sm font-semibold text-gray-700">Enabled Employee</span>
-              </label>
+            <FormSection icon={Settings} title="Settings" subtitle="Status and access configuration.">
+              <div className="space-y-2">
+                <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">Enabled</label>
+                <button
+                  type="button"
+                  onClick={() => setEnabledEmployee(!enabledEmployee)}
+                  className={`group/toggle mt-[2px] flex h-12 items-center gap-5 rounded-2xl border px-4 transition-all duration-300 ${enabledEmployee ? 'border-brand/20 bg-brand-light/40 shadow-sm shadow-brand/5' : 'border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50'}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-300 ${enabledEmployee ? 'bg-brand/10 text-brand' : 'bg-gray-100 text-gray-400'}`}>
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={enabledEmployee ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'} /></svg>
+                    </div>
+                    <span className={`text-sm font-semibold transition-colors duration-300 ${enabledEmployee ? 'text-brand' : 'text-gray-500'}`}>{enabledEmployee ? 'Yes' : 'No'}</span>
+                  </div>
+                  <div className={`relative h-6 w-11 rounded-full transition-all duration-300 ${enabledEmployee ? 'bg-brand shadow-inner shadow-brand/20' : 'bg-gray-300'}`}>
+                    <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${enabledEmployee ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </div>
+                </button>
+              </div>
             </FormSection>
 
-            <div className="flex justify-end gap-4 pt-2">
-              <button
-                onClick={closeForm}
-                className="px-10 py-4 bg-white border-2 border-gray-100 text-gray-500 rounded-2xl font-bold hover:bg-gray-50 hover:text-gray-700 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting || isSetupLoading}
-                className="flex items-center gap-3 cursor-pointer px-10 py-4 bg-brand text-white rounded-2xl font-bold hover:bg-brand-hover transition-all shadow-xl shadow-brand/20 disabled:opacity-70"
-              >
-                <Save className="w-5 h-5" />
-                {isSubmitting ? 'Saving...' : formMode === 'edit' ? 'Update Employee' : 'Save Employee'}
-              </button>
+            <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50/70 px-6 py-4">
+              <p className="text-xs leading-6 text-gray-500">
+                Review required fields before saving. All sections must be completed for a valid employee record.
+              </p>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeForm}
+                  className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-50 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || isSetupLoading}
+                  className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-70"
+                >
+                  <Save className="h-4.5 w-4.5" />
+                  {isSubmitting ? 'Saving...' : formMode === 'edit' ? 'Update Employee' : 'Save Employee'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

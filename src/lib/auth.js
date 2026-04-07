@@ -289,7 +289,7 @@ export function getReadPermissionForPath(path) {
     }
 
     if (secondSegment === 'items' && thirdSegment) {
-      return null;
+      return `INVENTORY.${normalizePermissionKey(thirdSegment)}.READ`;
     }
 
     return `EMPLOYEE.${normalizePermissionKey(secondSegment)}.READ`;

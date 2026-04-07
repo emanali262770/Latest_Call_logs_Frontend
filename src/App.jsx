@@ -20,6 +20,7 @@ import SubCategoriesSetup from './pages/setup/SubCategoriesSetup';
 import ManufacturersSetup from './pages/setup/ManufacturersSetup';
 import UnitsSetup from './pages/setup/UnitsSetup';
 import LocationsSetup from './pages/setup/LocationsSetup';
+import SuppliersSetup from './pages/setup/SuppliersSetup';
 import CompanySetup from './pages/setup/CompanySetup';
 import ItemDefinition from './pages/stock/ItemDefinition';
 import { AccessControlProvider } from './context/AccessControlContext';
@@ -148,12 +149,27 @@ export default function App() {
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/company')} />}>
             <Route path="/setup/company" element={<CompanySetup />} />
           </Route>
-          <Route path="/setup/items/item-types" element={<ItemTypesSetup />} />
-          <Route path="/setup/items/categories" element={<CategoriesSetup />} />
-          <Route path="/setup/items/sub-categories" element={<SubCategoriesSetup />} />
-          <Route path="/setup/items/manufacturers" element={<ManufacturersSetup />} />
-          <Route path="/setup/items/units" element={<UnitsSetup />} />
-          <Route path="/setup/items/locations" element={<LocationsSetup />} />
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/item-types')} />}>
+            <Route path="/setup/items/item-types" element={<ItemTypesSetup />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/categories')} />}>
+            <Route path="/setup/items/categories" element={<CategoriesSetup />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/sub-categories')} />}>
+            <Route path="/setup/items/sub-categories" element={<SubCategoriesSetup />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/manufacturers')} />}>
+            <Route path="/setup/items/manufacturers" element={<ManufacturersSetup />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/units')} />}>
+            <Route path="/setup/items/units" element={<UnitsSetup />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/locations')} />}>
+            <Route path="/setup/items/locations" element={<LocationsSetup />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/suppliers')} />}>
+            <Route path="/setup/items/suppliers" element={<SuppliersSetup />} />
+          </Route>
           <Route path="/stock/item-definition" element={<ItemDefinition />} />
           <Route path="/settings" element={<Settings />} />
         </Route>

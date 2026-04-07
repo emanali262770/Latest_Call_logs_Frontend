@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Search, Edit2, Trash2, X, Save, Ruler } from 'lucide-react';
 import { Card, Button, Badge } from '@/src/components/ui/Card';
@@ -6,30 +6,16 @@ import TableLoader from '@/src/components/ui/TableLoader';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
+import { unitService } from '@/src/services/unit.service';
 import { required } from '@/src/lib/validation';
-
-const STORAGE_KEY = 'cms_setup_units';
-
-function loadItems() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveItems(items) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
+import { hasPermission } from '@/src/lib/auth';
 
 export default function UnitsSetup() {
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [listError, setListError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [name, setName] = useState('');
@@ -40,16 +26,29 @@ export default function UnitsSetup() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { toasts, toast, removeToast } = useThemeToast();
 
-  useEffect(() => {
-    setItems(loadItems());
-    setIsLoading(false);
+  const canCreate = hasPermission('INVENTORY.UNIT.CREATE');
+  const canEdit = hasPermission('INVENTORY.UNIT.UPDATE');
+  const canDelete = hasPermission('INVENTORY.UNIT.DELETE');
+
+  const loadItems = useCallback(async (query = '') => {
+    setIsLoading(true);
+    setListError('');
+    try {
+      const response = await unitService.list(query);
+      setItems(Array.isArray(response?.data) ? response.data : []);
+    } catch (requestError) {
+      setListError(requestError.message || 'Failed to load records.');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const filteredItems = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return items;
-    return items.filter((item) => [item.name, item.shortName].some((value) => String(value || '').toLowerCase().includes(query)));
-  }, [items, searchQuery]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadItems(searchQuery.trim());
+    }, 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery, loadItems]);
 
   const resetForm = () => {
     setEditingItem(null);
@@ -80,7 +79,7 @@ export default function UnitsSetup() {
     resetForm();
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const nextErrors = {};
     const nameError = required(name.trim(), 'Name');
     const shortNameError = required(shortName.trim(), 'Short Name');
@@ -98,37 +97,32 @@ export default function UnitsSetup() {
     setIsSaving(true);
 
     try {
-      const payload = {
-        id: editingItem?.id || crypto.randomUUID(),
-        name: name.trim(),
-        shortName: shortName.trim(),
-        status,
-        createdAt: editingItem?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      const nextItems = editingItem ? items.map((item) => (item.id === editingItem.id ? payload : item)) : [payload, ...items];
-      setItems(nextItems);
-      saveItems(nextItems);
-      toast.success(editingItem ? 'Unit updated' : 'Unit created', editingItem ? 'Unit updated successfully.' : 'Unit created successfully.');
+      if (editingItem) {
+        const response = await unitService.update(editingItem.id, { name: name.trim(), shortName: shortName.trim(), status });
+        toast.success('Unit updated', response?.message || 'Unit updated successfully.');
+      } else {
+        const response = await unitService.create({ name: name.trim(), shortName: shortName.trim(), status });
+        toast.success('Unit created', response?.message || 'Unit created successfully.');
+      }
       closeModal();
-    } catch (errorMessage) {
-      setApiError(errorMessage.message || 'Unable to save record.');
+      await loadItems(searchQuery.trim());
+    } catch (requestError) {
+      setApiError(requestError.message || 'Unable to save record.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
     setIsSaving(true);
     try {
-      const nextItems = items.filter((item) => item.id !== deleteTarget.id);
-      setItems(nextItems);
-      saveItems(nextItems);
-      toast.success('Unit deleted', 'Unit deleted successfully.');
+      const response = await unitService.remove(deleteTarget.id);
+      toast.success('Unit deleted', response?.message || 'Unit deleted successfully.');
       setDeleteTarget(null);
-    } catch (errorMessage) {
-      toast.error('Delete failed', errorMessage.message || 'Unable to delete record.');
+      await loadItems(searchQuery.trim());
+    } catch (requestError) {
+      toast.error('Delete failed', requestError.message || 'Unable to delete record.');
     } finally {
       setIsSaving(false);
     }
@@ -142,7 +136,9 @@ export default function UnitsSetup() {
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">Units</h1>
             <p className="mt-1 text-gray-500">Manage units and short names used in stock records.</p>
           </div>
-          <Button onClick={openAddModal} icon={<Plus className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">Add Unit</Button>
+          {canCreate && (
+            <Button onClick={openAddModal} icon={<Plus className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">Add Unit</Button>
+          )}
         </div>
 
         <Card className="border-none p-0 shadow-xl shadow-gray-200/50">
@@ -151,8 +147,12 @@ export default function UnitsSetup() {
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input type="text" placeholder="Search units..." value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 py-3 pl-11 pr-4 text-sm placeholder:text-gray-400 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10" />
             </div>
-            <p className="text-sm font-medium text-gray-400"><span className="font-bold text-gray-900">{filteredItems.length}</span> Records</p>
+            <p className="text-sm font-medium text-gray-400"><span className="font-bold text-gray-900">{items.length}</span> Records</p>
           </div>
+
+          {listError && (
+            <div className="mx-6 mb-6 px-4 py-3 bg-rose-50 border border-rose-100 rounded-xl text-sm text-rose-700 font-medium">{listError}</div>
+          )}
 
           <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">
             <div className="overflow-x-auto">
@@ -168,15 +168,20 @@ export default function UnitsSetup() {
                 <tbody className="divide-y divide-gray-50/50">
                   {isLoading ? (
                     <tr><td colSpan={4} className="px-8 py-6 text-center"><TableLoader label="Loading unit records..." /></td></tr>
-                  ) : filteredItems.length === 0 ? (
+                  ) : items.length === 0 ? (
                     <tr><td colSpan={4} className="px-8 py-20 text-center text-sm font-medium text-gray-400">No records found.</td></tr>
                   ) : (
-                    filteredItems.map((item) => (
+                    items.map((item) => (
                       <tr key={item.id} className="group transition-all duration-300 hover:bg-brand-light/40">
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/10 bg-brand-light text-brand"><Ruler className="h-4 w-4" /></div><span className="text-gray-900">{item.name}</span></div></td>
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">{item.shortName}</td>
                         <td className="border-b border-gray-50/30 px-8 py-6"><Badge variant={item.status === 'active' ? 'green' : 'gray'}>{item.status === 'active' ? 'Active' : 'Inactive'}</Badge></td>
-                        <td className="border-b border-gray-50/30 px-8 py-6 text-right"><div className="flex items-center justify-end gap-2"><button type="button" onClick={() => openEditModal(item)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95" title="Edit"><Edit2 className="h-4.5 w-4.5" /></button><button type="button" onClick={() => setDeleteTarget(item)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95" title="Delete"><Trash2 className="h-4.5 w-4.5" /></button></div></td>
+                        <td className="border-b border-gray-50/30 px-8 py-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {canEdit && (<button type="button" onClick={() => openEditModal(item)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95" title="Edit"><Edit2 className="h-4.5 w-4.5" /></button>)}
+                            {canDelete && (<button type="button" onClick={() => setDeleteTarget(item)} disabled={isSaving} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95 disabled:opacity-60" title="Delete"><Trash2 className="h-4.5 w-4.5" /></button>)}
+                          </div>
+                        </td>
                       </tr>
                     ))
                   )}
@@ -193,9 +198,7 @@ export default function UnitsSetup() {
           <div className="relative z-10 w-full max-w-[430px] overflow-hidden rounded-3xl border-l-[6px] border-brand bg-white shadow-2xl shadow-brand/10">
             <div className="flex items-start justify-between gap-4 p-6 pb-4">
               <div className="flex items-start gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand">
-                  <Ruler className="w-6 h-6" />
-                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand"><Ruler className="w-6 h-6" /></div>
                 <div>
                   <h2 className="text-lg font-bold tracking-tight text-gray-900">{editingItem ? 'Edit Unit' : 'Add Unit'}</h2>
                   <p className="mt-1 text-sm text-gray-500">Unit name + short name + active status</p>
@@ -210,16 +213,12 @@ export default function UnitsSetup() {
                   <span className="text-sm font-bold tracking-tight text-gray-900">Unit Details</span>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                    Name <span className="text-red-500">*</span>
-                  </label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Name <span className="text-red-500">*</span></label>
                   <input type="text" value={name} onChange={(event) => { setName(event.target.value); setValidationErrors((prev) => ({ ...prev, name: '' })); }} placeholder="Unit name" className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationErrors.name ? 'border-rose-400' : 'border-gray-200'}`} />
                   {validationErrors.name ? <p className="text-xs text-rose-600">{validationErrors.name}</p> : null}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                    Short Name <span className="text-red-500">*</span>
-                  </label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Short Name <span className="text-red-500">*</span></label>
                   <input type="text" value={shortName} onChange={(event) => { setShortName(event.target.value); setValidationErrors((prev) => ({ ...prev, shortName: '' })); }} placeholder="Short name (e.g., kg, pcs)" className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationErrors.shortName ? 'border-rose-400' : 'border-gray-200'}`} />
                   {validationErrors.shortName ? <p className="text-xs text-rose-600">{validationErrors.shortName}</p> : null}
                 </div>

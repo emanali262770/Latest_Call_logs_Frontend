@@ -321,8 +321,6 @@ export default function ItemDefinition() {
     }));
   }, [formData.code, formData.primaryBarcode, formData.secondaryBarcode, formMode]);
 
-  const activeBarcodeValue = formData.secondaryBarcode || formData.primaryBarcode;
-
   const inputClassName = (field) =>
     `mt-[2px] h-10 w-full rounded-xl border bg-white px-3.5 text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none ${
       formErrors[field] ? 'border-rose-400' : 'border-gray-200'
@@ -576,48 +574,54 @@ export default function ItemDefinition() {
                       {!formData.secondaryBarcode ? (
                         <div className="space-y-2">
                           <FieldLabel>Primary Barcode</FieldLabel>
-                          <input
-                            type="text"
-                            value={formData.primaryBarcode}
-                            readOnly
-                            disabled
-                            className="mt-[2px] h-10 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-3.5 font-mono text-sm text-gray-500 outline-none"
-                          />
+                          <div className="mt-[2px] flex h-10 w-full items-center justify-between overflow-hidden rounded-xl border border-gray-200 bg-gray-50 px-3.5">
+                            <span className="font-mono text-sm text-gray-500 shrink-0">{formData.primaryBarcode || '—'}</span>
+                            {formData.primaryBarcode && (
+                              <div className="ml-3 shrink-0">
+                                <Barcode
+                                  value={formData.primaryBarcode}
+                                  height={22}
+                                  fontSize={0}
+                                  margin={0}
+                                  displayValue={false}
+                                  background="transparent"
+                                  lineColor="#111827"
+                                  width={1}
+                                />
+                              </div>
+                            )}
+                          </div>
                           <p className="text-xs text-gray-400">Auto-generated using 4 random digits joined with the item code number.</p>
                         </div>
-                      ) : (
-                        <div />
-                      )}
+                      ) : null}
 
                       <div className="space-y-2">
                         <FieldLabel>Secondary Barcode</FieldLabel>
-                        <input
-                          type="text"
-                          value={formData.secondaryBarcode}
-                          onChange={(event) => updateField('secondaryBarcode', event.target.value)}
-                          placeholder="Enter secondary barcode"
-                          className={inputClassName('secondaryBarcode')}
-                        />
-                      </div>
-                    </div>
-
-                    {activeBarcodeValue ? (
-                      <div className="space-y-3">
-                        <FieldLabel>Barcode Preview</FieldLabel>
-                        <div className="flex min-h-28 items-center justify-center rounded-2xl border border-dashed border-gray-300 bg-gray-50/70 px-4 py-5">
-                          <Barcode
-                            value={activeBarcodeValue}
-                            height={44}
-                            fontSize={12}
-                            margin={0}
-                            displayValue
-                            background="transparent"
-                            lineColor="#111827"
-                            width={1.5}
+                        <div className={`mt-[2px] flex h-10 w-full items-center justify-between overflow-hidden rounded-xl border px-3.5 ${formData.secondaryBarcode ? 'border-gray-200 bg-gray-50' : 'border-gray-200 bg-white'}`}>
+                          <input
+                            type="text"
+                            value={formData.secondaryBarcode}
+                            onChange={(event) => updateField('secondaryBarcode', event.target.value)}
+                            placeholder="Enter secondary barcode"
+                            className="h-full w-full bg-transparent font-mono text-sm text-gray-700 outline-none placeholder:text-gray-400"
                           />
+                          {formData.secondaryBarcode && (
+                            <div className="ml-3 shrink-0">
+                              <Barcode
+                                value={formData.secondaryBarcode}
+                                height={22}
+                                fontSize={0}
+                                margin={0}
+                                displayValue={false}
+                                background="transparent"
+                                lineColor="#111827"
+                                width={1}
+                              />
+                            </div>
+                          )}
                         </div>
                       </div>
-                    ) : null}
+                    </div>
 
                   
                   </div>
@@ -835,17 +839,21 @@ export default function ItemDefinition() {
                   <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
                     <div className="space-y-2">
                       <FieldLabel>Expirable</FieldLabel>
-                      <div className="relative">
-                        <select
-                          value={formData.expirable}
-                          onChange={(event) => updateField('expirable', event.target.value)}
-                          className="mt-[2px] h-10 w-full appearance-none rounded-xl border border-gray-200 bg-white px-3.5 pr-10 text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
-                        >
-                          <option value="no">No</option>
-                          <option value="yes">Yes</option>
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateField('expirable', formData.expirable === 'yes' ? 'no' : 'yes')}
+                        className={`group/toggle mt-[2px] flex h-12 w-full items-center justify-between rounded-2xl border px-4 transition-all duration-300 ${formData.expirable === 'yes' ? 'border-brand/20 bg-brand-light/40 shadow-sm shadow-brand/5' : 'border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-300 ${formData.expirable === 'yes' ? 'bg-brand/10 text-brand' : 'bg-gray-100 text-gray-400'}`}>
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={formData.expirable === 'yes' ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'} /></svg>
+                          </div>
+                          <span className={`text-sm font-semibold transition-colors duration-300 ${formData.expirable === 'yes' ? 'text-brand' : 'text-gray-500'}`}>{formData.expirable === 'yes' ? 'Yes' : 'No'}</span>
+                        </div>
+                        <div className={`relative h-6 w-11 rounded-full transition-all duration-300 ${formData.expirable === 'yes' ? 'bg-brand shadow-inner shadow-brand/20' : 'bg-gray-300'}`}>
+                          <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${formData.expirable === 'yes' ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        </div>
+                      </button>
                     </div>
 
                     {formData.expirable === 'yes' ? (
@@ -869,32 +877,40 @@ export default function ItemDefinition() {
 
                     <div className="space-y-2">
                       <FieldLabel>Cost Item</FieldLabel>
-                      <div className="relative">
-                        <select
-                          value={formData.costItem}
-                          onChange={(event) => updateField('costItem', event.target.value)}
-                          className="mt-[2px] h-10 w-full appearance-none rounded-xl border border-gray-200 bg-white px-3.5 pr-10 text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
-                        >
-                          <option value="yes">Yes</option>
-                          <option value="no">No</option>
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateField('costItem', formData.costItem === 'yes' ? 'no' : 'yes')}
+                        className={`group/toggle mt-[2px] flex h-12 w-full items-center justify-between rounded-2xl border px-4 transition-all duration-300 ${formData.costItem === 'yes' ? 'border-brand/20 bg-brand-light/40 shadow-sm shadow-brand/5' : 'border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-300 ${formData.costItem === 'yes' ? 'bg-brand/10 text-brand' : 'bg-gray-100 text-gray-400'}`}>
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={formData.costItem === 'yes' ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'} /></svg>
+                          </div>
+                          <span className={`text-sm font-semibold transition-colors duration-300 ${formData.costItem === 'yes' ? 'text-brand' : 'text-gray-500'}`}>{formData.costItem === 'yes' ? 'Yes' : 'No'}</span>
+                        </div>
+                        <div className={`relative h-6 w-11 rounded-full transition-all duration-300 ${formData.costItem === 'yes' ? 'bg-brand shadow-inner shadow-brand/20' : 'bg-gray-300'}`}>
+                          <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${formData.costItem === 'yes' ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        </div>
+                      </button>
                     </div>
 
                     <div className="space-y-2">
                       <FieldLabel>Stop Sale</FieldLabel>
-                      <div className="relative">
-                        <select
-                          value={formData.stopSale}
-                          onChange={(event) => updateField('stopSale', event.target.value)}
-                          className="mt-[2px] h-10 w-full appearance-none rounded-xl border border-gray-200 bg-white px-3.5 pr-10 text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
-                        >
-                          <option value="no">No</option>
-                          <option value="yes">Yes</option>
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateField('stopSale', formData.stopSale === 'yes' ? 'no' : 'yes')}
+                        className={`group/toggle mt-[2px] flex h-12 w-full items-center justify-between rounded-2xl border px-4 transition-all duration-300 ${formData.stopSale === 'yes' ? 'border-rose-200 bg-rose-50/50 shadow-sm shadow-rose-100/30' : 'border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-300 ${formData.stopSale === 'yes' ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-400'}`}>
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={formData.stopSale === 'yes' ? 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' : 'M5 13l4 4L19 7'} /></svg>
+                          </div>
+                          <span className={`text-sm font-semibold transition-colors duration-300 ${formData.stopSale === 'yes' ? 'text-rose-600' : 'text-gray-500'}`}>{formData.stopSale === 'yes' ? 'Yes' : 'No'}</span>
+                        </div>
+                        <div className={`relative h-6 w-11 rounded-full transition-all duration-300 ${formData.stopSale === 'yes' ? 'bg-rose-500 shadow-inner shadow-rose-600/20' : 'bg-gray-300'}`}>
+                          <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${formData.stopSale === 'yes' ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        </div>
+                      </button>
                     </div>
 
                     <div className="space-y-2 md:col-span-2">

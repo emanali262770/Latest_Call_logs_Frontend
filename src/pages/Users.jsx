@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Eye, EyeOff, KeyRound, Plus, Search, Search as SearchIcon, Shield, Trash2, User, UserCog, Users as UsersIcon, X } from 'lucide-react';
 import { AccessControlShell, Modal } from '@/src/components/access-control/AccessControlShell';
-import { Button } from '@/src/components/ui/Card';
+import { Card, Button, Badge } from '@/src/components/ui/Card';
 import TableLoader from '@/src/components/ui/TableLoader';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useAccessControl } from '@/src/context/AccessControlContext';
@@ -111,7 +111,7 @@ function SearchableSelect({
 
   return (
     <div className={`space-y-2 ${isOpen ? 'relative z-40' : 'relative z-0'}`} ref={containerRef}>
-      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
       </label>
@@ -176,23 +176,25 @@ function SearchableSelect({
   );
 }
 
-function FormSection({ icon: Icon, title, children }) {
+function FormSection({ icon: Icon, title, subtitle, children }) {
   return (
-    <section className="rounded-[28px] border border-brand/15 bg-linear-to-br from-brand-light/80 via-white to-brand-light/35 px-6 py-6">
-      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-brand/12 bg-white/90 px-4 py-3">
-        <div className="h-7 w-1.5 rounded-full bg-linear-to-b from-brand to-brand-hover"></div>
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-brand/10 bg-linear-to-br from-brand-light to-white text-brand">
+    <section className="rounded-[1.5rem] border border-gray-200 bg-white">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+        <div>
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-gray-700">{title}</h3>
+          {subtitle ? <p className="mt-1 text-xs text-gray-400">{subtitle}</p> : null}
+        </div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-brand">
           <Icon className="h-4 w-4" />
         </div>
-        <h3 className="text-sm font-bold uppercase tracking-[0.12em] text-brand">{title}</h3>
       </div>
-      <div className="space-y-6">{children}</div>
+      <div className="space-y-5 p-6">{children}</div>
     </section>
   );
 }
 
 function readOnlyFieldClassName() {
-  return 'w-full cursor-not-allowed rounded-xl border border-brand/20 bg-gray-50 px-4 py-2.5 text-sm text-gray-500 outline-none';
+  return 'mt-[2px] h-10 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-3.5 text-sm text-gray-500 outline-none';
 }
 
 export default function UsersPage() {
@@ -534,8 +536,8 @@ export default function UsersPage() {
   };
 
   const createInputClassName = (field) =>
-    `w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10 ${
-      createErrors[field] ? 'border-rose-300' : 'border-gray-200'
+    `mt-[2px] h-10 w-full rounded-xl border bg-white px-3.5 text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10 ${
+      createErrors[field] ? 'border-rose-400' : 'border-gray-200'
     }`;
 
   return (
@@ -543,96 +545,88 @@ export default function UsersPage() {
       title="Access Control"
       subtitle="Manage groups, permissions, and user assignments."
     >
-      <section className="overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-xl shadow-gray-200/50">
-        <div className="flex flex-col gap-4 border-b border-gray-100 px-5 py-5 md:flex-row md:items-center md:justify-between">
+      <Card className="border-none p-0 shadow-xl shadow-gray-200/50">
+        <div className="flex flex-col gap-4 border-b border-gray-50 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full sm:w-96">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search users..."
+              className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 py-3 pl-11 pr-4 text-sm placeholder:text-gray-400 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
+            />
+          </div>
           <div className="flex items-center gap-4">
-            <div className="rounded-2xl bg-brand-light p-3 text-brand">
-              <UsersIcon className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-[17px] font-bold tracking-tight text-gray-900">User Management</h2>
-              <p className="text-[13px] text-gray-500">Create users, assign security groups, and manage credentials.</p>
-            </div>
-          </div>
-          <Button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="bg-brand px-4 py-2.5 text-[13px] hover:bg-brand-hover"
-          >
-            <span className="inline-flex items-center gap-2">
-              <Plus className="h-4 w-4" />
+            <p className="text-sm font-medium text-gray-400"><span className="font-bold text-gray-900">{visibleUsers.length}</span> Records</p>
+            <Button
+              onClick={() => setIsCreateModalOpen(true)}
+              icon={<Plus className="h-4 w-4" />}
+              className="bg-brand shadow-brand/20 hover:bg-brand-hover"
+            >
               New User
-            </span>
-          </Button>
-        </div>
-
-        <div className="border-b border-gray-100 px-5 py-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <label className="relative block w-full max-w-md">
-              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search users..."
-                className="w-full rounded-2xl border border-gray-200 bg-white py-2.5 pl-11 pr-4 text-[13px] outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
-              />
-            </label>
-            <p className="text-[13px] font-medium text-gray-500">{visibleUsers.length} users found</p>
+            </Button>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-left">
-            <thead className="bg-gray-50/80 text-[13px] text-gray-500">
-              <tr>
-                <th className="px-6 py-4 font-bold">Full Name</th>
-                <th className="px-6 py-4 font-bold">Username</th>
-                <th className="px-6 py-4 font-bold">Designation</th>
-                <th className="px-6 py-4 font-bold">Status</th>
-                <th className="px-6 py-4 font-bold">Toggle</th>
-                <th className="px-6 py-4 font-bold">Created</th>
-                <th className="px-6 py-4 text-right font-bold">Actions</th>
+        <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left">
+            <thead>
+              <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
+                <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Full Name</th>
+                <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Username</th>
+                <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Designation</th>
+                <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Status</th>
+                <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Toggle</th>
+                <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Created</th>
+                <th className="border-b border-gray-100/60 px-6 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-50/50">
               {usersLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center">
+                  <td colSpan={7} className="px-8 py-6 text-center">
                     <TableLoader label="Loading users..." />
                   </td>
                 </tr>
               ) : usersError ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8">
-                    <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                  <td colSpan={7} className="px-8 py-6">
+                    <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
                       {usersError}
                     </div>
                   </td>
                 </tr>
               ) : visibleUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-sm font-medium text-gray-400">
+                  <td colSpan={7} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
                     No users found.
                   </td>
                 </tr>
               ) : (
                 visibleUsers.map((user) => (
-                  <tr key={user.id} className="border-t border-gray-100">
-                    <td className="px-6 py-4 text-[13px] font-semibold text-gray-900">{user.fullName || '-'}</td>
-                    <td className="px-6 py-4 text-[13px]">
+                  <tr key={user.id} className="group transition-all duration-300 hover:bg-brand-light/40">
+                    <td className="border-b border-gray-50/30 px-6 py-6">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/10 bg-brand-light text-brand">
+                          <User className="h-4 w-4" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-900">{user.fullName || '-'}</span>
+                      </div>
+                    </td>
+                    <td className="border-b border-gray-50/30 px-6 py-6">
                       <div className="flex items-center gap-3">
                         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-light text-[12px] font-bold text-brand">
                           {(user.username?.[0] || '?').toUpperCase()}
                         </span>
-                        <span className="text-[13px] text-gray-700">{user.username || '-'}</span>
+                        <span className="text-sm font-semibold text-gray-700">{user.username || '-'}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-[13px] text-gray-600">{user.designation || '-'}</td>
-                    <td className="px-6 py-4 text-[13px]">
-                      <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-bold capitalize ${getStatusClasses(user.status)}`}>
-                        {user.status}
-                      </span>
+                    <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700">{user.designation || '-'}</td>
+                    <td className="border-b border-gray-50/30 px-6 py-6">
+                      <Badge variant={user.status === 'active' ? 'green' : 'gray'}>{user.status}</Badge>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="border-b border-gray-50/30 px-6 py-6">
                       <button
                         type="button"
                         onClick={() => handleToggleUserStatus(user)}
@@ -651,37 +645,32 @@ export default function UsersPage() {
                         />
                       </button>
                     </td>
-                    <td className="px-6 py-4 text-[13px] text-gray-500">{formatDate(user.createdAt)}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-3">
+                    <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-500">{formatDate(user.createdAt)}</td>
+                    <td className="border-b border-gray-50/30 px-6 py-6 text-right">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => {
-                            setAssigningUserId(user.id);
-                          }}
-                          className="rounded-2xl border border-gray-200 px-4 py-2 text-[13px] font-semibold text-gray-700 transition-colors hover:border-brand/20 hover:bg-brand-light/40"
+                          onClick={() => setAssigningUserId(user.id)}
+                          className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95"
+                          title="Groups"
                         >
-                          <span className="inline-flex items-center gap-2">
-                            <Shield className="h-3.5 w-3.5" />
-                            Groups
-                          </span>
+                          <Shield className="h-4.5 w-4.5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => setResetUserId(user.id)}
-                          className="rounded-2xl border border-gray-200 px-4 py-2 text-[13px] font-semibold text-gray-700 transition-colors hover:border-brand/20 hover:bg-brand-light/40"
+                          className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95"
+                          title="Reset Password"
                         >
-                          <span className="inline-flex items-center gap-2">
-                            <KeyRound className="h-3.5 w-3.5" />
-                            Reset Pwd
-                          </span>
+                          <KeyRound className="h-4.5 w-4.5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => deleteUser(user.id)}
-                          className="rounded-2xl p-2 text-rose-500 transition-colors hover:bg-rose-50"
+                          className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95"
+                          title="Delete"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4.5 w-4.5" />
                         </button>
                       </div>
                     </td>
@@ -690,37 +679,41 @@ export default function UsersPage() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
-      </section>
+      </Card>
 
       {isCreateModalOpen &&
         createPortal(
           <div className="fixed inset-0 z-70 overflow-y-auto p-4 sm:p-6">
             <button type="button" className="absolute inset-0 bg-slate-950/48" onClick={closeCreateModal} aria-label="Close modal"></button>
 
-            <div className="relative z-10 mx-auto my-8 w-full max-w-[860px] overflow-hidden rounded-3xl border-l-[6px] border-brand bg-white shadow-2xl shadow-brand/10">
-              <div className="flex items-start justify-between gap-4 p-6 pb-4">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand">
-                    <UserCog className="w-5 h-5" />
+            <div className="relative z-10 mx-auto my-8 w-full max-w-[860px] overflow-hidden rounded-[1.75rem] border border-gray-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+              <div className="border-b border-gray-200 bg-gray-50/70 px-8 py-6">
+                <div className="flex items-start justify-between gap-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-brand shadow-sm">
+                      <UserCog className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-400">User Form</p>
+                      <p className="mt-1 text-sm text-gray-500">Create a new application user from an employee profile.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-lg font-bold tracking-tight text-gray-900">New User</h2>
-                    <p className="mt-1 text-sm text-gray-500">Create a new application user from an employee profile.</p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={closeCreateModal}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-gray-500 transition-all hover:border-brand/20 hover:bg-brand-light/30 hover:text-brand"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Close
+                  </button>
                 </div>
-                <button
-                  onClick={closeCreateModal}
-                  className="w-10 h-10 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
-                  title="Close"
-                >
-                  <X className="w-5 h-5 mx-auto" />
-                </button>
               </div>
 
-              <div className="max-h-[calc(100vh-11rem)] space-y-6 overflow-y-auto px-6 pb-6">
-                <FormSection icon={User} title="Employee Info">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="max-h-[calc(100vh-11rem)] space-y-8 overflow-y-auto px-8 py-8">
+                <FormSection icon={User} title="Employee Info" subtitle="Select employee and view department details.">
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div className="space-y-2">
                       <SearchableSelect
                         label="Employee"
@@ -738,7 +731,7 @@ export default function UsersPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
                         Department <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -753,9 +746,9 @@ export default function UsersPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
                         Designation <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -771,10 +764,10 @@ export default function UsersPage() {
                   </div>
                 </FormSection>
 
-                <FormSection icon={UserCog} title="User Info">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormSection icon={UserCog} title="User Info" subtitle="Credentials, lock status, and description.">
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">User ID</label>
+                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">User ID</label>
                       <input
                         type="text"
                         value={previewUserId}
@@ -785,7 +778,7 @@ export default function UsersPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
                         Username <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -799,9 +792,9 @@ export default function UsersPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
                         Password <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -815,7 +808,7 @@ export default function UsersPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
                         Confirm Password <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -830,38 +823,31 @@ export default function UsersPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Lock</label>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700">
-                        <input
-                          type="radio"
-                          name="user-lock-status"
-                          checked={createForm.locked === true}
-                          onChange={() => updateCreateFormField('locked', true)}
-                          className="h-4 w-4 accent-[var(--color-brand)]"
-                        />
-                        <span>Yes</span>
-                      </label>
-                      <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700">
-                        <input
-                          type="radio"
-                          name="user-lock-status"
-                          checked={createForm.locked === false}
-                          onChange={() => updateCreateFormField('locked', false)}
-                          className="h-4 w-4 accent-[var(--color-brand)]"
-                        />
-                        <span>No</span>
-                      </label>
-                    </div>
+                    <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">Lock</label>
+                    <button
+                      type="button"
+                      onClick={() => updateCreateFormField('locked', !createForm.locked)}
+                      className={`group/toggle mt-[2px] flex h-12 w-fit items-center justify-between gap-5 rounded-2xl border px-4 transition-all duration-300 ${createForm.locked ? 'border-rose-200 bg-rose-50/50 shadow-sm shadow-rose-100/30' : 'border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-300 ${createForm.locked ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-400'}`}>
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={createForm.locked ? 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' : 'M5 13l4 4L19 7'} /></svg>
+                        </div>
+                        <span className={`text-sm font-semibold transition-colors duration-300 ${createForm.locked ? 'text-rose-600' : 'text-gray-500'}`}>{createForm.locked ? 'Locked' : 'Unlocked'}</span>
+                      </div>
+                      <div className={`relative h-6 w-11 rounded-full transition-all duration-300 ${createForm.locked ? 'bg-rose-500 shadow-inner shadow-rose-600/20' : 'bg-gray-300'}`}>
+                        <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${createForm.locked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      </div>
+                    </button>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Description</label>
+                    <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">Description</label>
                     <textarea
                       value={createForm.description}
                       onChange={(event) => updateCreateFormField('description', event.target.value)}
                       rows={5}
-                      className={`${createInputClassName('description')} resize-none`}
+                      className={`mt-[2px] w-full rounded-xl border bg-white px-3.5 py-3 text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10 resize-none ${createErrors.description ? 'border-rose-400' : 'border-gray-200'}`}
                       placeholder="Add notes or description"
                     />
                   </div>
@@ -879,22 +865,25 @@ export default function UsersPage() {
                   </div>
                 ) : null}
 
-                <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
-                  <button
-                    onClick={closeCreateModal}
-                    disabled={isCreatingUser}
-                    className="rounded-xl border border-gray-200 bg-white px-8 py-3 font-bold text-gray-500 transition-all hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleCreateUser}
-                    disabled={isCreatingUser || employeesLoading}
-                    className="inline-flex items-center gap-2 rounded-xl bg-brand px-8 py-3 font-bold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-70"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {isCreatingUser ? 'Saving...' : 'Save User'}
-                  </button>
+                <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50/50 px-6 py-4">
+                  <p className="text-xs text-gray-400">Review all fields before saving the user.</p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={closeCreateModal}
+                      disabled={isCreatingUser}
+                      className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-xs font-bold uppercase tracking-[0.12em] text-gray-500 transition-all hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleCreateUser}
+                      disabled={isCreatingUser || employeesLoading}
+                      className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-2.5 text-xs font-bold uppercase tracking-[0.12em] text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-70"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {isCreatingUser ? 'Saving...' : 'Save User'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -23,6 +23,7 @@ import {
   Factory,
   Ruler,
   MapPin,
+  Truck,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { getReadPermissionsForPath, hasAnyPermission } from '@/src/lib/auth';
@@ -90,6 +91,7 @@ const navItems = [
           { id: 'setup-manufacturers', label: 'Manufacturers', path: '/setup/items/manufacturers', icon: Factory },
           { id: 'setup-units', label: 'Units', path: '/setup/items/units', icon: Ruler },
           { id: 'setup-locations', label: 'Locations', path: '/setup/items/locations', icon: MapPin },
+          { id: 'setup-suppliers', label: 'Suppliers', path: '/setup/items/suppliers', icon: Truck },
         ],
       },
     ],
