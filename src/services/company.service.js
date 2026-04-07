@@ -59,6 +59,8 @@ function toCompanyFormData(values) {
     ntn: values.ntn,
     strn: values.strn,
     year_of_establishment: values.year_of_establishment,
+    remove_ntn_document: values.remove_ntn_document ? '1' : '',
+    remove_strn_document: values.remove_strn_document ? '1' : '',
   };
 
   Object.entries(textEntries).forEach(([key, value]) => {

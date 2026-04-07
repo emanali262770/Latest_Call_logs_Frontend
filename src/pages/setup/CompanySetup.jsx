@@ -285,7 +285,11 @@ export default function CompanySetup() {
     setIsSubmitting(true);
 
     try {
-      const response = await companyService.update(formData);
+      const response = await companyService.update({
+        ...formData,
+        remove_ntn_document: removedDocuments.ntn_document,
+        remove_strn_document: removedDocuments.strn_document,
+      });
       toast.success(
         formMode === 'edit' ? 'Company updated' : 'Company saved',
         response?.message || 'Company profile saved successfully.',

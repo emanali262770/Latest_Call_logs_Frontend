@@ -226,9 +226,9 @@ export default function Employees() {
   const { toasts, toast, removeToast } = useThemeToast();
   const { loadUsers } = useAccessControl();
 
-  const canCreate = hasPermission('employees.create');
-  const canEdit = hasPermission('employees.update');
-  const canDelete = hasPermission('employees.delete');
+  const canCreate = hasPermission('EMPLOYEE.EMPLOYEE.CREATE');
+  const canEdit = hasPermission('EMPLOYEE.EMPLOYEE.UPDATE');
+  const canDelete = hasPermission('EMPLOYEE.EMPLOYEE.DELETE');
 
   const showForm = formMode !== null;
 

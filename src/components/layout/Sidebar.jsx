@@ -98,23 +98,10 @@ const navItems = [
 ];
 
 function attachVisibleSubItems(items = []) {
-  return items
-    .map((item) => {
-      const visibleSubItems = attachVisibleSubItems(item.subItems || []);
-      const canAccessDirectPath = item.path ? hasAnyPermission(getReadPermissionsForPath(item.path)) : false;
-
-      if (item.subItems?.length) {
-        if (!visibleSubItems.length && !canAccessDirectPath) return null;
-
-        return {
-          ...item,
-          visibleSubItems,
-        };
-      }
-
-      return canAccessDirectPath ? { ...item, visibleSubItems: [] } : null;
-    })
-    .filter(Boolean);
+  return items.map((item) => ({
+    ...item,
+    visibleSubItems: attachVisibleSubItems(item.subItems || []),
+  }));
 }
 
 function hasActiveDescendant(item, pathName) {
