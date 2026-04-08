@@ -24,13 +24,29 @@ const ACTION_SEQUENCE = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'ASSIGN'];
 const TREE_LEVEL_SEQUENCE = {
   ROOT: ['DASHBOARD', 'EMPLOYEES', 'ACCESS CONTROL', 'STOCK', 'SETUP', 'SETTINGS'],
   'ACCESS CONTROL': ['GROUPS', 'USERS', 'PERMISSIONS'],
+  STOCK: ['ITEM DEFINITION'],
   SETUP: ['EMPLOYEE SETUP', 'ITEMS'],
   'EMPLOYEE SETUP': ['DEPARTMENTS', 'DESIGNATIONS', 'EMPLOYEE TYPES', 'DUTY SHIFTS', 'BANKS'],
-  ITEMS: ['ITEM TYPES', 'CATEGORIES', 'SUB CATEGORIES', 'MANUFACTURERS', 'UNITS', 'LOCATIONS'],
+  ITEMS: ['ITEM TYPES', 'CATEGORIES', 'SUB CATEGORIES', 'MANUFACTURERS', 'UNITS', 'LOCATIONS', 'SUPPLIERS'],
   EMPLOYEES: ['EMPLOYEE'],
 };
 const EMPLOYEE_SETUP_SUBMODULES = new Set(['DEPARTMENT', 'DESIGNATION', 'EMPLOYEE_TYPE', 'DUTY_SHIFT', 'BANK']);
-const ITEM_SETUP_SUBMODULES = new Set(['ITEM_TYPE', 'ITEM_TYPES', 'CATEGORY', 'CATEGORIES', 'SUB_CATEGORY', 'SUB_CATEGORIES', 'MANUFACTURER', 'MANUFACTURERS', 'UNIT', 'UNITS', 'LOCATION', 'LOCATIONS']);
+const ITEM_SETUP_SUBMODULES = new Set([
+  'ITEM_TYPE',
+  'ITEM_TYPES',
+  'CATEGORY',
+  'CATEGORIES',
+  'SUB_CATEGORY',
+  'SUB_CATEGORIES',
+  'MANUFACTURER',
+  'MANUFACTURERS',
+  'UNIT',
+  'UNITS',
+  'LOCATION',
+  'LOCATIONS',
+  'SUPPLIER',
+  'SUPPLIERS',
+]);
 const LABEL_OVERRIDES = {
   EMPLOYEE: 'Employee',
   EMPLOYEES: 'Employees',
@@ -58,6 +74,10 @@ const LABEL_OVERRIDES = {
   UNITS: 'Units',
   LOCATION: 'Locations',
   LOCATIONS: 'Locations',
+  SUPPLIER: 'Suppliers',
+  SUPPLIERS: 'Suppliers',
+  ITEM_DEFINITION: 'Item Definition',
+  ITEM_DEFINITIONS: 'Item Definition',
 };
 
 function arePermissionListsEqual(left = [], right = []) {
@@ -134,6 +154,10 @@ function getPermissionTreePath(permission) {
 
   if (moduleName === 'ACCESS') {
     return ['ACCESS CONTROL', subModuleName];
+  }
+
+  if (moduleName === 'INVENTORY' && ['ITEM_DEFINITION', 'ITEM_DEFINITIONS'].includes(subModuleName)) {
+    return ['STOCK', 'ITEM_DEFINITION'];
   }
 
   if (ITEM_SETUP_SUBMODULES.has(subModuleName) || moduleName === 'ITEMS' || moduleName === 'STOCK_SETUP') {
