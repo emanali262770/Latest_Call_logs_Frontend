@@ -559,12 +559,13 @@ export default function Groups() {
     assignedItems: [],
     savedAssignedIds: [],
   };
+  const filterHidden = (items) => items.filter((p) => !(p.action === 'CREATE' && p.key === 'ACCESS.PERMISSIONS.CREATE'));
   const availableSourceTree = useMemo(
-    () => buildPermissionTree(currentGroupPermissions.availableItems),
+    () => buildPermissionTree(filterHidden(currentGroupPermissions.availableItems)),
     [currentGroupPermissions.availableItems],
   );
   const assignedSourceTree = useMemo(
-    () => buildPermissionTree(currentGroupPermissions.assignedItems),
+    () => buildPermissionTree(filterHidden(currentGroupPermissions.assignedItems)),
     [currentGroupPermissions.assignedItems],
   );
   const assignedSet = useMemo(

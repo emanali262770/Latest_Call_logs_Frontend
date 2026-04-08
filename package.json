@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -16,6 +16,7 @@
     "gsap": "^3.14.2",
     "lucide-react": "^1.7.0",
     "motion": "^12.38.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.4",
     "react-barcode": "^1.6.1",
     "react-dom": "^19.2.4",

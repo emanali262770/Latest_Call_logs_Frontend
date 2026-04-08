@@ -3,7 +3,7 @@ const TOKEN_KEY = 'cms_token';
 const LEGACY_TOKEN_KEYS = ['auth_token', 'token', 'access_token'];
 const PERMISSIONS_KEY = 'cms_permissions';
 const USER_KEY = 'cms_user';
-const UNPROTECTED_PATHS = new Set(['dashboard', 'settings', 'access-denied', 'login', 'stock']);
+const UNPROTECTED_PATHS = new Set(['dashboard', 'settings', 'access-denied', 'login']);
 
 function resolveAuthPayload(authData) {
   if (authData?.token || authData?.user || authData?.permissions) {
@@ -297,6 +297,10 @@ export function getReadPermissionForPath(path) {
 
   if (firstSegment === 'employees') {
     return `EMPLOYEE.${normalizePermissionKey(firstSegment)}.READ`;
+  }
+
+  if (firstSegment === 'stock' && secondSegment) {
+    return `INVENTORY.${normalizePermissionKey(secondSegment)}.READ`;
   }
 
   if (['users', 'groups', 'permissions'].includes(firstSegment)) {

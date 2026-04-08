@@ -15,12 +15,14 @@ import {
   Search as SearchIcon,
 } from 'lucide-react';
 import Barcode from 'react-barcode';
+import { QRCodeSVG } from 'qrcode.react';
 import { Card, Button, Badge } from '@/src/components/ui/Card';
 import TableLoader from '@/src/components/ui/TableLoader';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
 import axiosInstance from '@/src/lib/axiosInstance';
+import { hasPermission } from '@/src/lib/auth';
 import { required, validateForm } from '@/src/lib/validation';
 import { itemDefinitionService } from '@/src/services/itemDefinition.service';
 
@@ -252,6 +254,10 @@ function SearchableSelect({
 }
 
 export default function ItemDefinition() {
+  const canCreate = hasPermission('INVENTORY.ITEM_DEFINITION.CREATE');
+  const canEdit = hasPermission('INVENTORY.ITEM_DEFINITION.UPDATE');
+  const canDelete = hasPermission('INVENTORY.ITEM_DEFINITION.DELETE');
+
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -560,11 +566,37 @@ export default function ItemDefinition() {
   };
 
   const handlePrintItem = useCallback(
-    (item) => {
-      setPrintItem(item);
+    async (item) => {
+      const itemId = item._id || item.id;
+      if (!itemId) {
+        toast.error('Print failed', 'Item ID is missing.');
+        return;
+      }
+      try {
+        const res = await axiosInstance.get(`/item-definitions/${itemId}`);
+        const d = res.data?.data || res.data;
+        setPrintItem({
+          itemName: d.item_name,
+          code: d.item_code,
+          category: d.category_name,
+          location: d.location_name,
+          salePrice: d.sale_price,
+          purchasePrice: d.purchase_price,
+          primaryBarcode: d.primary_barcode,
+          secondaryBarcode: d.secondary_barcode,
+        });
+      } catch {
+        toast.error('Fetch failed', 'Unable to load item details for printing.');
+        return;
+      }
 
-      window.requestAnimationFrame(() => {
+      await new Promise((resolve) => {
         window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(resolve);
+        });
+      });
+
+      {
           const printMarkup = printTemplateRef.current?.innerHTML;
           const printLabelElement = printTemplateRef.current?.querySelector('.thermal-label');
 
@@ -573,50 +605,45 @@ export default function ItemDefinition() {
             return;
           }
 
-          const pxToMm = (pixels) => Number(((pixels * 25.4) / 96).toFixed(2));
           const labelWidthMm = THERMAL_PAPER_WIDTH_MM;
-          const labelHeightMm = Math.max(
-            pxToMm(Math.ceil(printLabelElement.scrollHeight || printLabelElement.offsetHeight || 120)),
-            25,
-          );
 
-          const printWindow = window.open('', '_blank', 'width=420,height=640');
+          // Use hidden iframe for silent printing (no new window)
+          let printFrame = document.getElementById('thermal-print-frame');
+          if (printFrame) printFrame.remove();
+          printFrame = document.createElement('iframe');
+          printFrame.id = 'thermal-print-frame';
+          printFrame.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:none;';
+          document.body.appendChild(printFrame);
 
-          if (!printWindow) {
-            toast.error('Popup blocked', 'Allow popups to print this barcode label.');
-            return;
-          }
-
-          printWindow.document.write(`
+          const frameDoc = printFrame.contentDocument || printFrame.contentWindow.document;
+          frameDoc.open();
+          frameDoc.write(`
             <!doctype html>
             <html>
               <head>
                 <meta charset="utf-8" />
                 <title>Print Item Label</title>
                 <style>
-                  * { box-sizing: border-box; }
-                  @page { size: ${labelWidthMm}mm ${labelHeightMm}mm; margin: 0; }
+                  * { box-sizing: border-box; margin: 0; padding: 0; }
+                  @page { size: ${labelWidthMm}mm auto; margin: 0; }
                   html, body {
                     margin: 0;
                     padding: 0;
                     background: #ffffff;
                     color: #000000;
                     font-family: "Courier New", Courier, monospace;
-                    width: fit-content;
-                    height: fit-content;
+                    width: ${labelWidthMm}mm;
+                    height: auto;
                   }
                   body {
-                    display: inline-block;
+                    display: block;
                     padding: 0;
-                    overflow: hidden;
                   }
                   .thermal-label {
-                    display: inline-block;
+                    display: block;
                     width: ${labelWidthMm}mm;
                     max-width: ${labelWidthMm}mm;
                     padding: ${THERMAL_LABEL_PADDING_MM}mm;
-                    page-break-inside: avoid;
-                    break-inside: avoid;
                   }
                   .thermal-label__brand { margin: 0; font-size: 16px; font-weight: 700; text-align: center; letter-spacing: 0.04em; text-transform: uppercase; }
                   .thermal-label__caption { margin: 2px 0 0; font-size: 10px; text-align: center; letter-spacing: 0.12em; text-transform: uppercase; }
@@ -635,36 +662,27 @@ export default function ItemDefinition() {
                   .thermal-label__empty { margin-top: 8px; font-size: 11px; text-align: center; }
                   .thermal-label__footer { margin-top: 10px; font-size: 11px; line-height: 1.5; text-align: center; }
                   svg { max-width: 100%; height: auto; }
-                  @media print {
-                    html, body {
-                      width: ${labelWidthMm}mm;
-                      height: ${labelHeightMm}mm;
-                      overflow: hidden;
-                    }
-                    body {
-                      display: inline-block;
-                      padding: 0;
-                    }
-                    .thermal-label {
-                      width: ${labelWidthMm}mm;
-                      max-width: ${labelWidthMm}mm;
-                      border: 0;
-                    }
-                  }
                 </style>
               </head>
               <body>${printMarkup}</body>
             </html>
           `);
-          printWindow.document.close();
-          printWindow.focus();
+          frameDoc.close();
 
           window.setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-          }, 250);
-        });
-      });
+            const label = frameDoc.querySelector('.thermal-label');
+            if (label) {
+              const heightPx = label.scrollHeight || label.offsetHeight || 200;
+              const heightMm = Math.ceil((heightPx * 25.4) / 96) + 2;
+              const w = labelWidthMm;
+              const newStyle = frameDoc.createElement('style');
+              newStyle.textContent = '@page { size: ' + w + 'mm ' + heightMm + 'mm; margin: 0; } @media print { html, body { width: ' + w + 'mm; height: ' + heightMm + 'mm; overflow: hidden; } .thermal-label { width: ' + w + 'mm; max-width: ' + w + 'mm; border: 0; } }';
+              frameDoc.head.appendChild(newStyle);
+            }
+            printFrame.contentWindow.print();
+            window.setTimeout(() => printFrame.remove(), 1000);
+          }, 300);
+      }
     },
     [toast],
   );
@@ -780,7 +798,7 @@ export default function ItemDefinition() {
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">Item Definition</h1>
             <p className="mt-1 text-gray-500">Manage stock item definitions with searchable setup-style forms.</p>
           </div>
-          {!showForm ? (
+          {!showForm && canCreate ? (
             <Button
               onClick={handleOpenCreate}
               icon={<Plus className="h-4 w-4" />}
@@ -908,6 +926,7 @@ export default function ItemDefinition() {
                               >
                                 <Printer className="h-4.5 w-4.5" />
                               </button>
+                              {canEdit && (
                               <button
                                 type="button"
                                 onClick={() => handleOpenEdit(item)}
@@ -916,6 +935,8 @@ export default function ItemDefinition() {
                               >
                                 <Edit2 className="h-4.5 w-4.5" />
                               </button>
+                              )}
+                              {canDelete && (
                               <button
                                 type="button"
                                 onClick={() => setDeleteTarget(item)}
@@ -925,6 +946,7 @@ export default function ItemDefinition() {
                               >
                                 <Trash2 className="h-4.5 w-4.5" />
                               </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1479,26 +1501,37 @@ export default function ItemDefinition() {
               <div className="thermal-label__divider" />
 
               <div className="thermal-label__price-row">
-                <span className="thermal-label__price-label">Sale Price</span>
+                <span className="thermal-label__price-label">Price</span>
                 <span className="thermal-label__price">{formatPrintPrice(printItem.salePrice)}</span>
               </div>
 
               <div className="thermal-label__divider" />
 
               {getPrintableBarcode(printItem) ? (
-                <div className="thermal-label__barcode">
-                  <Barcode
-                    value={getPrintableBarcode(printItem)}
-                    format="CODE128"
-                    height={52}
-                    margin={0}
-                    fontSize={0}
-                    displayValue={false}
-                    background="transparent"
-                    lineColor="#000000"
-                    width={1.3}
-                  />
-                  <p className="thermal-label__barcode-value">{getPrintableBarcode(printItem)}</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: '12px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <Barcode
+                      value={getPrintableBarcode(printItem)}
+                      format="CODE128"
+                      height={48}
+                      margin={0}
+                      fontSize={0}
+                      displayValue={false}
+                      background="transparent"
+                      lineColor="#000000"
+                      width={1.1}
+                    />
+                    <p className="thermal-label__barcode-value">{getPrintableBarcode(printItem)}</p>
+                  </div>
+                  <div style={{ textAlign: 'center', flexShrink: 0 }}>
+                    <QRCodeSVG
+                      value={`${window.location.origin}/product/${getPrintableBarcode(printItem)}`}
+                      size={65}
+                      level="M"
+                      bgColor="transparent"
+                      fgColor="#000000"
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="thermal-label__empty">No barcode available</div>

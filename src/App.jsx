@@ -23,6 +23,7 @@ import LocationsSetup from './pages/setup/LocationsSetup';
 import SuppliersSetup from './pages/setup/SuppliersSetup';
 import CompanySetup from './pages/setup/CompanySetup';
 import ItemDefinition from './pages/stock/ItemDefinition';
+import PublicProductView from './pages/PublicProductView';
 import { AccessControlProvider } from './context/AccessControlContext';
 import { authService } from './services/auth.service';
 import {
@@ -51,7 +52,9 @@ function ProtectedRoute({ isAuthenticated }) {
 function PermissionRoute({ requiredPermissions }) {
   const location = useLocation();
 
-  if (!hasAnyPermission(requiredPermissions)) {
+  const hasAccess = hasAnyPermission(requiredPermissions);
+
+  if (!hasAccess) {
     return <Navigate to="/access-denied" replace state={{ from: location.pathname }} />;
   }
 
@@ -103,6 +106,8 @@ export default function App() {
 
   return (
     <Routes>
+      <Route path="/product/:barcode" element={<PublicProductView />} />
+
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />}
@@ -170,7 +175,9 @@ export default function App() {
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/suppliers')} />}>
             <Route path="/setup/items/suppliers" element={<SuppliersSetup />} />
           </Route>
-          <Route path="/stock/item-definition" element={<ItemDefinition />} />
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-definition')} />}>
+            <Route path="/stock/item-definition" element={<ItemDefinition />} />
+          </Route>
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Route>
