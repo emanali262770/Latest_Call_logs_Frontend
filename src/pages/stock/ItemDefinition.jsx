@@ -880,7 +880,7 @@ export default function ItemDefinition() {
               </div>
             ) : null}
 
-            <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">
+            <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 backdrop-blur-xl">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left">
                   <thead>
@@ -896,9 +896,6 @@ export default function ItemDefinition() {
                       </th>
                       <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
                         Category
-                      </th>
-                      <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
-                        Supplier
                       </th>
                       <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
                         Stock
@@ -917,23 +914,23 @@ export default function ItemDefinition() {
                   <tbody className="divide-y divide-gray-50/50">
                     {isLoading ? (
                       <tr>
-                        <td colSpan={9} className="px-8 py-6 text-center">
-                          <TableLoader label="Loading item definitions..." />
+                        <td colSpan={8} className="px-8 py-6 text-center">
+                          <TableLoader label="Loading item definitions..."/>
                         </td>
                       </tr>
                     ) : items.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
+                        <td colSpan={8} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
                           No item definitions found.
                         </td>
                       </tr>
                     ) : (
                       paginatedItems.map((item) => (
                         <tr key={item.id} className="group transition-all duration-300 hover:bg-brand-light/40">
-                          <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-bold text-gray-500">
+                          <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-bold text-gray-500 whitespace-nowrap">
                             <span className="font-mono">{item.code}</span>
                           </td>
-                          <td className="border-b border-gray-50/30 px-6 py-6">
+                          <td className="border-b border-gray-50/30 px-6 py-6 whitespace-nowrap">
                             <div className="flex items-center gap-3">
                               <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl  bg-brand-light text-brand">
                                 {item.imagePreview ? (
@@ -945,13 +942,12 @@ export default function ItemDefinition() {
                               <p className="font-semibold text-gray-900">{item.itemName}</p>
                             </div>
                           </td>
-                          <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700">{item.itemType || '-'}</td>
-                          <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700">{item.category || '-'}</td>
-                          <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700">{item.supplier || '-'}</td>
-                          <td className="border-b border-gray-50/30 px-6 py-6">
+                          <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{item.itemType || '-'}</td>
+                          <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{item.category || '-'}</td>
+                          <td className="border-b border-gray-50/30 px-6 py-6 whitespace-nowrap">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-gray-700">{item.unitQty || '-'}</span>
-                              {Number(item.unitQty || 0) < Number(item.minLevelQty || 0) && Number(item.minLevelQty || 0) > 0 ? (
+                              <span className="text-sm font-semibold text-gray-700">{item.stock != null ? item.stock : '-'}</span>
+                              {Number(item.stock || 0) < Number(item.minLevelQty || 0) && Number(item.minLevelQty || 0) > 0 ? (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-amber-700">
                                   <TriangleAlert className="h-3.5 w-3.5" />
                                   Low
@@ -959,8 +955,8 @@ export default function ItemDefinition() {
                               ) : null}
                             </div>
                           </td>
-                          <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700">{item.salePrice || '-'}</td>
-                          <td className="border-b border-gray-50/30 px-6 py-6">
+                          <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{item.salePrice || '-'}</td>
+                          <td className="border-b border-gray-50/30 px-6 py-6 whitespace-nowrap">
                             <Badge variant={item.status === 'active' ? 'green' : 'gray'}>{item.status}</Badge>
                           </td>
                           <td className="border-b border-gray-50/30 px-6 py-6 text-right">

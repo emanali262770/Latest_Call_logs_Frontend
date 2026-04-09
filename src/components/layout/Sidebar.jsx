@@ -24,6 +24,8 @@ import {
   Ruler,
   MapPin,
   Truck,
+  FileBarChart2,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { getReadPermissionsForPath, hasAnyPermission } from '@/src/lib/auth';
@@ -99,6 +101,19 @@ const navItems = [
           { id: 'setup-locations', label: 'Locations', path: '/setup/items/locations', icon: MapPin },
           { id: 'setup-suppliers', label: 'Suppliers', path: '/setup/items/suppliers', icon: Truck },
         ],
+      },
+    ],
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    icon: FileBarChart2,
+    subItems: [
+      {
+        id: 'reports-item-report',
+        label: 'Item Report',
+        path: '/reports/item-report',
+        icon: ClipboardList,
       },
     ],
   },

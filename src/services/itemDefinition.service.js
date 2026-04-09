@@ -60,6 +60,7 @@ function normalizeItemDefinition(item) {
     unit: item.unit_name || item.unit || '',
     unitId: item.unit_id || item.unitId || '',
     unitQty: item.unit_qty ?? item.unitQty ?? '',
+    stock: item.stock ?? '',
     minLevelQty: item.reorder_level ?? item.minLevelQty ?? '',
     location: item.location_name || item.location || '',
     locationId: item.location_id || item.locationId || '',
