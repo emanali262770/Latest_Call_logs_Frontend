@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/src/components/ui/Card';
 import { AccessControlShell, Modal } from '@/src/components/access-control/AccessControlShell';
+import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import TableLoader from '@/src/components/ui/TableLoader';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useAccessControl } from '@/src/context/AccessControlContext';
@@ -526,6 +527,7 @@ export default function Groups() {
   const {
     groups,
     createGroup,
+    deleteGroup,
     loadGroups,
     loadGroupPermissions,
     savedGroupPermissions,
@@ -551,6 +553,8 @@ export default function Groups() {
   const [availableCollapsed, setAvailableCollapsed] = useState(false);
   const [assignedCollapsed, setAssignedCollapsed] = useState(false);
   const [isSavingPermissions, setIsSavingPermissions] = useState(false);
+  const [groupPendingDelete, setGroupPendingDelete] = useState(null);
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const { toasts, toast, removeToast } = useThemeToast();
 
   const selectedGroup = groups.find((group) => group.id === selectedGroupId) || groups[0];
@@ -589,6 +593,12 @@ export default function Groups() {
     () => filterTree(assignedSourceTree, assignedSearch.trim().toLowerCase()),
     [assignedSearch, assignedSourceTree],
   );
+
+  const isProtectedGroup = (group) => {
+    const normalizedName = String(group?.name || '').trim().toLowerCase();
+    const normalizedCode = String(group?.code || '').trim().toLowerCase();
+    return normalizedName === 'admin' || normalizedCode === 'admin';
+  };
 
   useEffect(() => {
     const nextCount = currentGroupPermissions.assignedItems.length || 0;
@@ -721,6 +731,29 @@ export default function Groups() {
     }
   };
 
+  const handleDeleteGroup = async () => {
+    if (!groupPendingDelete?.id || isDeletingGroup) return;
+
+    setIsDeletingGroup(true);
+
+    try {
+      const deletingGroupId = groupPendingDelete.id;
+      const response = await deleteGroup(deletingGroupId);
+      const nextSelectedGroup = groups.find((group) => group.id !== deletingGroupId);
+
+      if (selectedGroupId === deletingGroupId) {
+        setSelectedGroupId(nextSelectedGroup?.id || '');
+      }
+
+      setGroupPendingDelete(null);
+      toast.success('Group deleted', response?.message || 'Group deleted successfully.');
+    } catch (requestError) {
+      toast.error('Delete failed', requestError.message || 'Could not delete group.');
+    } finally {
+      setIsDeletingGroup(false);
+    }
+  };
+
   return (
     <AccessControlShell
       title="Access Control"
@@ -785,27 +818,45 @@ export default function Groups() {
 
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
               {groups.map((group) => (
-                <button
-                  key={group.id}
-                  type="button"
-                  onClick={() => setSelectedGroupId(group.id)}
-                  className={cn(
-                    'w-full rounded-[1.4rem] border px-4 py-3.5 text-left transition-all',
-                    selectedGroup?.id === group.id
-                      ? 'border-brand/30 bg-brand-light/70 shadow-sm'
-                      : 'border-transparent hover:border-gray-200 hover:bg-gray-50',
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[14px] font-semibold tracking-tight text-gray-900">{group.name}</p>
-                      <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.28em] text-gray-400">
-                        {group.code}
-                      </p>
+                <div key={group.id} className="group relative">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGroupId(group.id)}
+                    className={cn(
+                      'w-full rounded-[1.4rem] border px-4 py-3.5 pr-24 text-left transition-all',
+                      selectedGroup?.id === group.id
+                        ? 'border-brand/30 bg-brand-light/70 shadow-sm'
+                        : 'border-transparent hover:border-gray-200 hover:bg-gray-50',
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-semibold tracking-tight text-gray-900">{group.name}</p>
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.28em] text-gray-400">
+                          {group.code}
+                        </p>
+                      </div>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-brand" />
+                  </button>
+
+                  <div className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
+                    {!isProtectedGroup(group) ? (
+                      <button
+                        type="button"
+                        aria-label={`Delete ${group.name}`}
+                        title={`Delete ${group.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setGroupPendingDelete(group);
+                        }}
+                        className="pointer-events-auto flex h-8 w-0 items-center justify-center overflow-hidden rounded-xl text-rose-500 opacity-0 transition-all duration-200 hover:bg-rose-50 hover:text-rose-600 group-hover:w-8 group-hover:opacity-100 focus:w-8 focus:opacity-100"
+                      >
+                        <Trash2 className="h-4 w-4 shrink-0" />
+                      </button>
+                    ) : null}
+                    <ChevronRight className="h-5 w-5 shrink-0 text-brand transition-transform duration-200 group-hover:translate-x-0.5" />
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </section>
@@ -1017,6 +1068,22 @@ export default function Groups() {
       </Modal>
 
       <ThemeToastViewport toasts={toasts} onClose={removeToast} />
+      <ConfirmDialog
+        isOpen={!!groupPendingDelete}
+        title="Delete Group"
+        description={
+          groupPendingDelete
+            ? `Are you sure you want to delete the ${groupPendingDelete.name} group?`
+            : ''
+        }
+        confirmLabel="Delete Group"
+        onCancel={() => {
+          if (isDeletingGroup) return;
+          setGroupPendingDelete(null);
+        }}
+        onConfirm={handleDeleteGroup}
+        isLoading={isDeletingGroup}
+      />
     </AccessControlShell>
   );
 }

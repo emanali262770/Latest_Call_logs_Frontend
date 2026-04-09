@@ -9,6 +9,10 @@ export const groupService = {
     return axiosInstance.post('/groups', payload);
   },
 
+  remove(groupId) {
+    return axiosInstance.delete(`/groups/${groupId}`);
+  },
+
   listAvailablePermissions(groupId) {
     return axiosInstance.get(`/groups/${groupId}/available-permissions`);
   },

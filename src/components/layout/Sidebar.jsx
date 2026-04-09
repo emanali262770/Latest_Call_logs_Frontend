@@ -55,6 +55,12 @@ const navItems = [
         path: '/stock/item-definition',
         icon: Package,
       },
+      {
+        id: 'stock-opening-stock',
+        label: 'Opening Stock',
+        path: '/stock/opening-stock',
+        icon: Boxes,
+      },
     ],
   },
   {

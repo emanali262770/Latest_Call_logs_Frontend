@@ -415,6 +415,34 @@ export function AccessControlProvider({ children }) {
     });
   };
 
+  const deleteGroup = async (groupId) => {
+    const response = await groupService.remove(groupId);
+
+    setGroups((prev) => prev.filter((group) => group.id !== groupId));
+    setSavedGroupPermissions((prev) => {
+      const next = { ...prev };
+      delete next[groupId];
+      return next;
+    });
+    setGroupPermissionsByGroup((prev) => {
+      const next = { ...prev };
+      delete next[groupId];
+      return next;
+    });
+    setGroupPermissionsLoadingByGroup((prev) => {
+      const next = { ...prev };
+      delete next[groupId];
+      return next;
+    });
+    setGroupPermissionsErrorByGroup((prev) => {
+      const next = { ...prev };
+      delete next[groupId];
+      return next;
+    });
+
+    return response;
+  };
+
   const removePermissionFromGroup = (groupId, permissionId) => {
     setGroups((prev) =>
       prev.map((group) =>
@@ -653,6 +681,7 @@ export function AccessControlProvider({ children }) {
     loadPermissions,
     loadUsers,
     createGroup,
+    deleteGroup,
     assignPermissionToGroup,
     removePermissionFromGroup,
     saveGroupPermissions,

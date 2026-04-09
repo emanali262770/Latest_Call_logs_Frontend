@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Plus, Search, Edit2, Trash2, X, Save, Shapes } from 'lucide-react';
 import { Card, Button, Badge } from '@/src/components/ui/Card';
 import TableLoader from '@/src/components/ui/TableLoader';
+import TablePagination from '@/src/components/ui/TablePagination';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
@@ -13,6 +14,8 @@ import { hasPermission } from '@/src/lib/auth';
 export default function CategoriesSetup() {
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [listError, setListError] = useState('');
@@ -48,6 +51,19 @@ export default function CategoriesSetup() {
     }, 300);
     return () => window.clearTimeout(timeoutId);
   }, [searchQuery, loadItems]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const resetForm = () => {
     setEditingItem(null);
@@ -165,7 +181,7 @@ export default function CategoriesSetup() {
                   ) : items.length === 0 ? (
                     <tr><td colSpan={3} className="px-8 py-20 text-center text-sm font-medium text-gray-400">No records found.</td></tr>
                   ) : (
-                    items.map((item) => (
+                    paginatedItems.map((item) => (
                       <tr key={item.id} className="group transition-all duration-300 hover:bg-brand-light/40">
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">
                           <div className="flex items-center gap-3">
@@ -187,6 +203,21 @@ export default function CategoriesSetup() {
               </table>
             </div>
           </div>
+          {items.length > 10 ? (
+            <div className="px-6 pb-6">
+              <TablePagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={items.length}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+                itemLabel="records"
+              />
+            </div>
+          ) : null}
         </Card>
       </div>
 

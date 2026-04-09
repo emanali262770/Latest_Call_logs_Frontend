@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Card } from '@/src/components/ui/Card';
 import { Button, Badge } from '@/src/components/ui/Card';
+import TablePagination from '@/src/components/ui/TablePagination';
 import TableLoader from '@/src/components/ui/TableLoader';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
@@ -212,6 +213,8 @@ export default function Employees() {
   const [pageError, setPageError] = useState('');
   const [profileImagePreview, setProfileImagePreview] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [setupOptions, setSetupOptions] = useState({
     departments: [],
     designations: [],
@@ -250,6 +253,23 @@ export default function Employees() {
       return value.includes(query);
     });
   }, [employees, searchQuery]);
+
+  const paginatedEmployees = useMemo(
+    () => visibleEmployees.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [currentPage, pageSize, visibleEmployees],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(visibleEmployees.length / pageSize));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const previewEmpId = useMemo(() => {
     if (formMode === 'create') return getNextEmployeeId(employees);
@@ -583,7 +603,7 @@ export default function Employees() {
                       </td>
                     </tr>
                   ) : (
-                    visibleEmployees.map((item) => (
+                    paginatedEmployees.map((item) => (
                       <tr key={item.id} className="hover:bg-indigo-50/40 transition-all duration-500 group relative">
                         <td className="px-6 py-6 border-b border-gray-50/30 group-last:border-none">
                           <div className="w-10 h-10 rounded-xl overflow-hidden bg-brand-light border border-brand/10 flex items-center justify-center text-brand font-bold text-xs">
@@ -637,6 +657,21 @@ export default function Employees() {
               </table>
             </div>
           </div>
+          {visibleEmployees.length > 10 ? (
+            <div className="px-6 pb-6">
+              <TablePagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={visibleEmployees.length}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+                itemLabel="results"
+              />
+            </div>
+          ) : null}
         </Card>
       </div>
 

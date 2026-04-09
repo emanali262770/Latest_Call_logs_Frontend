@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronDown, Eye, EyeOff, KeyRound, Plus, Search, Search as SearchIcon, Shield, Trash2, User, UserCog, Users as UsersIcon, X } from 'lucide-react';
 import { AccessControlShell, Modal } from '@/src/components/access-control/AccessControlShell';
 import { Card, Button, Badge } from '@/src/components/ui/Card';
+import TablePagination from '@/src/components/ui/TablePagination';
 import TableLoader from '@/src/components/ui/TableLoader';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useAccessControl } from '@/src/context/AccessControlContext';
@@ -232,6 +233,8 @@ export default function UsersPage() {
   const [togglingUserId, setTogglingUserId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [openSelectId, setOpenSelectId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { toasts, toast, removeToast } = useThemeToast();
 
   const visibleUsers = useMemo(() => {
@@ -243,6 +246,23 @@ export default function UsersPage() {
         .includes(query),
     );
   }, [search, users]);
+
+  const paginatedUsers = useMemo(
+    () => visibleUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [currentPage, pageSize, visibleUsers],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(visibleUsers.length / pageSize));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const assigningUser = users.find((user) => user.id === assigningUserId) || null;
   const resetUser = users.find((user) => user.id === resetUserId) || null;
@@ -604,7 +624,7 @@ export default function UsersPage() {
                   </td>
                 </tr>
               ) : (
-                visibleUsers.map((user) => (
+                paginatedUsers.map((user) => (
                   <tr key={user.id} className="group transition-all duration-300 hover:bg-brand-light/40">
                     <td className="border-b border-gray-50/30 px-6 py-6">
                       <div className="flex items-center gap-3">
@@ -681,6 +701,21 @@ export default function UsersPage() {
           </table>
           </div>
         </div>
+        {visibleUsers.length > 10 ? (
+          <div className="px-6 pb-6">
+            <TablePagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={visibleUsers.length}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(size) => {
+                setPageSize(size);
+                setCurrentPage(1);
+              }}
+              itemLabel="records"
+            />
+          </div>
+        ) : null}
       </Card>
 
       {isCreateModalOpen &&

@@ -300,6 +300,10 @@ export function getReadPermissionForPath(path) {
   }
 
   if (firstSegment === 'stock' && secondSegment) {
+    if (secondSegment === 'opening-stock') {
+      return 'INVENTORY.ITEM_DEFINITION.READ';
+    }
+
     return `INVENTORY.${normalizePermissionKey(secondSegment)}.READ`;
   }
 

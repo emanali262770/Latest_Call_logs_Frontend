@@ -18,6 +18,7 @@ import Barcode from 'react-barcode';
 import { QRCodeSVG } from 'qrcode.react';
 import { Card, Button, Badge } from '@/src/components/ui/Card';
 import TableLoader from '@/src/components/ui/TableLoader';
+import TablePagination from '@/src/components/ui/TablePagination';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
@@ -121,7 +122,26 @@ function isBlobUrl(value) {
 }
 
 function getPrintableBarcode(item) {
-  return String(item?.primaryBarcode || item?.secondaryBarcode || '').trim();
+  return String(item?.secondaryBarcode || item?.primaryBarcode || '').trim();
+}
+
+function getPublicProductUrl(barcode) {
+  const normalizedBarcode = String(barcode || '').trim();
+  if (!normalizedBarcode) return '';
+
+  const configuredBaseUrl = String(
+    import.meta.env.VITE_PUBLIC_PRODUCT_BASE_URL || import.meta.env.VITE_PUBLIC_APP_URL || '',
+  ).trim();
+  const fallbackBaseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const baseUrl = configuredBaseUrl || fallbackBaseUrl;
+
+  if (!baseUrl) return `/product/${encodeURIComponent(normalizedBarcode)}`;
+
+  try {
+    return new URL(`/product/${encodeURIComponent(normalizedBarcode)}`, baseUrl).toString();
+  } catch {
+    return `${String(baseUrl).replace(/\/+$/, '')}/product/${encodeURIComponent(normalizedBarcode)}`;
+  }
 }
 
 function formatPrintPrice(value) {
@@ -281,6 +301,8 @@ export default function ItemDefinition() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [printItem, setPrintItem] = useState(null);
   const [openSelectId, setOpenSelectId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const fileInputRef = useRef(null);
   const secondaryBarcodeInputRef = useRef(null);
   const printTemplateRef = useRef(null);
@@ -355,6 +377,10 @@ export default function ItemDefinition() {
     return () => window.clearTimeout(timeoutId);
   }, [searchQuery, loadItems]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const showForm = formMode !== null;
 
   const itemTypeOptions = useMemo(() => setupOptions.itemTypes.map((item) => item.name), [setupOptions.itemTypes]);
@@ -406,6 +432,19 @@ export default function ItemDefinition() {
     () => new Map(setupOptions.subCategories.map((item) => [item.name, item])),
     [setupOptions.subCategories],
   );
+
+  const paginatedItems = useMemo(
+    () => items.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [currentPage, items, pageSize],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handleOpenCreate = () => {
     const nextCode = generateCode(items);
@@ -606,6 +645,16 @@ export default function ItemDefinition() {
           }
 
           const labelWidthMm = THERMAL_PAPER_WIDTH_MM;
+          const labelHeightPx = Math.max(
+            Math.ceil(printLabelElement.getBoundingClientRect().height || 0),
+            printLabelElement.scrollHeight || 0,
+            printLabelElement.offsetHeight || 0,
+            120,
+          );
+          const labelHeightMm = Math.max(
+            40,
+            Math.ceil((labelHeightPx * 25.4) / 96) + 2,
+          );
 
           // Use hidden iframe for silent printing (no new window)
           let printFrame = document.getElementById('thermal-print-frame');
@@ -625,7 +674,7 @@ export default function ItemDefinition() {
                 <title>Print Item Label</title>
                 <style>
                   * { box-sizing: border-box; margin: 0; padding: 0; }
-                  @page { size: ${labelWidthMm}mm auto; margin: 0; }
+                  @page { size: ${labelWidthMm}mm ${labelHeightMm}mm; margin: 0; }
                   html, body {
                     margin: 0;
                     padding: 0;
@@ -633,7 +682,10 @@ export default function ItemDefinition() {
                     color: #000000;
                     font-family: "Courier New", Courier, monospace;
                     width: ${labelWidthMm}mm;
-                    height: auto;
+                    min-width: ${labelWidthMm}mm;
+                    max-width: ${labelWidthMm}mm;
+                    height: ${labelHeightMm}mm;
+                    overflow: hidden;
                   }
                   body {
                     display: block;
@@ -644,6 +696,9 @@ export default function ItemDefinition() {
                     width: ${labelWidthMm}mm;
                     max-width: ${labelWidthMm}mm;
                     padding: ${THERMAL_LABEL_PADDING_MM}mm;
+                    overflow: hidden;
+                    page-break-after: avoid;
+                    break-after: avoid-page;
                   }
                   .thermal-label__brand { margin: 0; font-size: 16px; font-weight: 700; text-align: center; letter-spacing: 0.04em; text-transform: uppercase; }
                   .thermal-label__caption { margin: 2px 0 0; font-size: 10px; text-align: center; letter-spacing: 0.12em; text-transform: uppercase; }
@@ -670,15 +725,7 @@ export default function ItemDefinition() {
           frameDoc.close();
 
           window.setTimeout(() => {
-            const label = frameDoc.querySelector('.thermal-label');
-            if (label) {
-              const heightPx = label.scrollHeight || label.offsetHeight || 200;
-              const heightMm = Math.ceil((heightPx * 25.4) / 96) + 2;
-              const w = labelWidthMm;
-              const newStyle = frameDoc.createElement('style');
-              newStyle.textContent = '@page { size: ' + w + 'mm ' + heightMm + 'mm; margin: 0; } @media print { html, body { width: ' + w + 'mm; height: ' + heightMm + 'mm; overflow: hidden; } .thermal-label { width: ' + w + 'mm; max-width: ' + w + 'mm; border: 0; } }';
-              frameDoc.head.appendChild(newStyle);
-            }
+            printFrame.contentWindow.focus();
             printFrame.contentWindow.print();
             window.setTimeout(() => printFrame.remove(), 1000);
           }, 300);
@@ -725,8 +772,8 @@ export default function ItemDefinition() {
 
     const payload = {
       item_code: String(formData.code || '').trim(),
-      primary_barcode: trimmedSecondaryBarcode ? '' : trimmedPrimaryBarcode,
-      secondary_barcode: trimmedPrimaryBarcode ? '' : trimmedSecondaryBarcode,
+      primary_barcode: trimmedPrimaryBarcode,
+      secondary_barcode: trimmedSecondaryBarcode,
       item_type_id: selectedItemTypeOption.id,
       category_id: selectedCategoryOption.id,
       sub_category_id: selectedSubCategoryOption?.id || '',
@@ -881,7 +928,7 @@ export default function ItemDefinition() {
                         </td>
                       </tr>
                     ) : (
-                      items.map((item) => (
+                      paginatedItems.map((item) => (
                         <tr key={item.id} className="group transition-all duration-300 hover:bg-brand-light/40">
                           <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-bold text-gray-500">
                             <span className="font-mono">{item.code}</span>
@@ -956,6 +1003,21 @@ export default function ItemDefinition() {
                 </table>
               </div>
             </div>
+            {items.length > 10 ? (
+              <div className="px-6 pb-6">
+                <TablePagination
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalItems={items.length}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setCurrentPage(1);
+                  }}
+                  itemLabel="records"
+                />
+              </div>
+            ) : null}
           </Card>
         ) : (
           <div className="max-w-5xl">
@@ -1525,7 +1587,7 @@ export default function ItemDefinition() {
                   </div>
                   <div style={{ textAlign: 'center', flexShrink: 0 }}>
                     <QRCodeSVG
-                      value={`${window.location.origin}/product/${getPrintableBarcode(printItem)}`}
+                      value={getPublicProductUrl(getPrintableBarcode(printItem))}
                       size={65}
                       level="M"
                       bgColor="transparent"
