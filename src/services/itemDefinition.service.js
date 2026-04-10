@@ -159,4 +159,30 @@ export const itemDefinitionService = {
   async remove(id) {
     return axiosInstance.delete(`/item-definitions/${id}`);
   },
+
+  async print(id) {
+    const response = await axiosInstance.get(`/item-definitions/${id}/print`);
+    return {
+      ...response,
+      data: normalizeItemDefinition(response?.data || response),
+    };
+  },
+
+  async printBarcode(id) {
+    const response = await axiosInstance.get(`/item-definitions/${id}/print-barcode`);
+    const payload = response?.data?.data || response?.data || {};
+
+    return {
+      ...response,
+      data: {
+        id: id || payload?.id || payload?._id || crypto.randomUUID(),
+        itemName: payload?.item_name || payload?.itemName || '',
+        salePrice: payload?.sale_price ?? payload?.salePrice ?? '',
+        primaryBarcode: payload?.barcode || payload?.primary_barcode || payload?.primaryBarcode || '',
+        secondaryBarcode: payload?.secondary_barcode || payload?.secondaryBarcode || '',
+        companyName: payload?.company_name || payload?.companyName || '',
+        raw: payload,
+      },
+    };
+  },
 };

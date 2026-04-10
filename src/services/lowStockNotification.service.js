@@ -46,8 +46,8 @@ function formatTimeLabel(value) {
 
 function normalizeNotification(item) {
   const reorderLevel = Number(item.reorder_level ?? item.reorderLevel ?? 0);
-  const unitQty = Number(item.unit_qty ?? item.unitQty ?? 0);
-  const quantityLabel = Number.isFinite(unitQty) ? unitQty : item.unit_qty || item.unitQty || 0;
+  const stock = Number(item.stock ?? 0);
+  const quantityLabel = Number.isFinite(stock) ? stock : item.stock || 0;
 
   return {
     id: item.id || item.notification_id || item.item_definition_id || crypto.randomUUID(),

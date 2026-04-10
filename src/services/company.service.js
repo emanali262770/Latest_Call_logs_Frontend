@@ -99,4 +99,12 @@ export const companyService = {
       },
     });
   },
+
+  async print() {
+    const response = await axiosInstance.get('/company/print');
+    return {
+      ...response,
+      data: normalizeCompany(response?.data),
+    };
+  },
 };

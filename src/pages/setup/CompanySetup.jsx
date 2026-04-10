@@ -14,14 +14,16 @@ import {
   Mail,
   Download,
   X,
+  Printer,
 } from 'lucide-react';
 import { Button } from '@/src/components/ui/Card';
 import TableLoader from '@/src/components/ui/TableLoader';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { required, validateEmail, validateForm } from '@/src/lib/validation';
-import { hasPermission } from '@/src/lib/auth';
+import { hasAnyPermission, hasPermission } from '@/src/lib/auth';
 import { companyService } from '@/src/services/company.service';
+import { printCompanySetupDocument } from './prints/companySetupPrint';
 
 const EMPTY_FORM = {
   company_name: '',
@@ -165,6 +167,12 @@ export default function CompanySetup() {
 
   const showForm = formMode !== null || !company;
   const canEditCompany = hasPermission('company.update');
+  const canPrintCompany = hasAnyPermission([
+    'SETUP.COMPANY.PRINT',
+    'COMPANY.PRINT',
+    'company.print',
+  ]);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const loadCompany = useCallback(async () => {
     setIsLoading(true);
@@ -315,6 +323,31 @@ export default function CompanySetup() {
     setDocumentPreview({ title, url });
   };
 
+  const handlePrintCompany = useCallback(async () => {
+    if (!canPrintCompany) {
+      toast.error('Access denied', 'You do not have permission to print company details.');
+      return;
+    }
+
+    if (isPrinting) return;
+
+    setIsPrinting(true);
+
+    try {
+      const response = await companyService.print();
+      const printableCompany = response?.data;
+
+      if (!hasMeaningfulCompanyData(printableCompany)) {
+        throw new Error('Company print data was empty.');
+      }
+      printCompanySetupDocument(printableCompany);
+    } catch (requestError) {
+      toast.error('Print failed', requestError.message || 'Unable to print company details.');
+    } finally {
+      setIsPrinting(false);
+    }
+  }, [canPrintCompany, isPrinting, toast]);
+
   return (
     <>
     <div className="space-y-8">
@@ -323,15 +356,18 @@ export default function CompanySetup() {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Company</h1>
           <p className="mt-1 text-gray-500">Manage company profile, representatives, and tax registration details.</p>
         </div>
-        {!showForm && company && canEditCompany ? (
-          <Button onClick={handleOpenEdit} icon={<Edit2 className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
-            Edit Company
-          </Button>
-        ) : !company && canEditCompany ? (
-          <Button onClick={handleOpenCreate} icon={<Edit2 className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
-            Create Company
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-3">
+          
+          {!showForm && company && canEditCompany ? (
+            <Button onClick={handleOpenEdit} icon={<Edit2 className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
+              Edit Company
+            </Button>
+          ) : !company && canEditCompany ? (
+            <Button onClick={handleOpenCreate} icon={<Edit2 className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
+              Create Company
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {pageError ? (
@@ -364,7 +400,17 @@ export default function CompanySetup() {
                     <p className="mt-1 text-sm text-gray-500">{company.address}</p>
                   </div>
                 </div>
-                <BadgeCheck className="h-6 w-6 text-brand" />
+                {canPrintCompany ? (
+                  <button
+                    type="button"
+                    onClick={handlePrintCompany}
+                    disabled={isPrinting}
+                    className="flex h-11 w-11 items-center justify-center rounded-2xl border border-brand/15 bg-white text-brand transition-all hover:bg-brand-light/30 disabled:cursor-not-allowed disabled:opacity-60"
+                    title="Print company"
+                  >
+                    <Printer className="h-5 w-5" />
+                  </button>
+                ) : null}
               </div>
 
               <div className="grid gap-6 px-8 py-8 md:grid-cols-2 xl:grid-cols-3">

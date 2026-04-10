@@ -5,6 +5,7 @@ import {
   Edit2,
   Trash2,
   Printer,
+  Barcode as BarcodeIcon,
   X,
   Save,
   Package,
@@ -14,7 +15,7 @@ import {
   ImagePlus,
   Search as SearchIcon,
 } from 'lucide-react';
-import Barcode from 'react-barcode';
+import ReactBarcode from 'react-barcode';
 import { QRCodeSVG } from 'qrcode.react';
 import { Card, Button, Badge } from '@/src/components/ui/Card';
 import TableLoader from '@/src/components/ui/TableLoader';
@@ -25,6 +26,7 @@ import { useThemeToast } from '@/src/hooks/useThemeToast';
 import axiosInstance from '@/src/lib/axiosInstance';
 import { hasPermission } from '@/src/lib/auth';
 import { required, validateForm } from '@/src/lib/validation';
+import { companyService } from '@/src/services/company.service';
 import { itemDefinitionService } from '@/src/services/itemDefinition.service';
 
 const NOTIFICATION_REFRESH_EVENT = 'low-stock-notifications:refresh';
@@ -125,6 +127,16 @@ function getPrintableBarcode(item) {
   return String(item?.secondaryBarcode || item?.primaryBarcode || '').trim();
 }
 
+function getPrintableText(value, fallback = '-') {
+  const normalized = String(value ?? '').trim();
+  return normalized || fallback;
+}
+
+function formatPrintPrice(value) {
+  const normalized = String(value ?? '').trim();
+  return normalized ? `Rs ${normalized}` : 'Price not set';
+}
+
 function getPublicProductUrl(barcode) {
   const normalizedBarcode = String(barcode || '').trim();
   if (!normalizedBarcode) return '';
@@ -144,20 +156,14 @@ function getPublicProductUrl(barcode) {
   }
 }
 
-function formatPrintPrice(value) {
-  const normalized = String(value ?? '').trim();
-  return normalized ? `Rs ${normalized}` : 'Price not set';
-}
-
-function getPrintableText(value, fallback = '-') {
-  const normalized = String(value ?? '').trim();
-  return normalized || fallback;
-}
-
 const THERMAL_PAPER_WIDTH_MM = 72;
 const THERMAL_LABEL_PADDING_MM = 3;
+const BARCODE_STICKER_WIDTH_MM = 58;
+const BARCODE_STICKER_HEIGHT_MM = 30;
+const BARCODE_STICKER_PADDING_MM = 1.6;
 const MM_TO_PX = 96 / 25.4;
 const THERMAL_LABEL_WIDTH_PX = Math.round(THERMAL_PAPER_WIDTH_MM * MM_TO_PX);
+const BARCODE_LABEL_WIDTH_PX = Math.round(BARCODE_STICKER_WIDTH_MM * MM_TO_PX);
 
 function FieldLabel({ children, required: isRequired = false }) {
   return (
@@ -277,6 +283,8 @@ export default function ItemDefinition() {
   const canCreate = hasPermission('INVENTORY.ITEM_DEFINITION.CREATE');
   const canEdit = hasPermission('INVENTORY.ITEM_DEFINITION.UPDATE');
   const canDelete = hasPermission('INVENTORY.ITEM_DEFINITION.DELETE');
+  const canPrint = hasPermission('INVENTORY.ITEM_DEFINITION.PRINT');
+  const hasRowActions = canPrint || canEdit || canDelete;
 
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -300,6 +308,9 @@ export default function ItemDefinition() {
   });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [printItem, setPrintItem] = useState(null);
+  const [printMode, setPrintMode] = useState('item');
+  const [printingIds, setPrintingIds] = useState([]);
+  const [companyProfile, setCompanyProfile] = useState(null);
   const [openSelectId, setOpenSelectId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -354,6 +365,26 @@ export default function ItemDefinition() {
   useEffect(() => {
     loadSetupOptions();
   }, [loadSetupOptions]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCompanyProfile = async () => {
+      try {
+        const response = await companyService.get();
+        if (!isMounted) return;
+        setCompanyProfile(response?.data || null);
+      } catch {
+        if (!isMounted) return;
+        setCompanyProfile(null);
+      }
+    };
+
+    loadCompanyProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const loadItems = useCallback(async (query = '') => {
     setIsLoading(true);
@@ -439,6 +470,7 @@ export default function ItemDefinition() {
   );
 
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const tableColumnCount = hasRowActions ? 8 : 7;
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -605,133 +637,188 @@ export default function ItemDefinition() {
   };
 
   const handlePrintItem = useCallback(
-    async (item) => {
+    async (item, mode = 'item') => {
+      if (!canPrint) {
+        toast.error('Access denied', 'You do not have permission to print item definitions.');
+        return;
+      }
+
       const itemId = item._id || item.id;
       if (!itemId) {
         toast.error('Print failed', 'Item ID is missing.');
         return;
       }
-      try {
-        const res = await axiosInstance.get(`/item-definitions/${itemId}`);
-        const d = res.data?.data || res.data;
-        setPrintItem({
-          itemName: d.item_name,
-          code: d.item_code,
-          category: d.category_name,
-          location: d.location_name,
-          salePrice: d.sale_price,
-          purchasePrice: d.purchase_price,
-          primaryBarcode: d.primary_barcode,
-          secondaryBarcode: d.secondary_barcode,
-        });
-      } catch {
-        toast.error('Fetch failed', 'Unable to load item details for printing.');
+
+      if (printingIds.includes(itemId)) {
         return;
       }
 
-      await new Promise((resolve) => {
-        window.requestAnimationFrame(() => {
-          window.requestAnimationFrame(resolve);
+      setPrintingIds((current) => [...current, itemId]);
+
+      try {
+        const response =
+          mode === 'barcode' ? await itemDefinitionService.printBarcode(itemId) : await itemDefinitionService.print(itemId);
+        const printableItem = response?.data;
+
+        if (!printableItem) {
+          throw new Error('Print data was empty.');
+        }
+        setPrintMode(mode);
+        setPrintItem(printableItem);
+
+        await new Promise((resolve) => {
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(resolve);
+          });
         });
-      });
 
-      {
-          const printMarkup = printTemplateRef.current?.innerHTML;
-          const printLabelElement = printTemplateRef.current?.querySelector('.thermal-label');
+        const printMarkup = printTemplateRef.current?.innerHTML;
+        const printLabelElement = printTemplateRef.current?.querySelector('.thermal-label');
 
-          if (!printMarkup || !printLabelElement) {
-            toast.error('Print unavailable', 'Unable to prepare the print label right now.');
-            return;
-          }
+        if (!printMarkup || !printLabelElement) {
+          throw new Error('Unable to prepare the print label right now.');
+        }
 
-          const labelWidthMm = THERMAL_PAPER_WIDTH_MM;
-          const labelHeightPx = Math.max(
-            Math.ceil(printLabelElement.getBoundingClientRect().height || 0),
-            printLabelElement.scrollHeight || 0,
-            printLabelElement.offsetHeight || 0,
-            120,
-          );
-          const labelHeightMm = Math.max(
-            40,
-            Math.ceil((labelHeightPx * 25.4) / 96) + 2,
-          );
+        const isBarcodeMode = mode === 'barcode';
+        const labelWidthMm = isBarcodeMode ? BARCODE_STICKER_WIDTH_MM : THERMAL_PAPER_WIDTH_MM;
+        const labelHeightPx = Math.max(
+          Math.ceil(printLabelElement.getBoundingClientRect().height || 0),
+          printLabelElement.scrollHeight || 0,
+          printLabelElement.offsetHeight || 0,
+          120,
+        );
+        const labelHeightMm = isBarcodeMode
+          ? BARCODE_STICKER_HEIGHT_MM
+          : Math.max(40, Math.ceil((labelHeightPx * 25.4) / 96) + 2);
 
-          // Use hidden iframe for silent printing (no new window)
-          let printFrame = document.getElementById('thermal-print-frame');
-          if (printFrame) printFrame.remove();
-          printFrame = document.createElement('iframe');
-          printFrame.id = 'thermal-print-frame';
-          printFrame.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:none;';
-          document.body.appendChild(printFrame);
+        let printFrame = document.getElementById('thermal-print-frame');
+        if (printFrame) printFrame.remove();
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'thermal-print-frame';
+        printFrame.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:none;';
+        document.body.appendChild(printFrame);
 
-          const frameDoc = printFrame.contentDocument || printFrame.contentWindow.document;
-          frameDoc.open();
-          frameDoc.write(`
-            <!doctype html>
-            <html>
-              <head>
-                <meta charset="utf-8" />
-                <title>Print Item Label</title>
-                <style>
-                  * { box-sizing: border-box; margin: 0; padding: 0; }
-                  @page { size: ${labelWidthMm}mm ${labelHeightMm}mm; margin: 0; }
-                  html, body {
-                    margin: 0;
-                    padding: 0;
-                    background: #ffffff;
-                    color: #000000;
-                    font-family: "Courier New", Courier, monospace;
-                    width: ${labelWidthMm}mm;
-                    min-width: ${labelWidthMm}mm;
-                    max-width: ${labelWidthMm}mm;
-                    height: ${labelHeightMm}mm;
-                    overflow: hidden;
-                  }
-                  body {
-                    display: block;
-                    padding: 0;
-                  }
-                  .thermal-label {
-                    display: block;
-                    width: ${labelWidthMm}mm;
-                    max-width: ${labelWidthMm}mm;
-                    padding: ${THERMAL_LABEL_PADDING_MM}mm;
-                    overflow: hidden;
-                    page-break-after: avoid;
-                    break-after: avoid-page;
-                  }
-                  .thermal-label__brand { margin: 0; font-size: 16px; font-weight: 700; text-align: center; letter-spacing: 0.04em; text-transform: uppercase; }
-                  .thermal-label__caption { margin: 2px 0 0; font-size: 10px; text-align: center; letter-spacing: 0.12em; text-transform: uppercase; }
-                  .thermal-label__divider { margin: 8px 0; border-top: 1px solid #111111; }
-                  .thermal-label__section { margin-top: 6px; }
-                  .thermal-label__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 11px; line-height: 1.45; }
-                  .thermal-label__row:first-child { margin-top: 0; }
-                  .thermal-label__key { flex: 0 0 38%; }
-                  .thermal-label__value { flex: 1; text-align: right; font-weight: 700; word-break: break-word; }
-                  .thermal-label__item-name { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 700; text-align: left; text-transform: uppercase; }
-                  .thermal-label__price-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 13px; font-weight: 700; }
-                  .thermal-label__price-label { text-transform: uppercase; letter-spacing: 0.08em; }
-                  .thermal-label__price { font-size: 18px; line-height: 1; }
-                  .thermal-label__barcode { margin-top: 10px; text-align: center; }
-                  .thermal-label__barcode-value { margin-top: 5px; font-size: 11px; letter-spacing: 0.08em; word-break: break-all; }
-                  .thermal-label__empty { margin-top: 8px; font-size: 11px; text-align: center; }
-                  .thermal-label__footer { margin-top: 10px; font-size: 11px; line-height: 1.5; text-align: center; }
-                  svg { max-width: 100%; height: auto; }
-                </style>
-              </head>
-              <body>${printMarkup}</body>
-            </html>
-          `);
-          frameDoc.close();
+        const frameDoc = printFrame.contentDocument || printFrame.contentWindow.document;
+        frameDoc.open();
+        frameDoc.write(`
+          <!doctype html>
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <title>${mode === 'barcode' ? 'Print Barcode Label' : 'Print Item Label'}</title>
+              <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                @page { size: ${labelWidthMm}mm ${labelHeightMm}mm; margin: 0; }
+                html, body {
+                  margin: 0;
+                  padding: 0;
+                  background: #ffffff;
+                  color: #000000;
+                  font-family: "Courier New", Courier, monospace;
+                  width: ${labelWidthMm}mm;
+                  min-width: ${labelWidthMm}mm;
+                  max-width: ${labelWidthMm}mm;
+                  height: ${labelHeightMm}mm;
+                  overflow: hidden;
+                }
+                body {
+                  display: block;
+                  padding: 0;
+                }
+                .thermal-label {
+                  display: block;
+                  width: ${labelWidthMm}mm;
+                  max-width: ${labelWidthMm}mm;
+                  padding: ${THERMAL_LABEL_PADDING_MM}mm;
+                  overflow: hidden;
+                  page-break-after: avoid;
+                  break-after: avoid-page;
+                }
+                .thermal-label__brand { margin: 0; font-size: 16px; font-weight: 700; text-align: center; letter-spacing: 0.04em; text-transform: uppercase; }
+                .thermal-label__caption { margin: 2px 0 0; font-size: 10px; text-align: center; letter-spacing: 0.12em; text-transform: uppercase; }
+                .thermal-label__divider { margin: 8px 0; border-top: 1px solid #111111; }
+                .thermal-label__section { margin-top: 6px; }
+                .thermal-label__row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-top: 4px; font-size: 11px; line-height: 1.45; }
+                .thermal-label__row:first-child { margin-top: 0; }
+                .thermal-label__key { flex: 0 0 38%; }
+                .thermal-label__value { flex: 1; text-align: right; font-weight: 700; word-break: break-word; }
+                .thermal-label__item-name { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 700; text-align: left; text-transform: uppercase; }
+                .thermal-label__price-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 13px; font-weight: 700; }
+                .thermal-label__price-label { text-transform: uppercase; letter-spacing: 0.08em; }
+                .thermal-label__price { font-size: 18px; line-height: 1; }
+                .thermal-label__barcode { margin-top: 10px; text-align: center; }
+                .thermal-label__barcode-value { margin-top: 5px; font-size: 11px; letter-spacing: 0.08em; word-break: break-all; }
+                .thermal-label__empty { margin-top: 8px; font-size: 11px; text-align: center; }
+                .thermal-label__footer { margin-top: 10px; font-size: 11px; line-height: 1.5; text-align: center; }
+                .thermal-label--barcode {
+                  border: 1px solid #111111;
+                  border-radius: 4px;
+                }
+                .thermal-label--barcode .thermal-label__brand {
+                  margin-top: 1px;
+                  font-size: 9.5px;
+                  letter-spacing: 0.02em;
+                  text-transform: none;
+                }
+                .thermal-label--barcode .thermal-label__header-row {
+                  margin-top: 4px;
+                  display: flex;
+                  align-items: baseline;
+                  justify-content: space-between;
+                  gap: 6px;
+                }
+                .thermal-label--barcode .thermal-label__item-title {
+                  margin: 0;
+                  flex: 1;
+                  font-size: 9.5px;
+                  line-height: 1.2;
+                  font-weight: 700;
+                  text-transform: uppercase;
+                  overflow: hidden;
+                  display: -webkit-box;
+                  -webkit-line-clamp: 1;
+                  line-clamp: 1;
+                  -webkit-box-orient: vertical;
+                }
+                .thermal-label--barcode .thermal-label__price-inline {
+                  margin: 0;
+                  flex-shrink: 0;
+                  font-size: 9.5px;
+                  line-height: 1.2;
+                  font-weight: 700;
+                }
+                .thermal-label--barcode .thermal-label__barcode-wrap {
+                  margin-top: 4px;
+                  text-align: center;
+                }
+                .thermal-label--barcode .thermal-label__barcode-value {
+                  margin-top: 1px;
+                  font-size: 8px;
+                  letter-spacing: 0.03em;
+                }
+                svg { max-width: 100%; height: auto; }
+              </style>
+            </head>
+            <body>${printMarkup}</body>
+          </html>
+        `);
+        frameDoc.close();
 
-          window.setTimeout(() => {
-            printFrame.contentWindow.focus();
-            printFrame.contentWindow.print();
-            window.setTimeout(() => printFrame.remove(), 1000);
-          }, 300);
+        window.setTimeout(() => {
+          printFrame.contentWindow.focus();
+          printFrame.contentWindow.print();
+          window.setTimeout(() => printFrame.remove(), 1000);
+        }, 300);
+      } catch (requestError) {
+        toast.error(
+          'Print failed',
+          requestError.message || (mode === 'barcode' ? 'Unable to print barcode label.' : 'Unable to print item definition.'),
+        );
+      } finally {
+        setPrintingIds((current) => current.filter((id) => id !== itemId));
       }
     },
-    [toast],
+    [canPrint, printingIds, toast],
   );
 
   const handleSave = async () => {
@@ -786,10 +873,10 @@ export default function ItemDefinition() {
       location_id: selectedLocationOption?.id || '',
       purchase_price: String(formData.purchasePrice || '').trim(),
       sale_price: String(formData.salePrice || '').trim(),
-      is_expirable: formData.expirable === 'yes' ? 'true' : 'false',
+      is_expirable: formData.expirable === 'yes' ? 1 : 0,
       expiry_days: formData.expirable === 'yes' ? String(formData.expiryDays || '').trim() : '',
-      is_cost_item: formData.costItem === 'yes' ? 'true' : 'false',
-      stop_sale: formData.stopSale === 'yes' ? 'true' : 'false',
+      is_cost_item: formData.costItem === 'yes' ? 1 : 0,
+      stop_sale: formData.stopSale === 'yes' ? 1 : 0,
       status: formData.status,
       image: formData.imageFile,
     };
@@ -906,21 +993,23 @@ export default function ItemDefinition() {
                       <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
                         Status
                       </th>
-                      <th className="border-b border-gray-100/60 px-6 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">
-                        Actions
-                      </th>
+                      {hasRowActions ? (
+                        <th className="border-b border-gray-100/60 px-6 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">
+                          Actions
+                        </th>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50/50">
                     {isLoading ? (
                       <tr>
-                        <td colSpan={8} className="px-8 py-6 text-center">
+                        <td colSpan={tableColumnCount} className="px-8 py-6 text-center">
                           <TableLoader label="Loading item definitions..."/>
                         </td>
                       </tr>
                     ) : items.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
+                        <td colSpan={tableColumnCount} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
                           No item definitions found.
                         </td>
                       </tr>
@@ -959,39 +1048,55 @@ export default function ItemDefinition() {
                           <td className="border-b border-gray-50/30 px-6 py-6 whitespace-nowrap">
                             <Badge variant={item.status === 'active' ? 'green' : 'gray'}>{item.status}</Badge>
                           </td>
-                          <td className="border-b border-gray-50/30 px-6 py-6 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handlePrintItem(item)}
-                                className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-emerald-600 hover:shadow-xl hover:shadow-emerald-100/60 active:scale-95"
-                                title="Print"
-                              >
-                                <Printer className="h-4.5 w-4.5" />
-                              </button>
-                              {canEdit && (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEdit(item)}
-                                className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95"
-                                title="Edit"
-                              >
-                                <Edit2 className="h-4.5 w-4.5" />
-                              </button>
-                              )}
-                              {canDelete && (
-                              <button
-                                type="button"
-                                onClick={() => setDeleteTarget(item)}
-                                disabled={isSaving}
-                                className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4.5 w-4.5" />
-                              </button>
-                              )}
-                            </div>
-                          </td>
+                          {hasRowActions ? (
+                            <td className="border-b border-gray-50/30 px-6 py-6 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {canPrint && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePrintItem(item)}
+                                    disabled={printingIds.includes(item._id || item.id)}
+                                    className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-emerald-600 hover:shadow-xl hover:shadow-emerald-100/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-gray-400 disabled:hover:shadow-none"
+                                    title="Print"
+                                  >
+                                    <Printer className="h-4.5 w-4.5" />
+                                  </button>
+                                )}
+                                {canPrint && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePrintItem(item, 'barcode')}
+                                    disabled={printingIds.includes(item._id || item.id)}
+                                    className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-amber-600 hover:shadow-xl hover:shadow-amber-100/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-gray-400 disabled:hover:shadow-none"
+                                    title="Print Barcode Label"
+                                  >
+                                    <BarcodeIcon className="h-4.5 w-4.5" />
+                                  </button>
+                                )}
+                                {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEdit(item)}
+                                  className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95"
+                                  title="Edit"
+                                >
+                                  <Edit2 className="h-4.5 w-4.5" />
+                                </button>
+                                )}
+                                {canDelete && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteTarget(item)}
+                                  disabled={isSaving}
+                                  className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4.5 w-4.5" />
+                                </button>
+                                )}
+                              </div>
+                            </td>
+                          ) : null}
                         </tr>
                       ))
                     )}
@@ -1094,7 +1199,7 @@ export default function ItemDefinition() {
                             <span className="shrink-0 font-mono text-sm text-gray-500">{formData.primaryBarcode || '—'}</span>
                             {formData.primaryBarcode && (
                               <div className="ml-3 shrink-0">
-                                <Barcode
+                                <ReactBarcode
                                   value={formData.primaryBarcode}
                                   height={22}
                                   fontSize={0}
@@ -1129,7 +1234,7 @@ export default function ItemDefinition() {
                           />
                           {formData.secondaryBarcode && (
                             <div className="ml-3 shrink-0">
-                              <Barcode
+                              <ReactBarcode
                                 value={formData.secondaryBarcode}
                                 height={22}
                                 fontSize={0}
@@ -1529,14 +1634,78 @@ export default function ItemDefinition() {
       <div className="pointer-events-none fixed left-[-9999px] top-0 opacity-0" aria-hidden="true">
         <div ref={printTemplateRef}>
           {printItem ? (
-            <div className="thermal-label bg-white text-black" style={{ width: `${THERMAL_LABEL_WIDTH_PX}px`, padding: `${THERMAL_LABEL_PADDING_MM}mm` }}>
+            <div
+              className={`thermal-label bg-white text-black ${printMode === 'barcode' ? 'thermal-label--barcode' : ''}`}
+              style={{
+                width: `${printMode === 'barcode' ? BARCODE_LABEL_WIDTH_PX : THERMAL_LABEL_WIDTH_PX}px`,
+                padding: `${printMode === 'barcode' ? BARCODE_STICKER_PADDING_MM : THERMAL_LABEL_PADDING_MM}mm`,
+              }}
+            >
+              {printMode === 'barcode' ? (
+                <>
+                  <p className="thermal-label__brand">
+                    {getPrintableText(
+                      printItem?.raw?.company_name || printItem?.companyName || companyProfile?.company_name,
+                      'Company',
+                    )}
+                  </p>
+
+                  <div className="thermal-label__header-row">
+                    <p className="thermal-label__item-title">{getPrintableText(printItem.itemName, 'Unnamed Item')}</p>
+                    <p className="thermal-label__price-inline">{formatPrintPrice(printItem.salePrice)}</p>
+                  </div>
+
+                  {getPrintableBarcode(printItem) ? (
+                    <div className="thermal-label__barcode-wrap">
+                      <ReactBarcode
+                        value={getPrintableBarcode(printItem)}
+                        format="CODE128"
+                        height={34}
+                        margin={0}
+                        fontSize={0}
+                        displayValue={false}
+                        background="transparent"
+                        lineColor="#000000"
+                        width={1}
+                      />
+                      <p className="thermal-label__barcode-value">{getPrintableBarcode(printItem)}</p>
+                    </div>
+                  ) : (
+                    <div className="thermal-label__empty">No barcode available</div>
+                  )}
+                </>
+              ) : (
+                <>
               <p className="thermal-label__brand">Item Definition</p>
               <p className="thermal-label__caption">Stock Print</p>
 
               <div className="thermal-label__divider" />
 
               <div className="thermal-label__section">
-                <p className="thermal-label__item-name">{getPrintableText(printItem.itemName, 'Unnamed Item')}</p>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                  <p className="thermal-label__item-name" style={{ flex: '1 1 auto' }}>
+                    {getPrintableText(printItem.itemName, 'Unnamed Item')}
+                  </p>
+                  {printItem.imagePreview ? (
+                    <div
+                      style={{
+                        flexShrink: 0,
+                        width: '54px',
+                        height: '54px',
+                        overflow: 'hidden',
+                        border: '1px solid #111111',
+                        borderRadius: '6px',
+                        background: '#ffffff',
+                      }}
+                    >
+                      <img
+                        src={printItem.imagePreview}
+                        alt={getPrintableText(printItem.itemName, 'Item image')}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      />
+                    </div>
+                  ) : null}
+                </div>
               </div>
 
               <div className="thermal-label__divider" />
@@ -1568,7 +1737,7 @@ export default function ItemDefinition() {
               {getPrintableBarcode(printItem) ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: '12px' }}>
                   <div style={{ textAlign: 'center' }}>
-                    <Barcode
+                    <ReactBarcode
                       value={getPrintableBarcode(printItem)}
                       format="CODE128"
                       height={48}
@@ -1602,6 +1771,8 @@ export default function ItemDefinition() {
                 <br />
                 Thank you
               </p>
+                </>
+              )}
             </div>
           ) : null}
         </div>

@@ -1,23 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Package, SlidersHorizontal, TableProperties } from 'lucide-react';
+import { Package, Printer, SlidersHorizontal, TableProperties } from 'lucide-react';
 import { Card } from '@/src/components/ui/Card';
 import TablePagination from '@/src/components/ui/TablePagination';
 import TableLoader from '@/src/components/ui/TableLoader';
 import axiosInstance from '@/src/lib/axiosInstance';
-
-function resolveAssetUrl(value) {
-  const assetPath = String(value || '').trim();
-  if (!assetPath) return '';
-  if (/^https?:\/\//i.test(assetPath) || /^blob:/i.test(assetPath)) return assetPath;
-  const baseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
-  if (!baseUrl) return assetPath;
-  try {
-    const apiUrl = new URL(baseUrl);
-    return new URL(assetPath, apiUrl.origin).toString();
-  } catch {
-    return assetPath;
-  }
-}
+import { hasPermission } from '@/src/lib/auth';
+import {
+  normalizeItemReportPrintItem,
+  printItemReportDocument,
+} from './prints/itemReportPrint';
 
 function extractApiRows(payload, keys = []) {
   for (const key of keys) {
@@ -112,7 +103,9 @@ function FilterSelect({ label, value, placeholder, options, onChange }) {
   );
 }
 
+
 export default function ItemReport() {
+  const canPrint = hasPermission('INVENTORY.ITEM_REPORT.PRINT');
   const [items, setItems] = useState([]);
   const [itemQuery, setItemQuery] = useState('');
   const [isItemSuggestionsOpen, setIsItemSuggestionsOpen] = useState(false);
@@ -132,6 +125,8 @@ export default function ItemReport() {
   const [isLoading, setIsLoading] = useState(true);
   const [listError, setListError] = useState('');
   const [setupError, setSetupError] = useState('');
+  const [isPrintingAll, setIsPrintingAll] = useState(false);
+  const [printingIds, setPrintingIds] = useState([]);
   const itemFieldRef = useRef(null);
 
   const loadSetupOptions = useCallback(async () => {
@@ -173,21 +168,7 @@ export default function ItemReport() {
       if (itemQuery.trim()) params.search = itemQuery.trim();
 
       const response = await axiosInstance.get('/item-report', { params });
-      const nextItems = extractApiRows(response, ['items', 'data']).map((item) => ({
-        id: item.id || item._id,
-        code: item.item_code || '',
-        itemName: item.item_name || '',
-        itemType: item.item_type_name || '',
-        category: item.category_name || '',
-        subCategory: item.sub_category_name || '',
-        salePrice: item.sale_price ?? '',
-        stock: item.stock ?? item.unit_qty ?? '',
-        reorderLevel: item.reorder_level ?? '',
-        unitName: item.unit_name || '',
-        unitShortName: item.unit_short_name || '',
-        status: item.status || '',
-        imagePreview: resolveAssetUrl(item.image || ''),
-      }));
+      const nextItems = extractApiRows(response, ['items', 'data']).map(normalizeItemReportPrintItem);
       setItems(nextItems);
     } catch (requestError) {
       setListError(requestError.message || 'Failed to load item report.');
@@ -275,6 +256,72 @@ export default function ItemReport() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  const buildReportParams = useCallback(() => {
+    const params = {};
+    const selectedType = setupOptions.itemTypes.find((t) => t.name === filters.itemType);
+    if (selectedType) params.item_type_id = selectedType.id;
+    const selectedCat = setupOptions.categories.find((c) => c.name === filters.category);
+    if (selectedCat) params.category_id = selectedCat.id;
+    const selectedSub = setupOptions.subCategories.find((s) => s.name === filters.subCategory);
+    if (selectedSub) params.sub_category_id = selectedSub.id;
+    if (itemQuery.trim()) params.search = itemQuery.trim();
+    return params;
+  }, [filters.itemType, filters.category, filters.subCategory, itemQuery, setupOptions]);
+
+  const printReportRows = useCallback((rows, title, subtitle, variant = 'all') => {
+    printItemReportDocument({ rows, title, subtitle, variant });
+  }, []);
+
+  const handlePrintItem = useCallback(async (item) => {
+    if (!canPrint) return;
+
+    const itemId = item?._id || item?.id;
+    if (!itemId || printingIds.includes(itemId)) return;
+
+    setPrintingIds((current) => [...current, itemId]);
+
+    try {
+      const response = await axiosInstance.get(`/item-report/${itemId}/print`);
+      const printableSource = response?.data?.data || response?.data || response;
+      const printableItem = normalizeItemReportPrintItem(printableSource);
+
+      if (!printableItem || (!printableItem.itemName && !printableItem.code)) {
+        throw new Error('Print data was empty.');
+      }
+      printReportRows(
+        [printableItem],
+        'Item Report',
+        'Single item report generated from the item report print API.',
+        'single',
+      );
+    } finally {
+      setPrintingIds((current) => current.filter((id) => id !== itemId));
+    }
+  }, [canPrint, printReportRows, printingIds]);
+
+  const handlePrintAll = useCallback(async () => {
+    if (!canPrint || isPrintingAll) return;
+
+    setIsPrintingAll(true);
+
+    try {
+      const response = await axiosInstance.get('/item-report/print', {
+        params: buildReportParams(),
+      });
+      const printableRows = extractApiRows(response, ['items', 'data']).map(normalizeItemReportPrintItem);
+
+      printReportRows(
+        printableRows,
+        'Item Report',
+        'Full item report print generated from the item report print API.',
+      );
+    } catch (requestError) {
+      setListError(requestError.message || 'Failed to print item report.');
+    } finally {
+      setIsPrintingAll(false);
+    }
+  }, [buildReportParams, canPrint, isPrintingAll, printReportRows]);
 
   return (
     <div className="space-y-8">
@@ -381,14 +428,27 @@ export default function ItemReport() {
         ) : null}
 
         <div className="px-6 pb-6 pt-5">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-light text-brand">
-              <TableProperties className="h-4.5 w-4.5" />
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-light text-brand">
+                <TableProperties className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-gray-900">Item Report Table</h2>
+                <p className="text-sm text-gray-500">Read-only view of item stock, sale price, unit and reorder level.</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-gray-900">Item Report Table</h2>
-              <p className="text-sm text-gray-500">Read-only view of item stock, sale price, unit and reorder level.</p>
-            </div>
+            {canPrint ? (
+              <button
+                type="button"
+                onClick={handlePrintAll}
+                disabled={isPrintingAll}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-brand/15 bg-white text-brand transition-all hover:bg-brand-light/30 disabled:cursor-not-allowed disabled:opacity-60"
+                title="Print all"
+              >
+                <Printer className="h-4.5 w-4.5" />
+              </button>
+            ) : null}
           </div>
 
           <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">
@@ -426,19 +486,23 @@ export default function ItemReport() {
                     <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
                       Reorder Level
                     </th>
-                   
+                    {canPrint ? (
+                      <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">
+                        Action
+                      </th>
+                    ) : null}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50/50">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={11} className="px-8 py-6 text-center">
+                      <td colSpan={canPrint ? 11 : 10} className="px-8 py-6 text-center">
                         <TableLoader label="Loading item report..." />
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
+                      <td colSpan={canPrint ? 11 : 10} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
                         No items found.
                       </td>
                     </tr>
@@ -488,7 +552,19 @@ export default function ItemReport() {
                         <td className="border-b border-gray-50/30 px-6 py-5 text-sm font-semibold text-gray-700">
                           {formatNumber(item.reorderLevel)}
                         </td>
-                       
+                        {canPrint ? (
+                          <td className="border-b border-gray-50/30 px-6 py-5 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handlePrintItem(item)}
+                              disabled={printingIds.includes(item._id || item.id)}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-emerald-600 hover:shadow-xl hover:shadow-emerald-100/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-gray-400 disabled:hover:shadow-none"
+                              title="Print"
+                            >
+                              <Printer className="h-4.5 w-4.5" />
+                            </button>
+                          </td>
+                        ) : null}
                       </tr>
                     ))
                   )}
@@ -515,3 +591,6 @@ export default function ItemReport() {
     </div>
   );
 }
+
+
+
