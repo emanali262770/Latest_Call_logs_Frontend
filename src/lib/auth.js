@@ -299,6 +299,10 @@ export function getReadPermissionForPath(path) {
     return `EMPLOYEE.${normalizePermissionKey(firstSegment)}.READ`;
   }
 
+  if (firstSegment === 'services-products') {
+    return 'SERVICES.SERVICE.READ';
+  }
+
   if (firstSegment === 'stock' && secondSegment) {
     return `INVENTORY.${normalizePermissionKey(secondSegment)}.READ`;
   }

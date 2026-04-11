@@ -26,6 +26,8 @@ import {
   Truck,
   FileBarChart2,
   ClipboardList,
+  ConciergeBell,
+  PackageSearch,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { getReadPermissionsForPath, hasAnyPermission } from '@/src/lib/auth';
@@ -64,6 +66,12 @@ const navItems = [
         icon: Boxes,
       },
     ],
+  },
+  {
+    id: 'services-products',
+    label: 'Services & Products',
+    icon: PackageSearch,
+    path: '/services-products',
   },
   {
     id: 'setup',

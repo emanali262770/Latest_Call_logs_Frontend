@@ -23,9 +23,10 @@ import { cn } from '@/src/lib/utils';
 const ASSIGNED_DROP_ID = 'assigned-group-permissions';
 const ACTION_SEQUENCE = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'ASSIGN'];
 const TREE_LEVEL_SEQUENCE = {
-  ROOT: ['DASHBOARD', 'EMPLOYEES', 'ACCESS CONTROL', 'STOCK', 'SETUP', 'REPORTS', 'SETTINGS'],
+  ROOT: ['DASHBOARD', 'EMPLOYEES', 'ACCESS CONTROL', 'STOCK', 'SERVICES & PRODUCTS', 'SETUP', 'REPORTS', 'SETTINGS'],
   'ACCESS CONTROL': ['GROUPS', 'USERS', 'PERMISSIONS'],
   STOCK: ['ITEM_DEFINITION', 'OPENING_STOCK'],
+  'SERVICES & PRODUCTS': ['SERVICE'],
   REPORTS: ['ITEM_REPORT'],
   SETUP: ['EMPLOYEE SETUP', 'ITEMS'],
   'EMPLOYEE SETUP': ['DEPARTMENTS', 'DESIGNATIONS', 'EMPLOYEE TYPES', 'DUTY SHIFTS', 'BANKS'],
@@ -83,6 +84,9 @@ const LABEL_OVERRIDES = {
   OPENING_STOCK: 'Opening Stock',
   ITEM_REPORT: 'Item Report',
   REPORTS: 'Reports',
+  SERVICES: 'Services & Products',
+  'SERVICES & PRODUCTS': 'Services & Products',
+  SERVICE: 'Service',
 };
 
 function arePermissionListsEqual(left = [], right = []) {
@@ -171,6 +175,10 @@ function getPermissionTreePath(permission) {
 
   if (moduleName === 'INVENTORY' && subModuleName === 'ITEM_REPORT') {
     return ['REPORTS', 'ITEM_REPORT'];
+  }
+
+  if (moduleName === 'SERVICES') {
+    return ['SERVICES & PRODUCTS', subModuleName || 'SERVICE'];
   }
 
   if (ITEM_SETUP_SUBMODULES.has(subModuleName) || moduleName === 'ITEMS' || moduleName === 'STOCK_SETUP') {

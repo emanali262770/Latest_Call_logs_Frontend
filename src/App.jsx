@@ -24,6 +24,7 @@ import SuppliersSetup from './pages/setup/SuppliersSetup';
 import CompanySetup from './pages/setup/CompanySetup';
 import ItemDefinition from './pages/stock/ItemDefinition';
 import OpeningStock from './pages/stock/OpeningStock';
+import ServicesProducts from './pages/stock/ServicesProducts';
 import ItemReport from './pages/reports/ItemReport';
 import PublicProductView from './pages/PublicProductView';
 import { AccessControlProvider } from './context/AccessControlContext';
@@ -182,6 +183,9 @@ export default function App() {
           </Route>
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/opening-stock')} />}>
             <Route path="/stock/opening-stock" element={<OpeningStock />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/services-products')} />}>
+            <Route path="/services-products" element={<ServicesProducts />} />
           </Route>
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/reports/item-report')} />}>
             <Route path="/reports/item-report" element={<ItemReport />} />

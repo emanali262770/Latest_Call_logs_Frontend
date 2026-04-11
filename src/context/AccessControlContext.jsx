@@ -18,7 +18,10 @@ const initialGroupPermissionState = {
 };
 
 const ACTION_SEQUENCE = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'ASSIGN'];
-const MODULE_SEQUENCE = ['EMPLOYEE', 'ACCESS'];
+const MODULE_SEQUENCE = ['INVENTORY', 'SERVICES', 'EMPLOYEE', 'ACCESS', 'REPORTS'];
+const MODULE_LABEL_MAP = {
+  SERVICES: 'Services & Products',
+};
 const SUBMODULE_SEQUENCE = {
   EMPLOYEE: ['EMPLOYEE', 'DEPARTMENT', 'DESIGNATION', 'EMPLOYEE_TYPE', 'DUTY_SHIFT', 'BANK'],
   ACCESS: ['USERS', 'GROUPS', 'PERMISSIONS'],
@@ -202,7 +205,7 @@ function buildPermissionTree(items) {
     if (!moduleMap.has(permission.module)) {
       moduleMap.set(permission.module, {
         id: permission.module.toLowerCase(),
-        label: permission.module,
+        label: MODULE_LABEL_MAP[permission.module] || permission.module,
         children: [],
         subModuleMap: new Map(),
       });
