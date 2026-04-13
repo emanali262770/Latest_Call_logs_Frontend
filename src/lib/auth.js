@@ -288,6 +288,10 @@ export function getReadPermissionForPath(path) {
       return null;
     }
 
+    if (secondSegment === 'customers') {
+      return 'INVENTORY.CUSTOMER.READ';
+    }
+
     if (secondSegment === 'items' && thirdSegment) {
       return `INVENTORY.${normalizePermissionKey(thirdSegment)}.READ`;
     }

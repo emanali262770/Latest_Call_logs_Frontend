@@ -3,8 +3,8 @@ import axiosInstance from '@/src/lib/axiosInstance';
 function normalize(item) {
   return {
     id: item.id || item._id || item.uuid || crypto.randomUUID(),
-    code: item.supplier_code || item.code || '',
-    name: item.supplier_name || item.name || '',
+    code: item.customer_code || item.code || '',
+    name: item.customer_name || item.name || '',
     phone: item.phone || '',
     email: item.email || '',
     address: item.address || '',
@@ -16,7 +16,7 @@ function normalize(item) {
 }
 
 function extractRows(payload) {
-  if (Array.isArray(payload?.data?.suppliers)) return payload.data.suppliers;
+  if (Array.isArray(payload?.data?.customers)) return payload.data.customers;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.data?.data)) return payload.data.data;
   if (Array.isArray(payload?.data?.rows)) return payload.data.rows;
@@ -24,9 +24,9 @@ function extractRows(payload) {
   return [];
 }
 
-export const supplierService = {
+export const customerService = {
   async list(search = '') {
-    const response = await axiosInstance.get('/suppliers', {
+    const response = await axiosInstance.get('/customers', {
       params: { search },
     });
     return {
@@ -34,9 +34,16 @@ export const supplierService = {
       data: extractRows(response).map(normalize),
     };
   },
+  async get(id) {
+    const response = await axiosInstance.get(`/customers/${id}`);
+    return {
+      ...response,
+      data: normalize(response?.data?.data || response?.data || {}),
+    };
+  },
   async create(values) {
     const payload = {
-      supplier_name: values.name,
+      customer_name: values.name,
       phone: values.phone,
       email: values.email,
       address: values.address,
@@ -45,18 +52,18 @@ export const supplierService = {
     };
 
     if (String(values.code || '').trim()) {
-      payload.supplier_code = String(values.code).trim();
+      payload.customer_code = String(values.code).trim();
     }
 
     if (values.openingBalance !== undefined) {
       payload.opening_balance = values.openingBalance;
     }
 
-    return axiosInstance.post('/suppliers', payload);
+    return axiosInstance.post('/customers', payload);
   },
   async update(id, values) {
     const payload = {
-      supplier_name: values.name,
+      customer_name: values.name,
       phone: values.phone,
       email: values.email,
       address: values.address,
@@ -65,16 +72,16 @@ export const supplierService = {
     };
 
     if (String(values.code || '').trim()) {
-      payload.supplier_code = String(values.code).trim();
+      payload.customer_code = String(values.code).trim();
     }
 
     if (values.openingBalance !== undefined) {
       payload.opening_balance = values.openingBalance;
     }
 
-    return axiosInstance.put(`/suppliers/${id}`, payload);
+    return axiosInstance.put(`/customers/${id}`, payload);
   },
   async remove(id) {
-    return axiosInstance.delete(`/suppliers/${id}`);
+    return axiosInstance.delete(`/customers/${id}`);
   },
 };

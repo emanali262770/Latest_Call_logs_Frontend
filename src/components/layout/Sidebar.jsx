@@ -24,6 +24,7 @@ import {
   Ruler,
   MapPin,
   Truck,
+  ContactRound,
   FileBarChart2,
   ClipboardList,
   ConciergeBell,
@@ -109,6 +110,12 @@ const navItems = [
           { id: 'setup-locations', label: 'Locations', path: '/setup/items/locations', icon: MapPin },
           { id: 'setup-suppliers', label: 'Suppliers', path: '/setup/items/suppliers', icon: Truck },
         ],
+      },
+      {
+        id: 'setup-customers',
+        label: 'Customers',
+        path: '/setup/customers',
+        icon: ContactRound,
       },
     ],
   },
@@ -362,7 +369,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         )}
       </div>
 
-      <nav className="mt-2 flex-1 space-y-2 px-4">
+      <nav className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-4 pb-4">
         {!isCollapsed ? (
           <div className="px-2 pb-2 pt-1">
             <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-gray-400">Navigation</span>

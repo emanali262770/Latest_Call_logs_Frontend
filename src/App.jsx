@@ -21,6 +21,7 @@ import ManufacturersSetup from './pages/setup/ManufacturersSetup';
 import UnitsSetup from './pages/setup/UnitsSetup';
 import LocationsSetup from './pages/setup/LocationsSetup';
 import SuppliersSetup from './pages/setup/SuppliersSetup';
+import CustomersSetup from './pages/setup/CustomersSetup';
 import CompanySetup from './pages/setup/CompanySetup';
 import ItemDefinition from './pages/stock/ItemDefinition';
 import OpeningStock from './pages/stock/OpeningStock';
@@ -177,6 +178,9 @@ export default function App() {
           </Route>
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/suppliers')} />}>
             <Route path="/setup/items/suppliers" element={<SuppliersSetup />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/customers')} />}>
+            <Route path="/setup/customers" element={<CustomersSetup />} />
           </Route>
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-definition')} />}>
             <Route path="/stock/item-definition" element={<ItemDefinition />} />

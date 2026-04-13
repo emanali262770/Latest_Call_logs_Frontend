@@ -28,9 +28,10 @@ const TREE_LEVEL_SEQUENCE = {
   STOCK: ['ITEM_DEFINITION', 'OPENING_STOCK'],
   'SERVICES & PRODUCTS': ['SERVICE'],
   REPORTS: ['ITEM_REPORT'],
-  SETUP: ['EMPLOYEE SETUP', 'ITEMS'],
+  SETUP: ['COMPANY', 'EMPLOYEE SETUP', 'ITEMS', 'CUSTOMERS'],
   'EMPLOYEE SETUP': ['DEPARTMENTS', 'DESIGNATIONS', 'EMPLOYEE TYPES', 'DUTY SHIFTS', 'BANKS'],
   ITEMS: ['ITEM TYPES', 'CATEGORIES', 'SUB CATEGORIES', 'MANUFACTURERS', 'UNITS', 'LOCATIONS', 'SUPPLIERS'],
+  CUSTOMERS: ['CUSTOMER'],
   EMPLOYEES: ['EMPLOYEE'],
 };
 const EMPLOYEE_SETUP_SUBMODULES = new Set(['DEPARTMENT', 'DESIGNATION', 'EMPLOYEE_TYPE', 'DUTY_SHIFT', 'BANK']);
@@ -50,6 +51,7 @@ const ITEM_SETUP_SUBMODULES = new Set([
   'SUPPLIER',
   'SUPPLIERS',
 ]);
+const CUSTOMER_SETUP_SUBMODULES = new Set(['CUSTOMER', 'CUSTOMERS']);
 const LABEL_OVERRIDES = {
   EMPLOYEE: 'Employee',
   EMPLOYEES: 'Employees',
@@ -58,6 +60,7 @@ const LABEL_OVERRIDES = {
   GROUPS: 'Groups',
   PERMISSIONS: 'Permissions',
   SETUP: 'Setup',
+  COMPANY: 'Company',
   STOCK: 'Stock',
   SETTINGS: 'Settings',
   DEPARTMENT: 'Departments',
@@ -79,6 +82,8 @@ const LABEL_OVERRIDES = {
   LOCATIONS: 'Locations',
   SUPPLIER: 'Suppliers',
   SUPPLIERS: 'Suppliers',
+  CUSTOMER: 'Customers',
+  CUSTOMERS: 'Customers',
   ITEM_DEFINITION: 'Item Definition',
   ITEM_DEFINITIONS: 'Item Definition',
   OPENING_STOCK: 'Opening Stock',
@@ -165,6 +170,10 @@ function getPermissionTreePath(permission) {
     return ['ACCESS CONTROL', subModuleName];
   }
 
+  if (moduleName === 'COMPANY') {
+    return ['SETUP', 'COMPANY'];
+  }
+
   if (moduleName === 'INVENTORY' && ['ITEM_DEFINITION', 'ITEM_DEFINITIONS'].includes(subModuleName)) {
     return ['STOCK', 'ITEM_DEFINITION'];
   }
@@ -179,6 +188,10 @@ function getPermissionTreePath(permission) {
 
   if (moduleName === 'SERVICES') {
     return ['SERVICES & PRODUCTS', subModuleName || 'SERVICE'];
+  }
+
+  if (moduleName === 'INVENTORY' && CUSTOMER_SETUP_SUBMODULES.has(subModuleName)) {
+    return ['SETUP', 'CUSTOMERS', 'CUSTOMER'];
   }
 
   if (ITEM_SETUP_SUBMODULES.has(subModuleName) || moduleName === 'ITEMS' || moduleName === 'STOCK_SETUP') {

@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Search, Edit2, Trash2, X, Save, Truck } from "lucide-react";
+import { Plus, Search, Edit2, Trash2, X, Save, Users } from "lucide-react";
 import { Card, Button, Badge } from "@/src/components/ui/Card";
 import TableLoader from "@/src/components/ui/TableLoader";
 import TablePagination from "@/src/components/ui/TablePagination";
 import ConfirmDialog from "@/src/components/ui/ConfirmDialog";
 import ThemeToastViewport from "@/src/components/ui/ThemeToastViewport";
 import { useThemeToast } from "@/src/hooks/useThemeToast";
-import { supplierService } from "@/src/services/supplier.service";
 import { required, validateEmail } from "@/src/lib/validation";
 import { hasPermission } from "@/src/lib/auth";
+import { customerService } from "@/src/services/customer.service";
 
-export default function SuppliersSetup() {
+export default function CustomersSetup() {
   const [items, setItems] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,15 +34,15 @@ export default function SuppliersSetup() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const { toasts, toast, removeToast } = useThemeToast();
 
-  const canCreate = hasPermission("INVENTORY.SUPPLIER.CREATE");
-  const canEdit = hasPermission("INVENTORY.SUPPLIER.UPDATE");
-  const canDelete = hasPermission("INVENTORY.SUPPLIER.DELETE");
+  const canCreate = hasPermission("INVENTORY.CUSTOMER.CREATE");
+  const canEdit = hasPermission("INVENTORY.CUSTOMER.UPDATE");
+  const canDelete = hasPermission("INVENTORY.CUSTOMER.DELETE");
 
   const loadItems = useCallback(async (query = "") => {
     setIsLoading(true);
     setListError("");
     try {
-      const response = await supplierService.list(query);
+      const response = await customerService.list(query);
       setItems(Array.isArray(response?.data) ? response.data : []);
     } catch (requestError) {
       setListError(requestError.message || "Failed to load records.");
@@ -63,10 +63,7 @@ export default function SuppliersSetup() {
   }, [searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
-  const paginatedItems = items.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
-  );
+  const paginatedItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -100,9 +97,7 @@ export default function SuppliersSetup() {
     setPhone(item.phone || "");
     setEmail(item.email || "");
     setAddress(item.address || "");
-    setOpeningBalance(
-      item.openingBalance === 0 ? "0" : item.openingBalance || "",
-    );
+    setOpeningBalance(item.openingBalance === 0 ? "0" : item.openingBalance || "");
     setObDate(item.obDate || "");
     setStatus(item.status || "active");
     setValidationError("");
@@ -122,7 +117,7 @@ export default function SuppliersSetup() {
     const trimmedEmail = email.trim();
     const trimmedAddress = address.trim();
     const trimmedOpeningBalance = openingBalance.trim();
-    const nameError = required(trimmedName, "Supplier name");
+    const nameError = required(trimmedName, "Customer name");
     const phoneError = required(trimmedPhone, "Phone number");
     const emailError = validateEmail(trimmedEmail);
     const error = nameError || phoneError || emailError;
@@ -133,14 +128,14 @@ export default function SuppliersSetup() {
       return;
     }
 
+    setIsSaving(true);
     setValidationError("");
     setApiError("");
-    setIsSaving(true);
 
     try {
       if (editingItem) {
-        const response = await supplierService.update(editingItem.id, {
-          code: trimmedCode,
+        const response = await customerService.update(editingItem.id, {
+          code: trimmedCode || undefined,
           name: trimmedName,
           phone: trimmedPhone,
           email: trimmedEmail,
@@ -149,13 +144,10 @@ export default function SuppliersSetup() {
           obDate,
           status,
         });
-        toast.success(
-          "Supplier updated",
-          response?.message || "Supplier updated successfully.",
-        );
+        toast.success("Customer updated", response?.message || "Customer updated successfully.");
       } else {
-        const response = await supplierService.create({
-          code: undefined,
+        const response = await customerService.create({
+          code: trimmedCode || undefined,
           name: trimmedName,
           phone: trimmedPhone,
           email: trimmedEmail,
@@ -164,10 +156,7 @@ export default function SuppliersSetup() {
           obDate,
           status,
         });
-        toast.success(
-          "Supplier created",
-          response?.message || "Supplier created successfully.",
-        );
+        toast.success("Customer created", response?.message || "Customer created successfully.");
       }
       closeModal();
       await loadItems(searchQuery.trim());
@@ -182,18 +171,12 @@ export default function SuppliersSetup() {
     if (!deleteTarget) return;
     setIsSaving(true);
     try {
-      const response = await supplierService.remove(deleteTarget.id);
-      toast.success(
-        "Supplier deleted",
-        response?.message || "Supplier deleted successfully.",
-      );
+      const response = await customerService.remove(deleteTarget.id);
+      toast.success("Customer deleted", response?.message || "Customer deleted successfully.");
       setDeleteTarget(null);
       await loadItems(searchQuery.trim());
     } catch (requestError) {
-      toast.error(
-        "Delete failed",
-        requestError.message || "Unable to delete record.",
-      );
+      toast.error("Delete failed", requestError.message || "Unable to delete record.");
     } finally {
       setIsSaving(false);
     }
@@ -204,12 +187,8 @@ export default function SuppliersSetup() {
       <div className="space-y-8">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              Suppliers
-            </h1>
-            <p className="mt-1 text-gray-500">
-              Manage suppliers linked to stock item definitions.
-            </p>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Customers</h1>
+            <p className="mt-1 text-gray-500">Manage customers linked to setup records.</p>
           </div>
           {canCreate && (
             <Button
@@ -217,7 +196,7 @@ export default function SuppliersSetup() {
               icon={<Plus className="h-4 w-4" />}
               className="bg-brand hover:bg-brand-hover shadow-brand/20"
             >
-              Add Supplier
+              Add Customer
             </Button>
           )}
         </div>
@@ -228,23 +207,22 @@ export default function SuppliersSetup() {
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search suppliers..."
+                placeholder="Search customers..."
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 py-3 pl-11 pr-4 text-sm placeholder:text-gray-400 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
               />
             </div>
             <p className="text-sm font-medium text-gray-400">
-              <span className="font-bold text-gray-900">{items.length}</span>{" "}
-              Records
+              <span className="font-bold text-gray-900">{items.length}</span> Records
             </p>
           </div>
 
-          {listError && (
-            <div className="mx-6 mb-6 px-4 py-3 bg-rose-50 border border-rose-100 rounded-xl text-sm text-rose-700 font-medium">
+          {listError ? (
+            <div className="mx-6 mb-6 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
               {listError}
             </div>
-          )}
+          ) : null}
 
           <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">
             <div className="overflow-x-auto">
@@ -252,7 +230,7 @@ export default function SuppliersSetup() {
                 <thead>
                   <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
                     <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">
-                      Supplier Name
+                      Customer Name
                     </th>
                     <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
                       Phone
@@ -272,50 +250,36 @@ export default function SuppliersSetup() {
                   {isLoading ? (
                     <tr>
                       <td colSpan={5} className="px-8 py-6 text-center">
-                        <TableLoader label="Loading supplier records..." />
+                        <TableLoader label="Loading customer records..." />
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={5}
-                        className="px-8 py-20 text-center text-sm font-medium text-gray-400"
-                      >
+                      <td colSpan={5} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
                         No records found.
                       </td>
                     </tr>
                   ) : (
                     paginatedItems.map((item) => (
-                      <tr
-                        key={item.id}
-                        className="group transition-all duration-300 hover:bg-brand-light/40"
-                      >
+                      <tr key={item.id} className="group transition-all duration-300 hover:bg-brand-light/40">
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">
                           <div className="flex items-center gap-3">
                             <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/10 bg-brand-light text-brand">
-                              <Truck className="h-4 w-4" />
+                              <Users className="h-4 w-4" />
                             </div>
                             <span className="text-gray-900">{item.name}</span>
                           </div>
                         </td>
-                        <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">
-                          {item.phone || "-"}
-                        </td>
-                        <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">
-                          {item.address || "-"}
-                        </td>
+                        <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">{item.phone || "-"}</td>
+                        <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">{item.address || "-"}</td>
                         <td className="border-b border-gray-50/30 px-8 py-6">
-                          <Badge
-                            variant={
-                              item.status === "active" ? "green" : "gray"
-                            }
-                          >
+                          <Badge variant={item.status === "active" ? "green" : "gray"}>
                             {item.status === "active" ? "Active" : "Inactive"}
                           </Badge>
                         </td>
                         <td className="border-b border-gray-50/30 px-8 py-6 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {canEdit && (
+                            {canEdit ? (
                               <button
                                 type="button"
                                 onClick={() => openEditModal(item)}
@@ -324,8 +288,8 @@ export default function SuppliersSetup() {
                               >
                                 <Edit2 className="h-4.5 w-4.5" />
                               </button>
-                            )}
-                            {canDelete && (
+                            ) : null}
+                            {canDelete ? (
                               <button
                                 type="button"
                                 onClick={() => setDeleteTarget(item)}
@@ -335,7 +299,7 @@ export default function SuppliersSetup() {
                               >
                                 <Trash2 className="h-4.5 w-4.5" />
                               </button>
-                            )}
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -345,6 +309,7 @@ export default function SuppliersSetup() {
               </table>
             </div>
           </div>
+
           {items.length > 10 ? (
             <div className="px-6 pb-6">
               <TablePagination
@@ -366,25 +331,18 @@ export default function SuppliersSetup() {
       {isModalOpen
         ? createPortal(
             <div className="fixed inset-0 z-70 flex items-center justify-center p-4 sm:p-6">
-              <button
-                type="button"
-                className="absolute inset-0 bg-slate-950/48"
-                onClick={closeModal}
-                aria-label="Close modal"
-              ></button>
+              <button type="button" className="absolute inset-0 bg-slate-950/48" onClick={closeModal} aria-label="Close modal"></button>
               <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-3xl border-l-[6px] border-brand bg-white shadow-2xl shadow-brand/10">
                 <div className="flex items-start justify-between gap-4 p-6 pb-4">
                   <div className="flex items-start gap-4">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand">
-                      <Truck className="w-6 h-6" />
+                      <Users className="w-6 h-6" />
                     </div>
                     <div>
                       <h2 className="text-lg font-bold tracking-tight text-gray-900">
-                        {editingItem ? "Edit Supplier" : "Add Supplier"}
+                        {editingItem ? "Edit Customer" : "Add Customer"}
                       </h2>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Supplier info + active status
-                      </p>
+                      <p className="mt-1 text-sm text-gray-500">Customer info + active status</p>
                     </div>
                   </div>
                   <button
@@ -398,29 +356,26 @@ export default function SuppliersSetup() {
                 </div>
                 <div className="space-y-6 px-6 pb-6">
                   <div className="space-y-4">
-                    <div className="flex items-center gap-3 py-2 px-4 bg-brand-light/50 rounded-lg border border-brand/10">
-                      <div className="w-1 h-5 bg-brand rounded-full"></div>
-                      <span className="text-sm font-bold tracking-tight text-gray-900">
-                        Supplier Details
-                      </span>
+                    <div className="flex items-center gap-3 rounded-lg border border-brand/10 bg-brand-light/50 px-4 py-2">
+                      <div className="h-5 w-1 rounded-full bg-brand"></div>
+                      <span className="text-sm font-bold tracking-tight text-gray-900">Customer Details</span>
                     </div>
                     <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                          Supplier Code
-                        </label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Customer Code</label>
                         <input
                           type="text"
                           value={code}
-                          readOnly
-                          disabled
-                          placeholder="Auto-generated by backend"
-                          className="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 font-mono text-sm text-gray-500 outline-none"
+                          onChange={(event) => setCode(event.target.value)}
+                          placeholder="Auto-generated "
+                          readOnly={!!editingItem}
+                          disabled={!!editingItem}
+                          className="w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-2.5 font-mono text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
                         />
                       </div>
                       <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                          Supplier Name <span className="text-red-500">*</span>
+                          Customer Name <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -429,7 +384,7 @@ export default function SuppliersSetup() {
                             setName(event.target.value);
                             setValidationError("");
                           }}
-                          placeholder="Supplier name"
+                          placeholder="Customer name"
                           className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationError && !name.trim() ? "border-rose-400" : "border-gray-200"}`}
                         />
                       </div>
@@ -449,9 +404,7 @@ export default function SuppliersSetup() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                          Email
-                        </label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Email</label>
                         <input
                           type="email"
                           value={email}
@@ -464,9 +417,7 @@ export default function SuppliersSetup() {
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                          Address
-                        </label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Address</label>
                         <input
                           type="text"
                           value={address}
@@ -476,23 +427,17 @@ export default function SuppliersSetup() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                          Opening Balance
-                        </label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Opening Balance</label>
                         <input
                           type="number"
                           value={openingBalance}
-                          onChange={(event) =>
-                            setOpeningBalance(event.target.value)
-                          }
+                          onChange={(event) => setOpeningBalance(event.target.value)}
                           placeholder="0"
                           className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                          OB Date
-                        </label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">OB Date</label>
                         <input
                           type="date"
                           value={obDate}
@@ -501,10 +446,7 @@ export default function SuppliersSetup() {
                         />
                       </div>
                       <div className="flex flex-col space-y-2 md:col-span-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                          Status
-                        </label>
-
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Status</label>
                         <select
                           value={status}
                           onChange={(event) => setStatus(event.target.value)}
@@ -515,12 +457,10 @@ export default function SuppliersSetup() {
                         </select>
                       </div>
                     </div>
-                    {validationError ? (
-                      <p className="text-xs text-rose-600">{validationError}</p>
-                    ) : null}
+                    {validationError ? <p className="text-xs text-rose-600">{validationError}</p> : null}
                   </div>
                   {apiError ? (
-                    <div className="px-4 py-3 bg-rose-50 border border-rose-100 rounded-xl text-sm font-medium text-rose-700">
+                    <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
                       {apiError}
                     </div>
                   ) : null}
@@ -528,7 +468,7 @@ export default function SuppliersSetup() {
                     <button
                       type="button"
                       onClick={closeModal}
-                      className="px-8 py-3 bg-white border border-gray-200 text-gray-500 rounded-xl font-bold hover:bg-gray-50 transition-all"
+                      className="rounded-xl border border-gray-200 bg-white px-8 py-3 font-bold text-gray-500 transition-all hover:bg-gray-50"
                     >
                       Cancel
                     </button>
@@ -536,7 +476,7 @@ export default function SuppliersSetup() {
                       type="button"
                       onClick={handleSave}
                       disabled={isSaving}
-                      className="px-8 py-3 bg-brand text-white rounded-xl font-bold hover:bg-brand-hover transition-all shadow-lg shadow-brand/20 inline-flex items-center gap-2 disabled:opacity-70"
+                      className="inline-flex items-center gap-2 rounded-xl bg-brand px-8 py-3 font-bold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-70"
                     >
                       <Save className="w-4 h-4" />
                       {isSaving ? "Saving..." : "Save"}
@@ -551,12 +491,8 @@ export default function SuppliersSetup() {
 
       <ConfirmDialog
         isOpen={!!deleteTarget}
-        title="Delete Supplier"
-        description={
-          deleteTarget
-            ? `Are you sure you want to delete ${deleteTarget.name || "supplier"}?`
-            : ""
-        }
+        title="Delete Customer"
+        description={deleteTarget ? `Are you sure you want to delete ${deleteTarget.name || "customer"}?` : ""}
         confirmLabel="Delete"
         onCancel={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
