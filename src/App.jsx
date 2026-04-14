@@ -24,6 +24,7 @@ import SuppliersSetup from './pages/setup/SuppliersSetup';
 import CustomersSetup from './pages/setup/CustomersSetup';
 import CompanySetup from './pages/setup/CompanySetup';
 import ItemDefinition from './pages/stock/ItemDefinition';
+import ItemRate from './pages/stock/ItemRate';
 import OpeningStock from './pages/stock/OpeningStock';
 import ServicesProducts from './pages/stock/ServicesProducts';
 import ItemReport from './pages/reports/ItemReport';
@@ -184,6 +185,9 @@ export default function App() {
           </Route>
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-definition')} />}>
             <Route path="/stock/item-definition" element={<ItemDefinition />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-rate')} />}>
+            <Route path="/stock/item-rate" element={<ItemRate />} />
           </Route>
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/opening-stock')} />}>
             <Route path="/stock/opening-stock" element={<OpeningStock />} />

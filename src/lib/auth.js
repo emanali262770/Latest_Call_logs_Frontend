@@ -308,6 +308,10 @@ export function getReadPermissionForPath(path) {
   }
 
   if (firstSegment === 'stock' && secondSegment) {
+    if (secondSegment === 'item-rate') {
+      return null;
+    }
+
     return `INVENTORY.${normalizePermissionKey(secondSegment)}.READ`;
   }
 

@@ -29,6 +29,7 @@ import {
   ClipboardList,
   ConciergeBell,
   PackageSearch,
+  ReceiptText,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { getReadPermissionsForPath, hasAnyPermission } from '@/src/lib/auth';
@@ -59,6 +60,12 @@ const navItems = [
         label: 'Item Definition',
         path: '/stock/item-definition',
         icon: Package,
+      },
+      {
+        id: 'stock-item-rate',
+        label: 'Item Rate',
+        path: '/stock/item-rate',
+        icon: ReceiptText,
       },
       {
         id: 'stock-opening-stock',
