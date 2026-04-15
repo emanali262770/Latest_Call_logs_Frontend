@@ -5,7 +5,10 @@ function normalize(item) {
     id: item.id || item._id || item.uuid || crypto.randomUUID(),
     code: item.supplier_code || item.code || '',
     name: item.supplier_name || item.name || '',
+    contactPerson: item.contact_person || item.contactPerson || '',
+    city: item.city || '',
     phone: item.phone || '',
+    mobile: item.mobile_number || item.mobile_no || item.mobile || '',
     email: item.email || '',
     address: item.address || '',
     openingBalance: item.opening_balance ?? item.openingBalance ?? '',
@@ -37,7 +40,10 @@ export const supplierService = {
   async create(values) {
     const payload = {
       supplier_name: values.name,
+      contact_person: values.contactPerson,
+      city: values.city,
       phone: values.phone,
+      mobile_number: values.mobile,
       email: values.email,
       address: values.address,
       ob_date: values.obDate,
@@ -57,7 +63,10 @@ export const supplierService = {
   async update(id, values) {
     const payload = {
       supplier_name: values.name,
+      contact_person: values.contactPerson,
+      city: values.city,
       phone: values.phone,
+      mobile_number: values.mobile,
       email: values.email,
       address: values.address,
       ob_date: values.obDate,

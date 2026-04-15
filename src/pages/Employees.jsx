@@ -172,26 +172,32 @@ function isCurrentUsersEmployee(employee) {
 
 function FieldLabel({ children, required: isRequired = false }) {
   return (
-    <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
+    <label className="ml-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">
       {children}
       {isRequired ? <span className="ml-1 text-rose-500">*</span> : null}
     </label>
   );
 }
 
+const INPUT_BASE_CLASS_NAME =
+  'mt-[2px] h-9 w-full rounded-xl border bg-white px-4 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:outline-none focus:ring-4';
+
+const SECTION_PANEL_CLASS_NAME =
+  'rounded-[1.4rem] border border-slate-300/80 bg-slate-50/95 ';
+
 function FormSection({ icon: Icon, title, subtitle, children, className = '' }) {
   return (
-    <section className={`rounded-[1.5rem] border border-gray-200 bg-white ${className}`}>
-      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+    <section className={`${SECTION_PANEL_CLASS_NAME} ${className}`}>
+      <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
         <div>
-          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-gray-700">{title}</h3>
-          {subtitle ? <p className="mt-1 text-xs text-gray-400">{subtitle}</p> : null}
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">{title}</h3>
+          {subtitle ? <p className="mt-1 text-xs text-slate-500">{subtitle}</p> : null}
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-brand">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200/70 text-brand">
           <Icon className="h-4 w-4" />
         </div>
       </div>
-      <div className="space-y-5 p-6">{children}</div>
+      <div className="p-6">{children}</div>
     </section>
   );
 }
@@ -510,22 +516,28 @@ export default function Employees() {
  
 
   const inputClassName = (field) =>
-    `mt-[2px] h-10 w-full rounded-xl border bg-white px-3.5 text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none ${
-      formErrors[field] ? 'border-rose-400' : 'border-gray-200'
+    `${INPUT_BASE_CLASS_NAME} ${
+      formErrors[field]
+        ? 'border-rose-400 focus:border-rose-400 focus:ring-rose-100'
+        : 'border-slate-300/80 focus:border-slate-500 focus:ring-slate-200/70'
     }`;
 
   const selectClassName = (field) =>
-    `mt-[2px] h-10 w-full rounded-xl border bg-white px-3.5 pr-10 text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none appearance-none ${
-      formErrors[field] ? 'border-rose-400' : 'border-gray-200'
+    `${INPUT_BASE_CLASS_NAME} appearance-none pr-10 ${
+      formErrors[field]
+        ? 'border-rose-400 focus:border-rose-400 focus:ring-rose-100'
+        : 'border-slate-300/80 focus:border-slate-500 focus:ring-slate-200/70'
     }`;
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Employees</h1>
-          <p className="text-gray-500 mt-1">Manage and monitor your organization&apos;s human resources.</p>
-        </div>
+      <div className="space-y-8">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        {showForm ? null : (
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Employees</h1>
+            <p className="mt-1 text-gray-500">Manage and monitor your organization&apos;s human resources.</p>
+          </div>
+        )}
         {!showForm && (
           <div className="flex items-center gap-3">
             <Button variant="outline" icon={<Download className="w-4 h-4" />}>Export Data</Button>
@@ -675,17 +687,17 @@ export default function Employees() {
         </Card>
       </div>
 
-      <div ref={formContainerRef} className="hidden max-w-5xl">
-        <div className="overflow-hidden rounded-[1.75rem] border border-gray-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-          <div className="border-b border-gray-200 bg-gray-50/70 px-8 py-6">
+      <div ref={formContainerRef} className="hidden mx-auto w-full max-w-6xl">
+        <div className="overflow-hidden rounded-[1.75rem] border border-slate-300/80 bg-white">
+          <div className="border-b border-slate-300/80 bg-slate-100/30 px-8 py-6">
             <div className="flex items-start justify-between gap-6">
               <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-brand shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-300/80 bg-white text-brand shadow-sm">
                   <FileText className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-400">Employee Form</p>
-                  <p className="mt-1 text-sm text-gray-500">
+                  <p className="text-[20px] font-bold text-gray-700">Employee Form</p>
+                  <p className="mt-1 text-sm text-slate-600">
                     {formMode === 'create'
                       ? 'Register a new employee into the system database with full details.'
                       : 'Update the employee record in the system.'}
@@ -695,7 +707,7 @@ export default function Employees() {
               <button
                 type="button"
                 onClick={closeForm}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-gray-500 transition-all hover:border-brand/20 hover:bg-brand-light/30 hover:text-brand"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300/80 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-slate-600 transition-all hover:border-slate-400 hover:bg-slate-100 hover:text-slate-900"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back
@@ -703,33 +715,34 @@ export default function Employees() {
             </div>
           </div>
 
-          <div className="space-y-8 px-8 py-8">
+          <div className="space-y-6 px-8 py-8">
             {apiError && (
               <div className="px-4 py-3 bg-rose-50 border border-rose-100 rounded-xl text-sm text-rose-700 font-medium">
                 {apiError}
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500"># Emp ID</label>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+              <div className="space-y-2 xl:col-span-3">
+                <FieldLabel># Emp ID</FieldLabel>
                 <input
                   type="text"
                   value={previewEmpId}
                   readOnly
                   disabled
-                  className="mt-[2px] h-10 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-3.5 font-mono text-sm text-gray-500 outline-none"
+                  className="mt-[2px] h-9 w-full cursor-not-allowed rounded-xl border border-slate-300/80 bg-slate-100 px-4 font-mono text-sm text-slate-500 outline-none"
                 />
               </div>
             </div>
 
             <FormSection icon={User} title="Personal Info" subtitle="Basic personal details and contact information.">
-              <div className="space-y-2">
-                <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">Profile Image</label>
-                <div className="flex items-center gap-5">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+              <div className="space-y-2 xl:col-span-4">
+                <FieldLabel>Profile Image</FieldLabel>
+                <div className="flex min-w-0 items-center gap-5">
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-20 h-20 rounded-2xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center cursor-pointer hover:border-brand/40 hover:bg-brand-light/20 transition-all overflow-hidden bg-gray-50/70"
+                    className="flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-300/80 bg-white transition-all hover:border-brand/40 hover:bg-brand-light/20"
                   >
                     {profileImagePreview ? (
                       <img src={profileImagePreview} alt="Profile" className="w-full h-full object-cover" />
@@ -741,39 +754,36 @@ export default function Employees() {
                     )}
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={handleImageUpload} />
-                  <p className="text-xs text-gray-400 leading-relaxed">
+                  <p className="min-w-0 flex-1 text-xs leading-relaxed text-slate-500">
                     PNG/JPG up to 2MB.
                     <br />
-                    <span className="text-gray-300">Optional - uploads to Cloudinary through backend.</span>
+                    <span className="text-slate-400">Optional - uploads to Cloudinary through backend.</span>
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-4">
                   <FieldLabel required><User className="inline w-3 h-3 mr-1 -mt-0.5" /> Employee Name</FieldLabel>
                   <input type="text" value={formData.employee_name} onChange={(event) => updateFormField('employee_name', event.target.value)} placeholder="Full name" className={inputClassName('employee_name')} />
                   {formErrors.employee_name && <p className="text-xs text-rose-600 ml-1">{formErrors.employee_name}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-4">
                   <FieldLabel>Father Name</FieldLabel>
                   <input type="text" value={formData.father_name} onChange={(event) => updateFormField('father_name', event.target.value)} placeholder="Father name" className={inputClassName('father_name')} />
                   {formErrors.father_name && <p className="text-xs text-rose-600 ml-1">{formErrors.father_name}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-4">
                   <FieldLabel required>Address</FieldLabel>
                   <input type="text" value={formData.address} onChange={(event) => updateFormField('address', event.target.value)} placeholder="Address" className={inputClassName('address')} />
                   {formErrors.address && <p className="text-xs text-rose-600 ml-1">{formErrors.address}</p>}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel required>City</FieldLabel>
                   <input type="text" value={formData.city} onChange={(event) => updateFormField('city', event.target.value)} placeholder="City" className={inputClassName('city')} />
                   {formErrors.city && <p className="text-xs text-rose-600 ml-1">{formErrors.city}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel required>Gender</FieldLabel>
                   <div className="relative">
                     <select value={formData.sex} onChange={(event) => updateFormField('sex', event.target.value)} className={selectClassName('sex')}>
@@ -786,15 +796,13 @@ export default function Employees() {
                   </div>
                   {formErrors.sex && <p className="text-xs text-rose-600 ml-1">{formErrors.sex}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel required>Phone</FieldLabel>
                   <input type="tel" value={formData.phone} onChange={(event) => updateFormField('phone', event.target.value)} placeholder="Phone" className={inputClassName('phone')} />
                   {formErrors.phone && <p className="text-xs text-rose-600 ml-1">{formErrors.phone}</p>}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel required>Email</FieldLabel>
                   <input
                     type="email"
@@ -805,30 +813,28 @@ export default function Employees() {
                   />
                   {formErrors.email && <p className="text-xs text-rose-600 ml-1">{formErrors.email}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel>Mobile</FieldLabel>
                   <input type="tel" value={formData.mobile} onChange={(event) => updateFormField('mobile', event.target.value)} placeholder="Mobile" className={inputClassName('mobile')} />
                   {formErrors.mobile && <p className="text-xs text-rose-600 ml-1">{formErrors.mobile}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel required>CNIC No</FieldLabel>
                   <input type="text" value={formData.cnic_no} onChange={(event) => updateFormField('cnic_no', event.target.value)} placeholder="XXXXX-XXXXXXX-X" className={`${inputClassName('cnic_no')} font-mono`} />
                   {formErrors.cnic_no && <p className="text-xs text-rose-600 ml-1">{formErrors.cnic_no}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel>Date of Birth</FieldLabel>
                   <input type="date" value={formData.date_of_birth} onChange={(event) => updateFormField('date_of_birth', event.target.value)} className={inputClassName('date_of_birth')} />
                   {formErrors.date_of_birth && <p className="text-xs text-rose-600 ml-1">{formErrors.date_of_birth}</p>}
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-6">
                   <FieldLabel>Qualification</FieldLabel>
                   <input type="text" value={formData.qualification} onChange={(event) => updateFormField('qualification', event.target.value)} placeholder="e.g. BS Computer Science" className={inputClassName('qualification')} />
                   {formErrors.qualification && <p className="text-xs text-rose-600 ml-1">{formErrors.qualification}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel>Blood Group</FieldLabel>
                   <input type="text" value={formData.blood_group} onChange={(event) => updateFormField('blood_group', event.target.value)} placeholder="e.g. O+" className={inputClassName('blood_group')} />
                   {formErrors.blood_group && <p className="text-xs text-rose-600 ml-1">{formErrors.blood_group}</p>}
@@ -837,8 +843,8 @@ export default function Employees() {
             </FormSection>
 
             <FormSection icon={Building2} title="Job Info" subtitle="Department, designation, and shift assignment.">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel required>Department</FieldLabel>
                   <div className="relative">
                     <select value={formData.department} onChange={(event) => updateFormField('department', event.target.value)} className={selectClassName('department')}>
@@ -851,7 +857,7 @@ export default function Employees() {
                   </div>
                   {formErrors.department && <p className="text-xs text-rose-600 ml-1">{formErrors.department}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel required>Designation</FieldLabel>
                   <div className="relative">
                     <select value={formData.designation} onChange={(event) => updateFormField('designation', event.target.value)} className={selectClassName('designation')}>
@@ -864,7 +870,7 @@ export default function Employees() {
                   </div>
                   {formErrors.designation && <p className="text-xs text-rose-600 ml-1">{formErrors.designation}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel required>Employee Type</FieldLabel>
                   <div className="relative">
                     <select value={formData.employee_type} onChange={(event) => updateFormField('employee_type', event.target.value)} className={selectClassName('employee_type')}>
@@ -877,14 +883,12 @@ export default function Employees() {
                   </div>
                   {formErrors.employee_type && <p className="text-xs text-rose-600 ml-1">{formErrors.employee_type}</p>}
                 </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel><Calendar className="inline w-3 h-3 mr-1 -mt-0.5" /> Hiring Date</FieldLabel>
                   <input type="date" value={formData.hiring_date} onChange={(event) => updateFormField('hiring_date', event.target.value)} className={inputClassName('hiring_date')} />
                   {formErrors.hiring_date && <p className="text-xs text-rose-600 ml-1">{formErrors.hiring_date}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel required>Duty Shift</FieldLabel>
                   <div className="relative">
                     <select value={formData.duty_shift} onChange={(event) => updateFormField('duty_shift', event.target.value)} className={selectClassName('duty_shift')}>
@@ -901,8 +905,8 @@ export default function Employees() {
             </FormSection>
 
             <FormSection icon={Landmark} title="Bank Info" subtitle="Banking details for salary disbursement.">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                <div className="space-y-2 xl:col-span-3">
                   <FieldLabel required>Bank</FieldLabel>
                   <div className="relative">
                     <select value={formData.bank} onChange={(event) => updateFormField('bank', event.target.value)} className={selectClassName('bank')}>
@@ -915,7 +919,7 @@ export default function Employees() {
                   </div>
                   {formErrors.bank && <p className="text-xs text-rose-600 ml-1">{formErrors.bank}</p>}
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 xl:col-span-4">
                   <FieldLabel required>Account Number</FieldLabel>
                   <input type="text" value={formData.account_number} onChange={(event) => updateFormField('account_number', event.target.value)} placeholder="e.g. 1234-5678-9012" className={`${inputClassName('account_number')} font-mono`} />
                   {formErrors.account_number && <p className="text-xs text-rose-600 ml-1">{formErrors.account_number}</p>}
@@ -924,35 +928,37 @@ export default function Employees() {
             </FormSection>
 
             <FormSection icon={Settings} title="Settings" subtitle="Status and access configuration.">
-              <div className="space-y-2">
-                <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">Enabled</label>
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+              <div className="space-y-2 xl:col-span-3">
+                <FieldLabel>Enabled</FieldLabel>
                 <button
                   type="button"
                   onClick={() => setEnabledEmployee(!enabledEmployee)}
-                  className={`group/toggle mt-[2px] flex h-12 items-center gap-5 rounded-2xl border px-4 transition-all duration-300 ${enabledEmployee ? 'border-brand/20 bg-brand-light/40 shadow-sm shadow-brand/5' : 'border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50'}`}
+                  className={`group/toggle mt-[2px] flex h-9 w-full items-center justify-between rounded-xl border px-4 transition-all duration-300 ${enabledEmployee ? 'border-brand/20 bg-brand-light/40 shadow-sm shadow-brand/5' : 'border-slate-300/80 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-300 ${enabledEmployee ? 'bg-brand/10 text-brand' : 'bg-gray-100 text-gray-400'}`}>
+                    <div className={`flex h-6 w-6 items-center justify-center rounded-lg transition-all duration-300 ${enabledEmployee ? 'bg-brand/10 text-brand' : 'bg-slate-100 text-slate-500'}`}>
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={enabledEmployee ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'} /></svg>
                     </div>
-                    <span className={`text-sm font-semibold transition-colors duration-300 ${enabledEmployee ? 'text-brand' : 'text-gray-500'}`}>{enabledEmployee ? 'Yes' : 'No'}</span>
+                    <span className={`text-sm font-semibold transition-colors duration-300 ${enabledEmployee ? 'text-brand' : 'text-slate-600'}`}>{enabledEmployee ? 'Yes' : 'No'}</span>
                   </div>
                   <div className={`relative h-6 w-11 rounded-full transition-all duration-300 ${enabledEmployee ? 'bg-brand shadow-inner shadow-brand/20' : 'bg-gray-300'}`}>
                     <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${enabledEmployee ? 'translate-x-5' : 'translate-x-0.5'}`} />
                   </div>
                 </button>
               </div>
+              </div>
             </FormSection>
 
-            <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50/70 px-6 py-4">
-              <p className="text-xs leading-6 text-gray-500">
+            <div className="flex items-center justify-between rounded-2xl border border-slate-300/80 bg-slate-50/95 px-6 py-4">
+              <p className="text-xs leading-6 text-slate-600">
                 Review required fields before saving. All sections must be completed for a valid employee record.
               </p>
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={closeForm}
-                  className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-50 hover:text-gray-800"
+                  className="rounded-xl border border-slate-300/80 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900"
                 >
                   Cancel
                 </button>

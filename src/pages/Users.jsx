@@ -72,6 +72,14 @@ const EMPTY_CREATE_FORM = {
   description: '',
 };
 
+const FIELD_LABEL_CLASS_NAME = 'ml-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600';
+const INPUT_BASE_CLASS_NAME =
+  'mt-[2px] h-9 w-full rounded-xl border bg-white px-4 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:outline-none focus:ring-4';
+const VALID_INPUT_CLASS_NAME = 'border-slate-300/80 focus:border-slate-500 focus:ring-slate-200/70';
+const ERROR_INPUT_CLASS_NAME = 'border-rose-400 focus:border-rose-400 focus:ring-rose-100';
+const SECTION_PANEL_CLASS_NAME =
+  'rounded-[1.4rem] border border-slate-300/80 bg-slate-50/95 shadow-[0_12px_30px_rgba(15,23,42,0.06)]';
+
 function SearchableSelect({
   label,
   required = false,
@@ -112,7 +120,7 @@ function SearchableSelect({
 
   return (
     <div className={`space-y-2 ${isOpen ? 'relative z-40' : 'relative z-0'}`} ref={containerRef}>
-      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
+      <label className={FIELD_LABEL_CLASS_NAME}>
         {label}
         {required ? <span className="text-red-500"> *</span> : null}
       </label>
@@ -121,8 +129,8 @@ function SearchableSelect({
         <button
           type="button"
           onClick={onToggle}
-          className={`flex w-full items-center justify-between rounded-xl border bg-white px-4 py-2.5 text-left text-sm text-gray-900 outline-none transition-all ${
-            error ? 'border-rose-300' : 'border-gray-200'
+          className={`flex ${INPUT_BASE_CLASS_NAME} items-center justify-between text-left ${
+            error ? ERROR_INPUT_CLASS_NAME : VALID_INPUT_CLASS_NAME
           }`}
         >
           <span className={value ? 'text-gray-900' : 'text-gray-400'}>{value || placeholder}</span>
@@ -130,7 +138,7 @@ function SearchableSelect({
         </button>
 
         {isOpen ? (
-          <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-2xl shadow-gray-200/60">
+          <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl shadow-gray-200/60">
             <div className="border-b border-gray-100 p-3">
               <div className="relative">
                 <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -139,7 +147,7 @@ function SearchableSelect({
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={searchablePlaceholder}
-                  className="h-10 w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
+                  className="h-10 w-full rounded-xl border border-slate-300/80 bg-white pl-10 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-slate-500 focus:ring-4 focus:ring-slate-200/70"
                 />
               </div>
             </div>
@@ -154,7 +162,7 @@ function SearchableSelect({
                       onChange(option.value);
                       onClose();
                     }}
-                    className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm transition-all ${
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-all ${
                       option.label === value
                         ? 'bg-brand-light text-brand'
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -179,23 +187,23 @@ function SearchableSelect({
 
 function FormSection({ icon: Icon, title, subtitle, children }) {
   return (
-    <section className="rounded-[1.5rem] border border-gray-200 bg-white">
-      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+    <section className={SECTION_PANEL_CLASS_NAME}>
+      <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
         <div>
-          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-gray-700">{title}</h3>
-          {subtitle ? <p className="mt-1 text-xs text-gray-400">{subtitle}</p> : null}
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">{title}</h3>
+          {subtitle ? <p className="mt-1 text-xs text-slate-500">{subtitle}</p> : null}
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-brand">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200/70 text-brand">
           <Icon className="h-4 w-4" />
         </div>
       </div>
-      <div className="space-y-5 p-6">{children}</div>
+      <div className="p-6">{children}</div>
     </section>
   );
 }
 
 function readOnlyFieldClassName() {
-  return 'mt-[2px] h-10 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-3.5 text-sm text-gray-500 outline-none';
+  return 'mt-[2px] h-9 w-full cursor-not-allowed rounded-xl border border-slate-300/80 bg-slate-100 px-4 text-sm text-slate-500 outline-none';
 }
 
 export default function UsersPage() {
@@ -556,8 +564,8 @@ export default function UsersPage() {
   };
 
   const createInputClassName = (field) =>
-    `mt-[2px] h-10 w-full rounded-xl border bg-white px-3.5 text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10 ${
-      createErrors[field] ? 'border-rose-400' : 'border-gray-200'
+    `${INPUT_BASE_CLASS_NAME} ${
+      createErrors[field] ? ERROR_INPUT_CLASS_NAME : VALID_INPUT_CLASS_NAME
     }`;
 
   return (
@@ -723,22 +731,22 @@ export default function UsersPage() {
           <div className="fixed inset-0 z-70 overflow-y-auto p-4 sm:p-6">
             <button type="button" className="absolute inset-0 bg-slate-950/48" onClick={closeCreateModal} aria-label="Close modal"></button>
 
-            <div className="relative z-10 mx-auto my-8 w-full max-w-[860px] overflow-hidden rounded-[1.75rem] border border-gray-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-              <div className="border-b border-gray-200 bg-gray-50/70 px-8 py-6">
+            <div className="relative z-10 mx-auto my-8 w-full max-w-6xl overflow-hidden rounded-[1.75rem] border border-slate-300/80 bg-white">
+              <div className="border-b border-slate-300/80 bg-slate-100/30 px-8 py-6">
                 <div className="flex items-start justify-between gap-6">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-brand shadow-sm">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-300/80 bg-white text-brand shadow-sm">
                       <UserCog className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-400">User Form</p>
-                      <p className="mt-1 text-sm text-gray-500">Create a new application user from an employee profile.</p>
+                      <p className="text-[20px] font-bold text-gray-700">User Form</p>
+                      <p className="mt-1 text-sm text-slate-600">Create a new application user from an employee profile.</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={closeCreateModal}
-                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-gray-500 transition-all hover:border-brand/20 hover:bg-brand-light/30 hover:text-brand"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-300/80 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-slate-600 transition-all hover:border-slate-400 hover:bg-slate-100 hover:text-slate-900"
                   >
                     <X className="h-3.5 w-3.5" />
                     Close
@@ -746,10 +754,10 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              <div className="max-h-[calc(100vh-11rem)] space-y-8 overflow-y-auto px-8 py-8">
+              <div className="max-h-[calc(100vh-11rem)] space-y-6 overflow-y-auto px-8 py-8">
                 <FormSection icon={User} title="Employee Info" subtitle="Select employee and view department details.">
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                    <div className="space-y-2 xl:col-span-4">
                       <SearchableSelect
                         label="Employee"
                         required
@@ -765,8 +773,8 @@ export default function UsersPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
+                    <div className="space-y-2 xl:col-span-4">
+                      <label className={FIELD_LABEL_CLASS_NAME}>
                         Department <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -779,11 +787,9 @@ export default function UsersPage() {
                       />
                       {createErrors.department ? <p className="text-xs text-rose-600">{createErrors.department}</p> : null}
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
+                    <div className="space-y-2 xl:col-span-4">
+                      <label className={FIELD_LABEL_CLASS_NAME}>
                         Designation <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -800,9 +806,9 @@ export default function UsersPage() {
                 </FormSection>
 
                 <FormSection icon={UserCog} title="User Info" subtitle="Credentials, lock status, and description.">
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">User ID</label>
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+                    <div className="space-y-2 xl:col-span-3">
+                      <label className={FIELD_LABEL_CLASS_NAME}>User ID</label>
                       <input
                         type="text"
                         value={previewUserId}
@@ -812,8 +818,8 @@ export default function UsersPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
+                    <div className="space-y-2 xl:col-span-3">
+                      <label className={FIELD_LABEL_CLASS_NAME}>
                         Username <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -825,11 +831,8 @@ export default function UsersPage() {
                       />
                       {createErrors.username ? <p className="text-xs text-rose-600">{createErrors.username}</p> : null}
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
+                    <div className="space-y-2 xl:col-span-3">
+                      <label className={FIELD_LABEL_CLASS_NAME}>
                         Password <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -842,8 +845,8 @@ export default function UsersPage() {
                       {createErrors.password ? <p className="text-xs text-rose-600">{createErrors.password}</p> : null}
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
+                    <div className="space-y-2 xl:col-span-3">
+                      <label className={FIELD_LABEL_CLASS_NAME}>
                         Confirm Password <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -855,20 +858,18 @@ export default function UsersPage() {
                       />
                       {createErrors.confirmPassword ? <p className="text-xs text-rose-600">{createErrors.confirmPassword}</p> : null}
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">Lock</label>
+                  <div className="space-y-2 xl:col-span-3">
+                    <label className={FIELD_LABEL_CLASS_NAME}>Lock</label>
                     <button
                       type="button"
                       onClick={() => updateCreateFormField('locked', !createForm.locked)}
-                      className={`group/toggle mt-[2px] flex h-12 w-fit items-center justify-between gap-5 rounded-2xl border px-4 transition-all duration-300 ${createForm.locked ? 'border-rose-200 bg-rose-50/50 shadow-sm shadow-rose-100/30' : 'border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50'}`}
+                      className={`group/toggle mt-[2px] flex h-9 w-full items-center justify-between rounded-xl border px-4 transition-all duration-300 ${createForm.locked ? 'border-rose-200 bg-rose-50/50 shadow-sm shadow-rose-100/30' : 'border-slate-300/80 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-300 ${createForm.locked ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-400'}`}>
+                        <div className={`flex h-6 w-6 items-center justify-center rounded-lg transition-all duration-300 ${createForm.locked ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'}`}>
                           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={createForm.locked ? 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' : 'M5 13l4 4L19 7'} /></svg>
                         </div>
-                        <span className={`text-sm font-semibold transition-colors duration-300 ${createForm.locked ? 'text-rose-600' : 'text-gray-500'}`}>{createForm.locked ? 'Locked' : 'Unlocked'}</span>
+                        <span className={`text-sm font-semibold transition-colors duration-300 ${createForm.locked ? 'text-rose-600' : 'text-slate-600'}`}>{createForm.locked ? 'Locked' : 'Unlocked'}</span>
                       </div>
                       <div className={`relative h-6 w-11 rounded-full transition-all duration-300 ${createForm.locked ? 'bg-rose-500 shadow-inner shadow-rose-600/20' : 'bg-gray-300'}`}>
                         <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${createForm.locked ? 'translate-x-5' : 'translate-x-0.5'}`} />
@@ -876,15 +877,16 @@ export default function UsersPage() {
                     </button>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">Description</label>
+                  <div className="space-y-2 xl:col-span-8">
+                    <label className={FIELD_LABEL_CLASS_NAME}>Description</label>
                     <textarea
                       value={createForm.description}
                       onChange={(event) => updateCreateFormField('description', event.target.value)}
                       rows={5}
-                      className={`mt-[2px] w-full rounded-xl border bg-white px-3.5 py-3 text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10 resize-none ${createErrors.description ? 'border-rose-400' : 'border-gray-200'}`}
+                      className={`mt-[2px] min-h-[96px] w-full resize-none rounded-xl border bg-white px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:outline-none focus:ring-4 ${createErrors.description ? ERROR_INPUT_CLASS_NAME : VALID_INPUT_CLASS_NAME}`}
                       placeholder="Add notes or description"
                     />
+                  </div>
                   </div>
                 </FormSection>
 
@@ -900,20 +902,20 @@ export default function UsersPage() {
                   </div>
                 ) : null}
 
-                <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50/50 px-6 py-4">
-                  <p className="text-xs text-gray-400">Review all fields before saving the user.</p>
+                <div className="flex items-center justify-between rounded-2xl border border-slate-300/80 bg-slate-50/95 px-6 py-4">
+                  <p className="text-xs leading-6 text-slate-600">Review all fields before saving the user.</p>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={closeCreateModal}
                       disabled={isCreatingUser}
-                      className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-xs font-bold uppercase tracking-[0.12em] text-gray-500 transition-all hover:bg-gray-50"
+                      className="rounded-xl border border-slate-300/80 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleCreateUser}
                       disabled={isCreatingUser || employeesLoading}
-                      className="inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-2.5 text-xs font-bold uppercase tracking-[0.12em] text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-70"
+                      className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-70"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       {isCreatingUser ? 'Saving...' : 'Save User'}

@@ -43,6 +43,7 @@ const EMPTY_FORM = {
   unitQty: '',
   minLevelQty: '',
   location: '',
+  itemSpecification: '',
   purchasePrice: '',
   salePrice: '',
   primaryBarcode: '',
@@ -167,12 +168,18 @@ const BARCODE_LABEL_WIDTH_PX = Math.round(BARCODE_STICKER_WIDTH_MM * MM_TO_PX);
 
 function FieldLabel({ children, required: isRequired = false }) {
   return (
-    <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">
+    <label className="ml-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">
       {children}
       {isRequired ? <span className="ml-1 text-rose-500">*</span> : null}
     </label>
   );
 }
+
+const INPUT_BASE_CLASS_NAME =
+  'mt-[2px] h-9 w-full rounded-xl border bg-white px-4 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:outline-none focus:ring-4';
+
+const SECTION_PANEL_CLASS_NAME =
+  'rounded-[1.4rem] border border-slate-300/80 bg-slate-50/80 ';
 
 function SearchableSelect({
   selectId,
@@ -223,8 +230,8 @@ function SearchableSelect({
           onClick={() => onToggle(selectId)}
           aria-expanded={isOpen}
           aria-haspopup="listbox"
-          className={`mt-[2px] flex h-10 w-full items-center justify-between rounded-xl border bg-white px-3.5 text-left text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10 ${
-            error ? 'border-rose-400' : 'border-gray-200'
+          className={`flex ${INPUT_BASE_CLASS_NAME} items-center justify-between text-left ${
+            error ? 'border-rose-400 focus:border-rose-400 focus:ring-rose-100' : 'border-slate-300/80 focus:border-slate-500 focus:ring-slate-200/70'
           }`}
         >
           <span className={value ? 'text-gray-900' : 'text-gray-400'}>{value || placeholder}</span>
@@ -241,7 +248,7 @@ function SearchableSelect({
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={searchablePlaceholder}
-                  className="h-10 w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 text-sm text-gray-900 outline-none transition-all focus:border-brand focus:ring-4 focus:ring-brand/10"
+                  className="h-10 w-full rounded-xl border border-slate-300/80 bg-white pl-10 pr-4 text-sm text-slate-900 outline-none transition-all focus:border-slate-500 focus:ring-4 focus:ring-slate-200/70"
                 />
               </div>
             </div>
@@ -596,8 +603,10 @@ export default function ItemDefinition() {
   }, [formData.subCategory, subCategoryOptions]);
 
   const inputClassName = (field) =>
-    `mt-[2px] h-10 w-full rounded-xl border bg-white px-3.5 text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 transition-all outline-none ${
-      formErrors[field] ? 'border-rose-400' : 'border-gray-200'
+    `${INPUT_BASE_CLASS_NAME} ${
+      formErrors[field]
+        ? 'border-rose-400 focus:border-rose-400 focus:ring-rose-100'
+        : 'border-slate-300/80 focus:border-slate-500 focus:ring-slate-200/70'
     }`;
 
   const handleImageUpload = (event) => {
@@ -871,6 +880,7 @@ export default function ItemDefinition() {
       unit_qty: String(formData.unitQty || '').trim(),
       reorder_level: String(formData.minLevelQty || '').trim(),
       location_id: selectedLocationOption?.id || '',
+      item_specification: String(formData.itemSpecification || '').trim(),
       purchase_price: String(formData.purchasePrice || '').trim(),
       sale_price: String(formData.salePrice || '').trim(),
       is_expirable: formData.expirable === 'yes' ? 1 : 0,
@@ -927,11 +937,13 @@ export default function ItemDefinition() {
   return (
     <>
       <div className="space-y-8">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">Item Definition</h1>
-            <p className="mt-1 text-gray-500">Manage stock item definitions with searchable setup-style forms.</p>
-          </div>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          {showForm ? null : (
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900">Item Definition</h1>
+              <p className="mt-1 text-gray-500">Manage stock item definitions with searchable setup-style forms.</p>
+            </div>
+          )}
           {!showForm && canCreate ? (
             <Button
               onClick={handleOpenCreate}
@@ -1121,18 +1133,18 @@ export default function ItemDefinition() {
             ) : null}
           </Card>
         ) : (
-          <div className="max-w-5xl">
-            <div className="overflow-hidden rounded-[1.75rem] border border-gray-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-              <div className="border-b border-gray-200 bg-gray-50/70 px-8 py-6">
+          <div className="mx-auto w-full max-w-6xl">
+            <div className="overflow-hidden rounded-[1.75rem] border border-slate-300/80 bg-white">
+              <div className="border-b border-slate-300/80 bg-slate-100/30 px-8 py-6">
                 <div className="flex items-start justify-between gap-6">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-200 bg-white text-brand shadow-sm">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-300/80 bg-white text-brand shadow-sm">
                       <Package className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-gray-400">Item Form</p>
+                      <p className="text-[20px] font-bold text-gray-700">Item Defination Form</p>
                    
-                      <p className="mt-1 text-sm text-gray-500">
+                      <p className="mt-1 text-sm text-slate-600">
                         {formMode === 'edit'
                           ? 'Update stock item metadata and pricing details.'
                           : 'Create a structured stock item record for your catalog.'}
@@ -1142,7 +1154,7 @@ export default function ItemDefinition() {
                   <button
                     type="button"
                     onClick={closeForm}
-                    className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-gray-500 transition-all hover:border-brand/20 hover:bg-brand-light/30 hover:text-brand"
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-300/80 bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-[0.16em] text-slate-600 transition-all hover:border-slate-400 hover:bg-slate-100 hover:text-slate-900"
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
                     Back
@@ -1150,7 +1162,7 @@ export default function ItemDefinition() {
                 </div>
               </div>
 
-              <div className="space-y-8 px-8 py-8">
+              <div className="space-y-6 px-8 py-8">
                 {apiError ? (
                   <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
                     {apiError}
@@ -1163,40 +1175,37 @@ export default function ItemDefinition() {
                   </div>
                 ) : null}
 
-                <section className="rounded-[1.5rem] border border-gray-200 bg-white">
-                  <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <section className={SECTION_PANEL_CLASS_NAME}>
+                  <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
                     <div>
-                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-gray-700">ITEM Setup</h3>
-                      <p className="mt-1 text-xs text-gray-400">Item code, barcode generation, and alternate barcode entry.</p>
+                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">ITEM Setup</h3>
+                      <p className="mt-1 text-xs text-slate-500">Item code, barcode generation, and alternate barcode entry.</p>
                     </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-brand">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200/70 text-brand">
                       <Package className="h-4 w-4" />
                     </div>
                   </div>
 
-                  <div className="space-y-5 p-6">
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <label className="ml-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-gray-500">Item Code</label>
+                  <div className="grid grid-cols-1 gap-4 p-6 xl:grid-cols-12">
+                      <div className="space-y-2 xl:col-span-3">
+                        <FieldLabel>Item Code</FieldLabel>
                         <input
                           type="text"
                           value={formData.code}
                           readOnly
                           disabled
-                          className="mt-[2px] h-10 w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-3.5 font-mono text-sm text-gray-500 outline-none"
+                          className="mt-[2px] h-9 w-full cursor-not-allowed rounded-xl border border-slate-300/80 bg-slate-100 px-4 font-mono text-sm text-slate-500 outline-none"
                         />
                       </div>
 
-                      <div className="flex items-end rounded-xl border border-dashed border-gray-200 bg-gray-50/50 px-4 py-3">
-                        <p className="text-xs leading-6 text-gray-400">If the item already has a barcode, enter it in the secondary barcode field.</p>
+                      <div className="flex items-end rounded-xl border border-dashed border-slate-300/80 bg-slate-100/85 px-4 py-3 xl:col-span-9">
+                        <p className="text-xs leading-6 text-slate-500">If the item already has a barcode, enter it in the secondary barcode field.</p>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                        <div className="space-y-2">
+                        <div className="space-y-2 xl:col-span-6">
                           <FieldLabel>Primary Barcode</FieldLabel>
-                          <div className="mt-[2px] flex h-10 w-full items-center justify-between overflow-hidden rounded-xl border border-gray-200 bg-gray-50 px-3.5">
-                            <span className="shrink-0 font-mono text-sm text-gray-500">{formData.primaryBarcode || '—'}</span>
+                          <div className="mt-[2px] flex h-9 w-full items-center justify-between overflow-hidden rounded-xl border border-slate-300/80 bg-slate-100 px-4">
+                            <span className="shrink-0 font-mono text-sm text-slate-500">{formData.primaryBarcode || '—'}</span>
                             {formData.primaryBarcode && (
                               <div className="ml-3 shrink-0">
                                 <ReactBarcode
@@ -1212,12 +1221,12 @@ export default function ItemDefinition() {
                               </div>
                             )}
                           </div>
-                          <p className="text-xs text-gray-400">Auto-generated using 4 random digits joined with the item code number.</p>
+                          <p className="text-xs text-slate-500">Auto-generated using 4 random digits joined with the item code number.</p>
                         </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-2 xl:col-span-6">
                         <FieldLabel>Secondary Barcode</FieldLabel>
-                        <div className={`mt-[2px] flex h-10 w-full items-center justify-between overflow-hidden rounded-xl border px-3.5 ${formData.secondaryBarcode ? 'border-gray-200 bg-gray-50' : 'border-gray-200 bg-white'}`}>
+                        <div className={`mt-[2px] flex h-9 w-full items-center justify-between overflow-hidden rounded-xl border px-4 ${formData.secondaryBarcode ? 'border-slate-300/80 bg-slate-100' : 'border-slate-300/80 bg-white'}`}>
                           <input
                             ref={secondaryBarcodeInputRef}
                             type="text"
@@ -1229,7 +1238,7 @@ export default function ItemDefinition() {
                               }
                             }}
                             placeholder="Enter secondary barcode"
-                            className="h-full w-full bg-transparent font-mono text-sm text-gray-700 outline-none placeholder:text-gray-400"
+                            className="h-full w-full bg-transparent font-mono text-sm text-slate-700 outline-none placeholder:text-gray-400"
                             autoComplete="off"
                           />
                           {formData.secondaryBarcode && (
@@ -1249,113 +1258,52 @@ export default function ItemDefinition() {
                         </div>
                         {formErrors.secondaryBarcode ? <p className="ml-1 text-xs text-rose-600">{formErrors.secondaryBarcode}</p> : null}
                       </div>
-                    </div>
-
-                  
                   </div>
                 </section>
 
-                <section className="rounded-[1.5rem] border border-gray-200 bg-white">
-                  <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <section className={SECTION_PANEL_CLASS_NAME}>
+                  <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
                     <div>
-                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-gray-700">Classification</h3>
-                      <p className="mt-1 text-xs text-gray-400">Type, category, subcategory, manufacturer, and supplier.</p>
+                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Classification</h3>
+                      <p className="mt-1 text-xs text-slate-500">Type, category, subcategory, manufacturer, and supplier.</p>
                     </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-brand">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200/70 text-brand">
                       <Package className="h-4 w-4" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
-                    <SearchableSelect
-                      selectId="itemType"
-                      label="Item Type"
-                      required
-                      value={formData.itemType}
-                      options={itemTypeOptions}
-                      placeholder="Select item type"
-                      searchablePlaceholder="Search item types..."
-                      onChange={(value) => updateField('itemType', value)}
-                      error={formErrors.itemType}
-                      isOpen={openSelectId === 'itemType'}
-                      onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))}
-                      onClose={() => setOpenSelectId(null)}
-                    />
-                    <div />
-
-                    <SearchableSelect
-                      selectId="category"
-                      label="Category"
-                      required
-                      value={formData.category}
-                      options={categoryOptions}
-                      placeholder="Select category"
-                      searchablePlaceholder="Search categories..."
-                      onChange={(value) => {
-                        updateField('category', value);
-                        updateField('subCategory', '');
-                      }}
-                      error={formErrors.category}
-                      isOpen={openSelectId === 'category'}
-                      onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))}
-                      onClose={() => setOpenSelectId(null)}
-                    />
-                    <SearchableSelect
-                      selectId="subCategory"
-                      label="Subcategory"
-                      value={formData.subCategory}
-                      options={subCategoryOptions}
-                      placeholder="Select subcategory"
-                      searchablePlaceholder="Search subcategories..."
-                      onChange={(value) => updateField('subCategory', value)}
-                      error={formErrors.subCategory}
-                      isOpen={openSelectId === 'subCategory'}
-                      onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))}
-                      onClose={() => setOpenSelectId(null)}
-                    />
-
-                    <SearchableSelect
-                      selectId="manufacturer"
-                      label="Manufacturer"
-                      value={formData.manufacturer}
-                      options={manufacturerOptions}
-                      placeholder="Select manufacturer"
-                      searchablePlaceholder="Search manufacturers..."
-                      onChange={(value) => updateField('manufacturer', value)}
-                      error={formErrors.manufacturer}
-                      isOpen={openSelectId === 'manufacturer'}
-                      onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))}
-                      onClose={() => setOpenSelectId(null)}
-                    />
-                    <SearchableSelect
-                      selectId="supplier"
-                      label="Supplier"
-                      value={formData.supplier}
-                      options={supplierOptions}
-                      placeholder="Select supplier"
-                      searchablePlaceholder="Search suppliers..."
-                      onChange={(value) => updateField('supplier', value)}
-                      error={formErrors.supplier}
-                      isOpen={openSelectId === 'supplier'}
-                      onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))}
-                      onClose={() => setOpenSelectId(null)}
-                    />
+                  <div className="grid grid-cols-1 gap-4 p-6 xl:grid-cols-12">
+                    <div className="xl:col-span-3">
+                      <SearchableSelect selectId="itemType" label="Item Type" required value={formData.itemType} options={itemTypeOptions} placeholder="Select item type" searchablePlaceholder="Search item types..." onChange={(value) => updateField('itemType', value)} error={formErrors.itemType} isOpen={openSelectId === 'itemType'} onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                    </div>
+                    <div className="xl:col-span-3">
+                      <SearchableSelect selectId="category" label="Category" required value={formData.category} options={categoryOptions} placeholder="Select category" searchablePlaceholder="Search categories..." onChange={(value) => { updateField('category', value); updateField('subCategory', ''); }} error={formErrors.category} isOpen={openSelectId === 'category'} onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                    </div>
+                    <div className="xl:col-span-3">
+                      <SearchableSelect selectId="subCategory" label="Subcategory" value={formData.subCategory} options={subCategoryOptions} placeholder="Select subcategory" searchablePlaceholder="Search subcategories..." onChange={(value) => updateField('subCategory', value)} error={formErrors.subCategory} isOpen={openSelectId === 'subCategory'} onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                    </div>
+                    <div className="xl:col-span-3">
+                      <SearchableSelect selectId="manufacturer" label="Manufacturer" value={formData.manufacturer} options={manufacturerOptions} placeholder="Select manufacturer" searchablePlaceholder="Search manufacturers..." onChange={(value) => updateField('manufacturer', value)} error={formErrors.manufacturer} isOpen={openSelectId === 'manufacturer'} onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                    </div>
+                    <div className="xl:col-span-3">
+                      <SearchableSelect selectId="supplier" label="Supplier" value={formData.supplier} options={supplierOptions} placeholder="Select supplier" searchablePlaceholder="Search suppliers..." onChange={(value) => updateField('supplier', value)} error={formErrors.supplier} isOpen={openSelectId === 'supplier'} onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                    </div>
                   </div>
                 </section>
 
-                <section className="rounded-[1.5rem] border border-gray-200 bg-white">
-                  <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <section className={SECTION_PANEL_CLASS_NAME}>
+                  <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
                     <div>
-                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-gray-700">Item Details</h3>
-                      <p className="mt-1 text-xs text-gray-400">Name, unit, unit quantity, reorder level, and location.</p>
+                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Item Details</h3>
+                      <p className="mt-1 text-xs text-slate-500">Name, unit, unit quantity, reorder level, and location.</p>
                     </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-brand">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200/70 text-brand">
                       <Package className="h-4 w-4" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-4 p-6 xl:grid-cols-12">
+                    <div className="space-y-2 xl:col-span-4">
                       <FieldLabel required>Item Name</FieldLabel>
                       <input
                         type="text"
@@ -1366,23 +1314,11 @@ export default function ItemDefinition() {
                       />
                       {formErrors.itemName ? <p className="ml-1 text-xs text-rose-600">{formErrors.itemName}</p> : null}
                     </div>
-                    <div />
 
-                    <SearchableSelect
-                      selectId="unit"
-                      label="Unit"
-                      required
-                      value={formData.unit}
-                      options={unitOptions}
-                      placeholder="Select unit"
-                      searchablePlaceholder="Search units..."
-                      onChange={(value) => updateField('unit', value)}
-                      error={formErrors.unit}
-                      isOpen={openSelectId === 'unit'}
-                      onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))}
-                      onClose={() => setOpenSelectId(null)}
-                    />
-                    <div className="space-y-2">
+                    <div className="xl:col-span-3">
+                      <SearchableSelect selectId="unit" label="Unit" required value={formData.unit} options={unitOptions} placeholder="Select unit" searchablePlaceholder="Search units..." onChange={(value) => updateField('unit', value)} error={formErrors.unit} isOpen={openSelectId === 'unit'} onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                    </div>
+                    <div className="space-y-2 xl:col-span-2">
                       <FieldLabel>Unit Qty</FieldLabel>
                       <input
                         type="number"
@@ -1393,7 +1329,7 @@ export default function ItemDefinition() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 xl:col-span-3">
                       <FieldLabel required>Reorder Level</FieldLabel>
                       <input
                         type="number"
@@ -1404,35 +1340,35 @@ export default function ItemDefinition() {
                       />
                       {formErrors.minLevelQty ? <p className="ml-1 text-xs text-rose-600">{formErrors.minLevelQty}</p> : null}
                     </div>
-                    <SearchableSelect
-                      selectId="location"
-                      label="Location"
-                      value={formData.location}
-                      options={locationOptions}
-                      placeholder="Select location"
-                      searchablePlaceholder="Search locations..."
-                      onChange={(value) => updateField('location', value)}
-                      error={formErrors.location}
-                      isOpen={openSelectId === 'location'}
-                      onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))}
-                      onClose={() => setOpenSelectId(null)}
-                    />
+                    <div className="xl:col-span-3">
+                      <SearchableSelect selectId="location" label="Location" value={formData.location} options={locationOptions} placeholder="Select location" searchablePlaceholder="Search locations..." onChange={(value) => updateField('location', value)} error={formErrors.location} isOpen={openSelectId === 'location'} onToggle={(id) => setOpenSelectId((current) => (current === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                    </div>
+                    <div className="space-y-2 xl:col-span-6">
+                      <FieldLabel>Item Specification</FieldLabel>
+                      <textarea
+                        value={formData.itemSpecification}
+                        onChange={(event) => updateField('itemSpecification', event.target.value)}
+                        placeholder="Item specification"
+                        rows={3}
+                        className="min-h-[96px] w-full rounded-xl border border-slate-300/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70"
+                      />
+                    </div>
                   </div>
                 </section>
 
-                <section className="rounded-[1.5rem] border border-gray-200 bg-white">
-                  <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <section className={SECTION_PANEL_CLASS_NAME}>
+                  <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
                     <div>
-                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-gray-700">Pricing</h3>
-                      <p className="mt-1 text-xs text-gray-400">Purchase and sale pricing details.</p>
+                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Pricing</h3>
+                      <p className="mt-1 text-xs text-slate-500">Purchase and sale pricing details.</p>
                     </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-brand">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200/70 text-brand">
                       <Save className="h-4 w-4" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-4 p-6 xl:grid-cols-12">
+                    <div className="space-y-2 xl:col-span-3">
                       <FieldLabel>Purchase Price</FieldLabel>
                       <input
                         type="number"
@@ -1442,7 +1378,7 @@ export default function ItemDefinition() {
                         className={inputClassName('purchasePrice')}
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 xl:col-span-3">
                       <FieldLabel>Sale Price</FieldLabel>
                       <input
                         type="number"
@@ -1454,34 +1390,33 @@ export default function ItemDefinition() {
                       />
                       {formErrors.salePrice ? <p className="ml-1 text-xs text-rose-600">{formErrors.salePrice}</p> : null}
                     </div>
-
                   </div>
                 </section>
 
-                <section className="rounded-[1.5rem] border border-gray-200 bg-white">
-                  <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                <section className={SECTION_PANEL_CLASS_NAME}>
+                  <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
                     <div>
-                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-gray-700">Options</h3>
-                      <p className="mt-1 text-xs text-gray-400">Expiry behavior and sales-related item flags.</p>
+                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Options</h3>
+                      <p className="mt-1 text-xs text-slate-500">Expiry behavior and sales-related item flags.</p>
                     </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-brand">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200/70 text-brand">
                       <Save className="h-4 w-4" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-4 p-6 xl:grid-cols-12">
+                    <div className="space-y-2 xl:col-span-3">
                       <FieldLabel>Expirable</FieldLabel>
                       <button
                         type="button"
                         onClick={() => updateField('expirable', formData.expirable === 'yes' ? 'no' : 'yes')}
-                        className={`group/toggle mt-[2px] flex h-12 w-full items-center justify-between rounded-2xl border px-4 transition-all duration-300 ${formData.expirable === 'yes' ? 'border-brand/20 bg-brand-light/40 shadow-sm shadow-brand/5' : 'border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50'}`}
+                        className={`group/toggle mt-[2px] flex h-9 w-full items-center justify-between rounded-xl border px-4 transition-all duration-300 ${formData.expirable === 'yes' ? 'border-brand/20 bg-brand-light/40 shadow-sm shadow-brand/5' : 'border-slate-300/80 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-300 ${formData.expirable === 'yes' ? 'bg-brand/10 text-brand' : 'bg-gray-100 text-gray-400'}`}>
+                          <div className={`flex h-6 w-6 items-center justify-center rounded-lg transition-all duration-300 ${formData.expirable === 'yes' ? 'bg-brand/10 text-brand' : 'bg-slate-100 text-slate-500'}`}>
                             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={formData.expirable === 'yes' ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'} /></svg>
                           </div>
-                          <span className={`text-sm font-semibold transition-colors duration-300 ${formData.expirable === 'yes' ? 'text-brand' : 'text-gray-500'}`}>{formData.expirable === 'yes' ? 'Yes' : 'No'}</span>
+                          <span className={`text-sm font-semibold transition-colors duration-300 ${formData.expirable === 'yes' ? 'text-brand' : 'text-slate-600'}`}>{formData.expirable === 'yes' ? 'Yes' : 'No'}</span>
                         </div>
                         <div className={`relative h-6 w-11 rounded-full transition-all duration-300 ${formData.expirable === 'yes' ? 'bg-brand shadow-inner shadow-brand/20' : 'bg-gray-300'}`}>
                           <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${formData.expirable === 'yes' ? 'translate-x-5' : 'translate-x-0.5'}`} />
@@ -1490,7 +1425,7 @@ export default function ItemDefinition() {
                     </div>
 
                     {formData.expirable === 'yes' ? (
-                      <div className="space-y-2">
+                      <div className="space-y-2 xl:col-span-3">
                         <FieldLabel required>Expiry Days</FieldLabel>
                         <div className="relative">
                           <input
@@ -1508,18 +1443,18 @@ export default function ItemDefinition() {
                       </div>
                     ) : null}
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 xl:col-span-3">
                       <FieldLabel>Cost Item</FieldLabel>
                       <button
                         type="button"
                         onClick={() => updateField('costItem', formData.costItem === 'yes' ? 'no' : 'yes')}
-                        className={`group/toggle mt-[2px] flex h-12 w-full items-center justify-between rounded-2xl border px-4 transition-all duration-300 ${formData.costItem === 'yes' ? 'border-brand/20 bg-brand-light/40 shadow-sm shadow-brand/5' : 'border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50'}`}
+                        className={`group/toggle mt-[2px] flex h-9 w-full items-center justify-between rounded-xl border px-4 transition-all duration-300 ${formData.costItem === 'yes' ? 'border-brand/20 bg-brand-light/40 shadow-sm shadow-brand/5' : 'border-slate-300/80 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-300 ${formData.costItem === 'yes' ? 'bg-brand/10 text-brand' : 'bg-gray-100 text-gray-400'}`}>
+                          <div className={`flex h-6 w-6 items-center justify-center rounded-lg transition-all duration-300 ${formData.costItem === 'yes' ? 'bg-brand/10 text-brand' : 'bg-slate-100 text-slate-500'}`}>
                             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={formData.costItem === 'yes' ? 'M5 13l4 4L19 7' : 'M6 18L18 6M6 6l12 12'} /></svg>
                           </div>
-                          <span className={`text-sm font-semibold transition-colors duration-300 ${formData.costItem === 'yes' ? 'text-brand' : 'text-gray-500'}`}>{formData.costItem === 'yes' ? 'Yes' : 'No'}</span>
+                          <span className={`text-sm font-semibold transition-colors duration-300 ${formData.costItem === 'yes' ? 'text-brand' : 'text-slate-600'}`}>{formData.costItem === 'yes' ? 'Yes' : 'No'}</span>
                         </div>
                         <div className={`relative h-6 w-11 rounded-full transition-all duration-300 ${formData.costItem === 'yes' ? 'bg-brand shadow-inner shadow-brand/20' : 'bg-gray-300'}`}>
                           <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${formData.costItem === 'yes' ? 'translate-x-5' : 'translate-x-0.5'}`} />
@@ -1527,18 +1462,18 @@ export default function ItemDefinition() {
                       </button>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 xl:col-span-3">
                       <FieldLabel>Stop Sale</FieldLabel>
                       <button
                         type="button"
                         onClick={() => updateField('stopSale', formData.stopSale === 'yes' ? 'no' : 'yes')}
-                        className={`group/toggle mt-[2px] flex h-12 w-full items-center justify-between rounded-2xl border px-4 transition-all duration-300 ${formData.stopSale === 'yes' ? 'border-rose-200 bg-rose-50/50 shadow-sm shadow-rose-100/30' : 'border-gray-200 bg-gray-50/50 hover:border-gray-300 hover:bg-gray-50'}`}
+                        className={`group/toggle mt-[2px] flex h-9 w-full items-center justify-between rounded-xl border px-4 transition-all duration-300 ${formData.stopSale === 'yes' ? 'border-rose-200 bg-rose-50/50 shadow-sm shadow-rose-100/30' : 'border-slate-300/80 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className={`flex h-7 w-7 items-center justify-center rounded-lg transition-all duration-300 ${formData.stopSale === 'yes' ? 'bg-rose-100 text-rose-600' : 'bg-gray-100 text-gray-400'}`}>
+                          <div className={`flex h-6 w-6 items-center justify-center rounded-lg transition-all duration-300 ${formData.stopSale === 'yes' ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-500'}`}>
                             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d={formData.stopSale === 'yes' ? 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' : 'M5 13l4 4L19 7'} /></svg>
                           </div>
-                          <span className={`text-sm font-semibold transition-colors duration-300 ${formData.stopSale === 'yes' ? 'text-rose-600' : 'text-gray-500'}`}>{formData.stopSale === 'yes' ? 'Yes' : 'No'}</span>
+                          <span className={`text-sm font-semibold transition-colors duration-300 ${formData.stopSale === 'yes' ? 'text-rose-600' : 'text-slate-600'}`}>{formData.stopSale === 'yes' ? 'Yes' : 'No'}</span>
                         </div>
                         <div className={`relative h-6 w-11 rounded-full transition-all duration-300 ${formData.stopSale === 'yes' ? 'bg-rose-500 shadow-inner shadow-rose-600/20' : 'bg-gray-300'}`}>
                           <div className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-all duration-300 ${formData.stopSale === 'yes' ? 'translate-x-5' : 'translate-x-0.5'}`} />
@@ -1546,12 +1481,12 @@ export default function ItemDefinition() {
                       </button>
                     </div>
 
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 xl:col-span-8">
                       <FieldLabel>Item Image</FieldLabel>
-                      <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-gray-300 bg-gray-50/70 p-4 md:flex-row md:items-center">
+                      <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-slate-300/80 bg-slate-100/85 p-4 md:flex-row md:items-center">
                         <div
                           onClick={() => fileInputRef.current?.click()}
-                          className="relative flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-gray-300 bg-white transition-all hover:border-brand/40 hover:bg-brand-light/20"
+                          className="relative flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-slate-300/80 bg-white transition-all hover:border-brand/40 hover:bg-brand-light/20"
                         >
                           {formData.imagePreview ? (
                             <button
@@ -1578,8 +1513,8 @@ export default function ItemDefinition() {
                         </div>
                         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                         <div className="space-y-1.5">
-                          <p className="text-sm font-semibold text-gray-700">Upload a supporting product image</p>
-                          <p className="text-xs leading-6 text-gray-500">
+                          <p className="text-sm font-semibold text-slate-700">Upload a supporting product image</p>
+                          <p className="text-xs leading-6 text-slate-500">
                             Recommended for faster recognition in stock records. Accepted formats: PNG and JPG, up to 2MB.
                           </p>
                           <p className="text-xs text-gray-400">
@@ -1591,8 +1526,8 @@ export default function ItemDefinition() {
                   </div>
                 </section>
 
-                <div className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50/70 px-6 py-4">
-                  <p className="text-xs leading-6 text-gray-500">
+                <div className="flex items-center justify-between rounded-2xl border border-slate-300/80 bg-slate-50/95 px-6 py-4">
+                  <p className="text-xs leading-6 text-slate-600">
                     Review required fields before saving. Compact layout is designed for faster data entry and better readability.
                   </p>
                   <div className="flex justify-end gap-3">
@@ -1600,7 +1535,7 @@ export default function ItemDefinition() {
                       type="button"
                       onClick={closeForm}
                       disabled={isSaving}
-                      className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 transition-all hover:bg-gray-50 hover:text-gray-800"
+                      className="rounded-xl border border-slate-300/80 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900"
                     >
                       Cancel
                     </button>

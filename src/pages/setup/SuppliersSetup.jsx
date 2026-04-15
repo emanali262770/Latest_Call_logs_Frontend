@@ -23,7 +23,10 @@ export default function SuppliersSetup() {
   const [editingItem, setEditingItem] = useState(null);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [contactPerson, setContactPerson] = useState("");
+  const [city, setCity] = useState("");
   const [phone, setPhone] = useState("");
+  const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
   const [openingBalance, setOpeningBalance] = useState("");
@@ -78,7 +81,10 @@ export default function SuppliersSetup() {
     setEditingItem(null);
     setCode("");
     setName("");
+    setContactPerson("");
+    setCity("");
     setPhone("");
+    setMobile("");
     setEmail("");
     setAddress("");
     setOpeningBalance("");
@@ -97,7 +103,10 @@ export default function SuppliersSetup() {
     setEditingItem(item);
     setCode(item.code || "");
     setName(item.name || "");
+    setContactPerson(item.contactPerson || "");
+    setCity(item.city || "");
     setPhone(item.phone || "");
+    setMobile(item.mobile || "");
     setEmail(item.email || "");
     setAddress(item.address || "");
     setOpeningBalance(
@@ -118,14 +127,20 @@ export default function SuppliersSetup() {
   const handleSave = async () => {
     const trimmedCode = code.trim();
     const trimmedName = name.trim();
+    const trimmedContactPerson = contactPerson.trim();
+    const trimmedCity = city.trim();
     const trimmedPhone = phone.trim();
+    const trimmedMobile = mobile.trim();
     const trimmedEmail = email.trim();
     const trimmedAddress = address.trim();
     const trimmedOpeningBalance = openingBalance.trim();
     const nameError = required(trimmedName, "Supplier name");
+    const contactPersonError = required(trimmedContactPerson, "Contact person");
+    const cityError = required(trimmedCity, "City");
     const phoneError = required(trimmedPhone, "Phone number");
     const emailError = validateEmail(trimmedEmail);
-    const error = nameError || phoneError || emailError;
+    const error =
+      nameError || contactPersonError || cityError || phoneError || emailError;
 
     if (error) {
       setValidationError(error);
@@ -142,7 +157,10 @@ export default function SuppliersSetup() {
         const response = await supplierService.update(editingItem.id, {
           code: trimmedCode,
           name: trimmedName,
+          contactPerson: trimmedContactPerson,
+          city: trimmedCity,
           phone: trimmedPhone,
+          mobile: trimmedMobile,
           email: trimmedEmail,
           address: trimmedAddress,
           openingBalance: trimmedOpeningBalance || undefined,
@@ -157,7 +175,10 @@ export default function SuppliersSetup() {
         const response = await supplierService.create({
           code: undefined,
           name: trimmedName,
+          contactPerson: trimmedContactPerson,
+          city: trimmedCity,
           phone: trimmedPhone,
+          mobile: trimmedMobile,
           email: trimmedEmail,
           address: trimmedAddress,
           openingBalance: trimmedOpeningBalance || undefined,
@@ -248,11 +269,17 @@ export default function SuppliersSetup() {
 
           <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] border-separate border-spacing-0 text-left">
+              <table className="w-full min-w-[1180px] border-separate border-spacing-0 text-left">
                 <thead>
                   <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
                     <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">
                       Supplier Name
+                    </th>
+                    <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
+                      Contact Person
+                    </th>
+                    <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
+                      City
                     </th>
                     <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
                       Phone
@@ -271,14 +298,14 @@ export default function SuppliersSetup() {
                 <tbody className="divide-y divide-gray-50/50">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={5} className="px-8 py-6 text-center">
+                      <td colSpan={7} className="px-8 py-6 text-center">
                         <TableLoader label="Loading supplier records..." />
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={7}
                         className="px-8 py-20 text-center text-sm font-medium text-gray-400"
                       >
                         No records found.
@@ -297,6 +324,12 @@ export default function SuppliersSetup() {
                             </div>
                             <span className="text-gray-900">{item.name}</span>
                           </div>
+                        </td>
+                        <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">
+                          {item.contactPerson || "-"}
+                        </td>
+                        <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">
+                          {item.city || "-"}
                         </td>
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700">
                           {item.phone || "-"}
@@ -431,6 +464,48 @@ export default function SuppliersSetup() {
                           }}
                           placeholder="Supplier name"
                           className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationError && !name.trim() ? "border-rose-400" : "border-gray-200"}`}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                          Contact Person <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={contactPerson}
+                          onChange={(event) => {
+                            setContactPerson(event.target.value);
+                            setValidationError("");
+                          }}
+                          placeholder="Contact person"
+                          className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationError && !contactPerson.trim() ? "border-rose-400" : "border-gray-200"}`}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                          City <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={city}
+                          onChange={(event) => {
+                            setCity(event.target.value);
+                            setValidationError("");
+                          }}
+                          placeholder="City"
+                          className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationError && !city.trim() ? "border-rose-400" : "border-gray-200"}`}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                          Mobile Number
+                        </label>
+                        <input
+                          type="text"
+                          value={mobile}
+                          onChange={(event) => setMobile(event.target.value)}
+                          placeholder="Mobile number"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
                         />
                       </div>
                       <div className="space-y-2">
