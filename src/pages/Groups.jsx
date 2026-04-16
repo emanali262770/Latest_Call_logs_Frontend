@@ -25,7 +25,7 @@ const ACTION_SEQUENCE = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'ASSIGN'];
 const TREE_LEVEL_SEQUENCE = {
   ROOT: ['DASHBOARD', 'EMPLOYEES', 'ACCESS CONTROL', 'STOCK', 'SERVICES & PRODUCTS', 'SETUP', 'REPORTS', 'SETTINGS'],
   'ACCESS CONTROL': ['GROUPS', 'USERS', 'PERMISSIONS'],
-  STOCK: ['ITEM_DEFINITION', 'ITEM_RATE', 'OPENING_STOCK'],
+  STOCK: ['ITEM_DEFINITION', 'ITEM_RATE', 'ESTIMATION', 'OPENING_STOCK'],
   'SERVICES & PRODUCTS': ['SERVICE'],
   REPORTS: ['ITEM_REPORT'],
   SETUP: ['COMPANY', 'EMPLOYEE SETUP', 'ITEMS', 'CUSTOMERS'],
@@ -91,6 +91,7 @@ const LABEL_OVERRIDES = {
   ITEM_DEFINITION: 'Item Definition',
   ITEM_DEFINITIONS: 'Item Definition',
   ITEM_RATE: 'Item Rate',
+  ESTIMATION: 'Estimation',
   OPENING_STOCK: 'Opening Stock',
   ITEM_REPORT: 'Item Report',
   REPORTS: 'Reports',
@@ -189,6 +190,10 @@ function getPermissionTreePath(permission) {
 
   if (moduleName === 'INVENTORY' && subModuleName === 'OPENING_STOCK') {
     return ['STOCK', 'OPENING_STOCK'];
+  }
+
+  if (moduleName === 'INVENTORY' && subModuleName === 'ESTIMATION') {
+    return ['STOCK', 'ESTIMATION'];
   }
 
   if (moduleName === 'INVENTORY' && subModuleName === 'ITEM_REPORT') {

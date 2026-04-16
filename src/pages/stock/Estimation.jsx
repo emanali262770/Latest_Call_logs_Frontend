@@ -1,21 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, Package, Plus, ReceiptText, Save, Search as SearchIcon, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Edit2, Package, Plus, Printer, ReceiptText, Save, Search as SearchIcon, Trash2, TrendingUp, TrendingDown, BadgeDollarSign, ShoppingCart, Tag } from 'lucide-react';
 import { Button, Card } from '@/src/components/ui/Card';
 import TableLoader from '@/src/components/ui/TableLoader';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
-import { getStoredUser } from '@/src/lib/auth';
+import { getStoredUser, hasPermission } from '@/src/lib/auth';
+import AccessDenied from '@/src/pages/AccessDenied';
 import { customerService } from '@/src/services/customer.service';
 import { itemRateService } from '@/src/services/itemRate.service';
+import { servicesService } from '@/src/services/services.service';
+import { estimationService } from '@/src/services/estimation.service';
+import { printAllEstimations, printSingleEstimation } from '@/src/pages/stock/prints/estimationPrint';
 
 const EMPTY_FORM = {
-  estimateId: 'EST-0001',
+  estimateId: '',
   date: new Date().toISOString().slice(0, 10),
+  customerId: '',
   customer: '',
+  serviceId: '',
   forProduct: '',
   person: '',
   createdBy: '',
   designation: '',
+  itemRateId: '',
   item: '',
   qty: '',
   description: '',
@@ -23,6 +30,8 @@ const EMPTY_FORM = {
   purchaseTotal: '',
   salePrice: '',
   saleTotal: '',
+  salePriceWithTax: '',
+  saleTotalWithTax: '',
   discountPercentage: '',
   discountAmount: '',
   finalPrice: '',
@@ -60,18 +69,16 @@ function ReadOnlyField({ label, value, placeholder }) {
   );
 }
 
-function SummaryFooterValue({ label, value, accent = 'slate' }) {
-  const accentMap = {
-    slate: 'text-slate-900',
-    amber: 'text-amber-700',
-    indigo: 'text-indigo-700',
-    emerald: 'text-emerald-700',
-  };
-
+function SummaryCard({ label, value, icon: Icon, colorClass, bgClass, borderClass }) {
   return (
-    <div className="inline-flex min-w-[220px] items-center justify-between gap-6 rounded-xl border border-slate-200 bg-white px-4 py-[6px] ">
-      <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">{label}</span>
-      <span className={`text-base font-semibold tabular-nums ${accentMap[accent] || accentMap.slate}`}>{value}</span>
+    <div className={`flex flex-1 min-w-[180px] items-center gap-4 rounded-2xl border ${borderClass} ${bgClass} px-5 py-4 shadow-sm`}>
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${colorClass} bg-white/70 shadow-inner`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 truncate">{label}</p>
+        <p className={`mt-0.5 text-[17px] font-extrabold tabular-nums leading-tight ${colorClass}`}>{value}</p>
+      </div>
     </div>
   );
 }
@@ -158,6 +165,15 @@ function formatCurrency(value) {
   return amount ? amount.toFixed(2) : '0.00';
 }
 
+function formatDate(value) {
+  if (!value) return '-';
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(value));
+}
+
 function formatCellValue(value) {
   return String(value ?? '').trim() || '-';
 }
@@ -168,34 +184,63 @@ function formatIntegerOrDash(value) {
 }
 
 export default function Estimation() {
+  const canRead = hasPermission('INVENTORY.ESTIMATION.READ');
+  const canCreate = hasPermission('INVENTORY.ESTIMATION.CREATE');
+  const canEdit = hasPermission('INVENTORY.ESTIMATION.UPDATE');
+  const canDelete = hasPermission('INVENTORY.ESTIMATION.DELETE');
+  const canPrint = hasPermission('INVENTORY.ESTIMATION.PRINT');
+  const hasRowActions = canEdit || canDelete || canPrint;
+
   const storedUser = useMemo(() => getStoredUser(), []);
   const loggedInUserName = storedUser?.fullName || storedUser?.username || '';
   const [formData, setFormData] = useState(() => ({ ...EMPTY_FORM, createdBy: loggedInUserName }));
   const [rows, setRows] = useState([]);
+  const [estimations, setEstimations] = useState([]);
+  const [apiSummary, setApiSummary] = useState({ totalPurchases: 0, totalDiscount: 0, totalFinal: 0, profit: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [openSelectId, setOpenSelectId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [isLoadingSetup, setIsLoadingSetup] = useState(true);
+  const [isLoadingList, setIsLoadingList] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [setupError, setSetupError] = useState('');
-  const [setupOptions, setSetupOptions] = useState({ customers: [], items: [] });
+  const [setupOptions, setSetupOptions] = useState({ customers: [], services: [], itemRates: [] });
   const { toasts, toast, removeToast } = useThemeToast();
 
-  const customerOptions = useMemo(() => setupOptions.customers.map((item) => item.name), [setupOptions.customers]);
-  const itemOptions = useMemo(() => setupOptions.items.map((item) => item.name), [setupOptions.items]);
+  const customerOptions = useMemo(() => setupOptions.customers.map((c) => c.company), [setupOptions.customers]);
+  const serviceOptions = useMemo(() => setupOptions.services.map((s) => s.serviceName), [setupOptions.services]);
+  const itemOptions = useMemo(() => setupOptions.itemRates.map((r) => r.item), [setupOptions.itemRates]);
 
   const loadSetupOptions = useCallback(async () => {
     setIsLoadingSetup(true);
     setSetupError('');
 
     try {
-      const [customersResponse, itemsResponse] = await Promise.all([
+      const [customersResponse, servicesResponse, itemRatesResponse] = await Promise.all([
         customerService.list(),
-        itemRateService.lookups(),
+        servicesService.list(),
+        itemRateService.list(),
       ]);
 
       setSetupOptions({
-        customers: customersResponse.data.map((item) => ({ id: item.id, name: item.name })),
-        items: itemsResponse.data.items.map((item) => ({ id: item.id, name: item.name })),
+        customers: customersResponse.data.map((c) => ({
+          id: c.id,
+          company: c.company || c.name || '',
+          person: c.person || '',
+          designation: c.designation || '',
+        })),
+        services: servicesResponse.data.map((s) => ({
+          id: s.id,
+          serviceName: s.serviceName || '',
+        })),
+        itemRates: itemRatesResponse.data.map((r) => ({
+          id: r.id,
+          item: r.item || '',
+          resellerPrice: r.raw?.reseller_price ?? r.raw?.resellerPrice ?? r.reseller ?? '',
+          salePrice: r.raw?.sale_price ?? r.raw?.salePrice ?? '',
+          salePriceWithTax: r.raw?.sale_price_with_tax ?? r.raw?.salePriceWithTax ?? r.sale ?? '',
+        })),
       });
     } catch (requestError) {
       setSetupError(requestError.message || 'Failed to load estimation form setup options.');
@@ -204,28 +249,45 @@ export default function Estimation() {
     }
   }, []);
 
+  const loadEstimations = useCallback(async () => {
+    setIsLoadingList(true);
+    try {
+      const response = await estimationService.list();
+      setEstimations(response.data);
+      setApiSummary(response.summary ?? { totalPurchases: 0, totalDiscount: 0, totalFinal: 0, profit: 0 });
+    } catch {
+      setEstimations([]);
+      setApiSummary({ totalPurchases: 0, totalDiscount: 0, totalFinal: 0, profit: 0 });
+    } finally {
+      setIsLoadingList(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadSetupOptions();
-  }, [loadSetupOptions]);
+    loadEstimations();
+  }, [loadSetupOptions, loadEstimations]);
 
   useEffect(() => {
     const qty = Number(formData.qty || 0);
     const purchasePrice = Number(formData.purchasePrice || 0);
     const salePrice = Number(formData.salePrice || 0);
+    const salePriceWithTax = Number(formData.salePriceWithTax || 0);
     const discountPercentage = Number(formData.discountPercentage || 0);
-    const discountAmount = Number(formData.discountAmount || 0);
     const purchaseTotal = qty * purchasePrice;
     const saleTotal = qty * salePrice;
-    const calculatedDiscountAmount = discountPercentage ? (saleTotal * discountPercentage) / 100 : discountAmount;
-    const finalTotal = Math.max(saleTotal - calculatedDiscountAmount, 0);
-    const finalPrice = qty ? finalTotal / qty : 0;
+    const saleTotalWithTax = qty * salePriceWithTax;
+    const discountAmount = discountPercentage ? (salePriceWithTax * discountPercentage) / 100 : 0;
+    const finalPrice = Math.max(salePriceWithTax - discountAmount, 0);
+    const finalTotal = finalPrice * qty;
 
     setFormData((prev) => {
       const nextState = {
         ...prev,
         purchaseTotal: purchaseTotal ? purchaseTotal.toFixed(2) : '',
         saleTotal: saleTotal ? saleTotal.toFixed(2) : '',
-        discountAmount: calculatedDiscountAmount ? calculatedDiscountAmount.toFixed(2) : prev.discountPercentage ? '0.00' : prev.discountAmount,
+        saleTotalWithTax: saleTotalWithTax ? saleTotalWithTax.toFixed(2) : '',
+        discountAmount: discountAmount ? discountAmount.toFixed(2) : '',
         finalTotal: finalTotal ? finalTotal.toFixed(2) : '',
         finalPrice: finalPrice ? finalPrice.toFixed(2) : '',
       };
@@ -233,6 +295,7 @@ export default function Estimation() {
       if (
         nextState.purchaseTotal === prev.purchaseTotal &&
         nextState.saleTotal === prev.saleTotal &&
+        nextState.saleTotalWithTax === prev.saleTotalWithTax &&
         nextState.discountAmount === prev.discountAmount &&
         nextState.finalTotal === prev.finalTotal &&
         nextState.finalPrice === prev.finalPrice
@@ -242,28 +305,54 @@ export default function Estimation() {
 
       return nextState;
     });
-  }, [formData.qty, formData.purchasePrice, formData.salePrice, formData.discountPercentage, formData.discountAmount]);
+  }, [formData.qty, formData.purchasePrice, formData.salePrice, formData.salePriceWithTax, formData.discountPercentage]);
+
+  const handleCustomerChange = (company) => {
+    const found = setupOptions.customers.find((c) => c.company === company);
+    setFormData((prev) => ({
+      ...prev,
+      customer: company,
+      customerId: found?.id || '',
+      person: found?.person || '',
+      designation: found?.designation || '',
+    }));
+  };
+
+  const handleForProductChange = (serviceName) => {
+    const found = setupOptions.services.find((s) => s.serviceName === serviceName);
+    setFormData((prev) => ({
+      ...prev,
+      forProduct: serviceName,
+      serviceId: found?.id || '',
+    }));
+  };
+
+  const handleItemChange = (itemName) => {
+    const found = setupOptions.itemRates.find((r) => r.item === itemName);
+    setFormData((prev) => ({
+      ...prev,
+      item: itemName,
+      itemRateId: found?.id || '',
+      purchasePrice: found ? String(found.resellerPrice ?? '') : '',
+      salePrice: found ? String(found.salePrice ?? '') : '',
+      salePriceWithTax: found ? String(found.salePriceWithTax ?? '') : '',
+    }));
+  };
 
   const updateField = (field, value) => {
-    const normalizedValue = ['qty', 'purchasePrice', 'purchaseTotal', 'salePrice', 'saleTotal', 'discountPercentage', 'discountAmount', 'finalPrice', 'finalTotal'].includes(field)
+    const normalizedValue = ['qty', 'discountPercentage'].includes(field)
       ? sanitizeNumericInput(value)
       : value;
 
-    setFormData((prev) => {
-      const nextState = { ...prev, [field]: normalizedValue };
-
-      if (field === 'createdBy') {
-        nextState.person = normalizedValue;
-      }
-
-      return nextState;
-    });
+    setFormData((prev) => ({ ...prev, [field]: normalizedValue }));
   };
 
   const closeForm = () => {
     setShowForm(false);
     setOpenSelectId(null);
-    setFormData((prev) => ({ ...EMPTY_FORM, estimateId: prev.estimateId, createdBy: loggedInUserName }));
+    setRows([]);
+    setEditingItem(null);
+    setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
   };
 
   const handleAddItem = () => {
@@ -280,10 +369,11 @@ export default function Estimation() {
     setRows((prev) => [nextRow, ...prev]);
     setFormData((prev) => ({
       ...EMPTY_FORM,
-      estimateId: prev.estimateId,
       date: prev.date,
       customer: prev.customer,
+      customerId: prev.customerId,
       forProduct: prev.forProduct,
+      serviceId: prev.serviceId,
       person: prev.person,
       createdBy: prev.createdBy,
       designation: prev.designation,
@@ -295,18 +385,133 @@ export default function Estimation() {
     setRows((prev) => prev.filter((row) => row.id !== rowId));
   };
 
-  const handleSaveEstimation = () => {
-    if (!rows.length) {
+  const openEditForm = (row) => {
+    setEditingItem(row);
+    setRows([]);
+    setFormData({
+      ...EMPTY_FORM,
+      estimateId: row.estimateId || '',
+      date: row.estimateDate ? row.estimateDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      customerId: row.customerId || '',
+      customer: row.customerName || '',
+      serviceId: row.serviceId || '',
+      forProduct: row.serviceName || '',
+      person: row.person || '',
+      designation: row.designation || '',
+      createdBy: row.createdBy || loggedInUserName,
+      itemRateId: row.itemRateId || '',
+      item: row.itemName || '',
+      qty: String(row.qty || ''),
+      description: row.description || '',
+      purchasePrice: String(row.purchasePrice || ''),
+      purchaseTotal: String(row.purchaseTotal || ''),
+      salePrice: String(row.salePrice || ''),
+      saleTotal: String(row.saleTotal || ''),
+      salePriceWithTax: String(row.salePriceWithTax || ''),
+      saleTotalWithTax: String(row.saleTotalWithTax || ''),
+      discountPercentage: String(row.discountPercent || ''),
+      discountAmount: String(row.discountAmount || ''),
+      finalPrice: String(row.finalPrice || ''),
+      finalTotal: String(row.finalTotal || ''),
+    });
+    setShowForm(true);
+  };
+
+  const handleSaveEstimation = async () => {
+    // Edit mode — PUT single record
+    if (editingItem) {
+      if (!formData.customer || !formData.item || !formData.qty) {
+        toast.error('Required fields missing', 'Please select customer, item, and enter quantity.');
+        return;
+      }
+      setIsSaving(true);
+      try {
+        const payload = {
+          estimate_date: formData.date,
+          customer_id: Number(formData.customerId),
+          service_id: Number(formData.serviceId),
+          item_rate_id: Number(formData.itemRateId),
+          qty: Number(formData.qty),
+          description: formData.description || '',
+          discount_percent: Number(formData.discountPercentage || 0),
+          status: 'active',
+        };
+        await estimationService.update(editingItem.id, payload);
+        toast.success('Estimation updated', 'Record updated successfully.');
+        setEditingItem(null);
+        setShowForm(false);
+        setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
+        await loadEstimations();
+      } catch (requestError) {
+        toast.error('Update failed', requestError?.response?.data?.message || requestError.message || 'Failed to update estimation.');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Create mode — POST one row per queued item (or current form if no rows queued)
+    const hasCurrentFormEntry = formData.customer && formData.item && formData.qty;
+    const rowsToSave = rows.length ? rows : hasCurrentFormEntry ? [{ id: crypto.randomUUID(), ...formData }] : [];
+
+    if (!rowsToSave.length) {
       toast.error('No estimation items', 'Add at least one item before saving the estimation.');
       return;
     }
 
-    const nextId = String(Number(formData.estimateId || 0) + 1).padStart(4, '0');
-    setFormData({ ...EMPTY_FORM, estimateId: nextId, createdBy: loggedInUserName });
-    setRows([]);
-    setShowForm(false);
-    toast.success('Estimation prepared', 'Estimation screen is ready and the current preview has been cleared.');
+    setIsSaving(true);
+    try {
+      let lastResponse = null;
+      for (const row of rowsToSave) {
+        const payload = {
+          estimate_date: row.date,
+          customer_id: Number(row.customerId),
+          service_id: Number(row.serviceId),
+          item_rate_id: Number(row.itemRateId),
+          qty: Number(row.qty),
+          description: row.description || '',
+          discount_percent: Number(row.discountPercentage || 0),
+          status: 'active',
+        };
+        lastResponse = await estimationService.create(payload);
+      }
+
+      const savedEstimateId =
+        lastResponse?.data?.data?.estimate_id ||
+        lastResponse?.data?.data?.estimateId ||
+        lastResponse?.data?.estimate_id ||
+        lastResponse?.data?.estimateId ||
+        '';
+
+      toast.success('Estimation saved', savedEstimateId ? `Saved as ${savedEstimateId}.` : 'Estimation saved successfully.');
+      setRows([]);
+      setShowForm(false);
+      setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
+      await loadEstimations();
+    } catch (requestError) {
+      toast.error('Save failed', requestError?.response?.data?.message || requestError.message || 'Failed to save estimation.');
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const handlePrintAll = useCallback(async () => {
+    try {
+      const payload = await estimationService.printAll();
+      printAllEstimations(payload);
+    } catch (requestError) {
+      toast.error('Print failed', requestError?.response?.data?.message || requestError.message || 'Could not load print data.');
+    }
+  }, [toast]);
+
+  const handlePrintSingle = useCallback(async (row) => {
+    try {
+      const payload = await estimationService.printSingle(row.id);
+      printSingleEstimation(payload);
+    } catch (requestError) {
+      toast.error('Print failed', requestError?.response?.data?.message || requestError.message || 'Could not load print data.');
+    }
+  }, [toast]);
 
   const totals = useMemo(() => {
     return rows.reduce(
@@ -322,19 +527,22 @@ export default function Estimation() {
   }, [rows]);
 
   const totalProfit = useMemo(() => Math.max(totals.final - totals.purchase, 0), [totals.final, totals.purchase]);
-  const filteredRows = useMemo(() => {
+  const filteredEstimations = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    if (!normalizedQuery) return rows;
+    if (!normalizedQuery) return estimations;
 
-    return rows.filter((row) =>
-      `${row.item} ${row.description} ${row.purchasePrice} ${row.qty} ${row.purchaseTotal} ${row.discountPercentage} ${row.discountAmount} ${row.salePrice} ${row.finalTotal}`
+    return estimations.filter((row) =>
+      `${row.itemName} ${row.customerName} ${row.estimateId} ${row.description} ${row.serviceName}`
         .toLowerCase()
         .includes(normalizedQuery),
     );
-  }, [rows, searchQuery]);
+  }, [estimations, searchQuery]);
 
   return (
     <div className="space-y-8">
+      {!canRead ? <AccessDenied /> : null}
+      {canRead ? (
+      <>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         {!showForm ? (
           <div>
@@ -343,7 +551,7 @@ export default function Estimation() {
           </div>
         ) : null}
 
-        {!showForm ? (
+        {!showForm && canCreate ? (
           <Button onClick={() => setShowForm(true)} icon={<Plus className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
             Add Estimation
           </Button>
@@ -364,9 +572,29 @@ export default function Estimation() {
                   className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 py-3 pl-11 pr-4 text-sm placeholder:text-gray-400 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
                 />
               </div>
-              <p className="text-sm font-medium text-gray-400">
-                <span className="font-bold text-gray-900">{filteredRows.length}</span> Records
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-sm font-medium text-gray-400">
+                  <span className="font-bold text-gray-900">{filteredEstimations.length}</span> Records
+                </p>
+                {canPrint ? (
+                  <button
+                    type="button"
+                    title="Print all estimations"
+                    onClick={handlePrintAll}
+                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-400 transition-all duration-200 hover:border-brand/30 hover:bg-brand-light hover:text-brand hover:shadow-md active:scale-95"
+                  >
+                    <Printer className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-4">
+          
+              <SummaryCard label="Total Purchases" value={formatCurrency(apiSummary.totalPurchases)} icon={BadgeDollarSign} colorClass="text-slate-700" bgClass="bg-slate-50/80" borderClass="border-slate-200" />
+              <SummaryCard label="Total Discount" value={formatCurrency(apiSummary.totalDiscount)} icon={Tag} colorClass="text-amber-600" bgClass="bg-amber-50/60" borderClass="border-amber-100" />
+              <SummaryCard label="Final Revenue" value={formatCurrency(apiSummary.totalFinal)} icon={TrendingUp} colorClass="text-brand" bgClass="bg-brand-light/50" borderClass="border-brand/10" />
+              <SummaryCard label="Net Profit" value={formatCurrency(apiSummary.profit)} icon={apiSummary.profit >= 0 ? TrendingUp : TrendingDown} colorClass={apiSummary.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'} bgClass={apiSummary.profit >= 0 ? 'bg-emerald-50/60' : 'bg-rose-50/60'} borderClass={apiSummary.profit >= 0 ? 'border-emerald-100' : 'border-rose-100'} />
             </div>
 
             <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">
@@ -375,61 +603,88 @@ export default function Estimation() {
                   <thead>
                     <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
                       <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Sr.#</th>
+                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Est. ID</th>
+                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Date</th>
+                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Customer</th>
+                      <th className="border-b border-gray-100/60 whitespace-nowrap px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">For Product</th>
                       <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Item</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Details</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Rate</th>
                       <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Qty</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Total</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Discount %</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Discount</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Sale Rate</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Final</th>
-                      <th className="border-b border-gray-100/60 px-8 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">Actions</th>
+                      <th className="border-b border-gray-100/60 whitespace-nowrap px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Discount %</th>
+                      <th className="border-b border-gray-100/60 px-5 whitespace-nowrap py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Final Total</th>
+                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Status</th>
+                      {hasRowActions ? <th className="border-b border-gray-100/60 px-8 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">Actions</th> : null}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50/50">
-                    {isLoadingSetup ? (
+                    {isLoadingList ? (
                       <tr>
                         <td colSpan={11} className="px-8 py-6 text-center">
-                          <TableLoader label="Loading estimation form options..." />
+                          <TableLoader label="Loading estimations..." />
                         </td>
                       </tr>
-                    ) : filteredRows.length === 0 ? (
+                    ) : filteredEstimations.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="px-8 py-20 text-center text-sm font-medium text-gray-400">No estimation items found.</td>
+                        <td colSpan={11} className="px-8 py-20 text-center text-sm font-medium text-gray-400">No estimation records found.</td>
                       </tr>
                     ) : (
-                      filteredRows.map((row, index) => (
+                      filteredEstimations.map((row, index) => (
                         <tr key={row.id} className="group transition-all duration-300 hover:bg-brand-light/40">
                           <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{index + 1}</td>
+                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.estimateId)}</td>
+                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatDate(row.estimateDate)}</td>
+                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.customerName)}</td>
+                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.serviceName)}</td>
                           <td className="border-b border-gray-50/30 px-5 py-6">
                             <div className="flex items-center gap-3">
                               <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/10 bg-brand-light text-brand">
                                 <Package className="h-4 w-4" />
                               </div>
-                              <span className="text-sm font-semibold text-gray-900">{formatCellValue(row.item)}</span>
+                              <span className="text-sm font-semibold whitespace-nowrap text-gray-900">{formatCellValue(row.itemName)}</span>
                             </div>
                           </td>
-                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700">
-                            <div className="max-w-[260px] whitespace-normal break-words">{formatCellValue(row.description)}</div>
-                          </td>
-                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.purchasePrice)}</td>
                           <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatIntegerOrDash(row.qty)}</td>
-                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.purchaseTotal)}</td>
-                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.discountPercentage)}</td>
-                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.discountAmount)}</td>
-                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.salePrice)}</td>
+                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.discountPercent)}</td>
                           <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.finalTotal)}</td>
-                          <td className="border-b border-gray-50/30 px-8 py-6 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveRow(row.id)}
-                              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50"
-                              title="Delete"
-                            >
-                              <Trash2 className="h-4.5 w-4.5" />
-                            </button>
+                          <td className="border-b border-gray-50/30 px-5 py-6 whitespace-nowrap">
+                            <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${row.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {row.status}
+                            </span>
                           </td>
+                          {hasRowActions ? (
+                          <td className="border-b border-gray-50/30 px-8 py-6 text-right">
+                            <div className="flex items-center justify-end gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
+                              {canPrint ? (
+                                <button
+                                  type="button"
+                                  title="Print"
+                                  onClick={() => handlePrintSingle(row)}
+                                  className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-violet-600 hover:shadow-xl hover:shadow-violet-100/50 active:scale-95"
+                                >
+                                  <Printer className="h-4.5 w-4.5" />
+                                </button>
+                              ) : null}
+                              {canEdit ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openEditForm(row)}
+                                  className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95"
+                                  title="Edit"
+                                >
+                                  <Edit2 className="h-4.5 w-4.5" />
+                                </button>
+                              ) : null}
+                              {canDelete ? (
+                                <button
+                                  type="button"
+                                  className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4.5 w-4.5" />
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                          ) : null}
                         </tr>
                       ))
                     )}
@@ -438,15 +693,7 @@ export default function Estimation() {
               </div>
             </div>
 
-            <div className="mt-5 flex justify-end">
-              <div className="flex max-w-[760px] flex-wrap justify-end gap-3">
-                <SummaryFooterValue label="Total" value={formatCurrency(totals.sale)} accent="slate" />
-                <SummaryFooterValue label="Discount" value={formatCurrency(totals.discount)} accent="amber" />
-                <SummaryFooterValue label="Final" value={formatCurrency(totals.final)} accent="indigo" />
-                <SummaryFooterValue label="Total Purchases" value={formatCurrency(totals.purchase)} accent="slate" />
-                <SummaryFooterValue label="Profit" value={formatCurrency(totalProfit)} accent="emerald" />
-              </div>
-            </div>
+
           </div>
         </Card>
       ) : (
@@ -459,8 +706,8 @@ export default function Estimation() {
                     <ReceiptText className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-[20px] font-bold text-gray-700">Estimation Form</p>
-                    <p className="mt-1 text-sm text-slate-600">Use the same structured stock form styling while keeping all fields from the estimation layout.</p>
+                    <p className="text-[20px] font-bold text-gray-700">{editingItem ? 'Edit Estimation' : 'Estimation Form'}</p>
+                    <p className="mt-1 text-sm text-slate-600">{editingItem ? `Editing ${editingItem.estimateId || 'record'} — update the fields below and save.` : 'Use the same structured stock form styling while keeping all fields from the estimation layout.'}</p>
                   </div>
                 </div>
                 <button
@@ -499,15 +746,13 @@ export default function Estimation() {
                         <input type="date" value={formData.date} onChange={(event) => updateField('date', event.target.value)} className={INPUT_CLASS_NAME} />
                       </div>
                       <div className={`md:col-span-2 ${COMPACT_FIELD_WRAPPER_CLASS_NAME}`}>
-                        <SearchableSelect selectId="customer" label="Customer" value={formData.customer} options={customerOptions} placeholder="Select customer" searchablePlaceholder="Search customer" onChange={(value) => updateField('customer', value)} isOpen={openSelectId === 'customer'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                        <SearchableSelect selectId="customer" label="Customer" value={formData.customer} options={customerOptions} placeholder="Select customer" searchablePlaceholder="Search customer" onChange={handleCustomerChange} isOpen={openSelectId === 'customer'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                       </div>
-                      <div className={`md:col-span-2 space-y-2 ${COMPACT_FIELD_WRAPPER_CLASS_NAME}`}>
-                        <FieldLabel>Person</FieldLabel>
-                        <input type="text" value={formData.person} onChange={(event) => updateField('person', event.target.value)} placeholder="Enter person" className={INPUT_CLASS_NAME} />
+                      <div className={`md:col-span-2 ${COMPACT_FIELD_WRAPPER_CLASS_NAME}`}>
+                        <ReadOnlyField label="Person" value={formData.person} placeholder="Auto-filled from customer" />
                       </div>
-                      <div className={`md:col-span-2 space-y-2 ${COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME}`}>
-                        <FieldLabel>Designation</FieldLabel>
-                        <input type="text" value={formData.designation} onChange={(event) => updateField('designation', event.target.value)} placeholder="Enter designation" className={INPUT_CLASS_NAME} />
+                      <div className={`md:col-span-2 ${COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME}`}>
+                        <ReadOnlyField label="Designation" value={formData.designation} placeholder="Auto-filled from customer" />
                       </div>
                     </div>
                   </div>
@@ -515,7 +760,7 @@ export default function Estimation() {
                   <div className="xl:col-span-6">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:pt-[73px]">
                       <div className={`md:col-span-2 ${COMPACT_FIELD_WRAPPER_CLASS_NAME}`}>
-                        <SearchableSelect selectId="forProduct" label="For Product" value={formData.forProduct} options={itemOptions} placeholder="Select product" searchablePlaceholder="Search product" onChange={(value) => updateField('forProduct', value)} isOpen={openSelectId === 'forProduct'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                        <SearchableSelect selectId="forProduct" label="For Product" value={formData.forProduct} options={serviceOptions} placeholder="Select product" searchablePlaceholder="Search product" onChange={handleForProductChange} isOpen={openSelectId === 'forProduct'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                       </div>
                       <div className={`md:col-span-2 ${COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME}`}>
                         <ReadOnlyField label="Created By" value={formData.createdBy} placeholder="Creator name" />
@@ -540,7 +785,7 @@ export default function Estimation() {
                   <div className="xl:col-span-7">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
                       <div className="md:col-span-9">
-                        <SearchableSelect selectId="item" label="Item" value={formData.item} options={itemOptions} placeholder="Select item" searchablePlaceholder="Search item" onChange={(value) => updateField('item', value)} isOpen={openSelectId === 'item'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                        <SearchableSelect selectId="item" label="Item" value={formData.item} options={itemOptions} placeholder="Select item" searchablePlaceholder="Search item" onChange={handleItemChange} isOpen={openSelectId === 'item'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                       </div>
                       <div className="space-y-2 md:col-span-3">
                         <FieldLabel>Qty</FieldLabel>
@@ -565,7 +810,7 @@ export default function Estimation() {
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-2">
                             <FieldLabel>Purchase Price</FieldLabel>
-                            <input type="text" value={formData.purchasePrice} onChange={(event) => updateField('purchasePrice', event.target.value)} placeholder="0.00" className={INPUT_CLASS_NAME} />
+                            <input type="text" value={formData.purchasePrice} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
                           </div>
                           <div className="space-y-2">
                             <FieldLabel>Purchase Total</FieldLabel>
@@ -578,7 +823,7 @@ export default function Estimation() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <FieldLabel>Sale Price Without Tax</FieldLabel>
-                            <input type="text" value={formData.salePrice} onChange={(event) => updateField('salePrice', event.target.value)} placeholder="0.00" className={INPUT_CLASS_NAME} />
+                            <input type="text" value={formData.salePrice} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
                           </div>
                           <div className="space-y-2">
                             <FieldLabel>Sale Total</FieldLabel>
@@ -586,11 +831,11 @@ export default function Estimation() {
                           </div>
                           <div className="space-y-2">
                             <FieldLabel>Sale Price With Tax</FieldLabel>
-                            <input type="text" value={formData.finalPrice} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
+                            <input type="text" value={formData.salePriceWithTax} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
                           </div>
                           <div className="space-y-2">
                             <FieldLabel>Sale Total With Tax</FieldLabel>
-                            <input type="text" value={formData.finalTotal} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
+                            <input type="text" value={formData.saleTotalWithTax} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
                           </div>
                         </div>
                       </div>
@@ -603,7 +848,20 @@ export default function Estimation() {
                           </div>
                           <div className="space-y-2">
                             <FieldLabel>Discount Amount</FieldLabel>
-                            <input type="text" value={formData.discountAmount} onChange={(event) => updateField('discountAmount', event.target.value)} placeholder="0.00" className={INPUT_CLASS_NAME} />
+                            <input type="text" value={formData.discountAmount} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-violet-200/70 bg-violet-50/60 p-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <FieldLabel>Final Price</FieldLabel>
+                            <input type="text" value={formData.finalPrice} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
+                          </div>
+                          <div className="space-y-2">
+                            <FieldLabel>Final Total</FieldLabel>
+                            <input type="text" value={formData.finalTotal} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
                           </div>
                         </div>
                       </div>
@@ -614,15 +872,17 @@ export default function Estimation() {
               </section>
 
               <div className="flex items-center justify-between rounded-2xl border border-slate-300/80 bg-slate-50/95 px-6 py-4">
-                <p className="text-xs leading-6 text-slate-600">All requested estimation fields are included, and the layout follows the same form styling pattern as item definition.</p>
+                <p className="text-xs leading-6 text-slate-600">Select a customer and item to auto-fill prices. Only Qty and Discount % are editable.</p>
                 <div className="flex justify-end gap-3">
                   <button type="button" onClick={closeForm} className="rounded-xl border border-slate-300/80 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900">
                     Cancel
                   </button>
                 
-                  <button type="button" onClick={handleSaveEstimation} className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover">
+                 
+
+                  <button type="button" onClick={handleSaveEstimation} disabled={isSaving} className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-60">
                     <Save className="h-4.5 w-4.5" />
-                    Save Estimation
+                    {isSaving ? (editingItem ? 'Updating…' : 'Saving…') : (editingItem ? 'Update Estimation' : 'Save Estimation')}
                   </button>
                 </div>
               </div>
@@ -630,7 +890,8 @@ export default function Estimation() {
           </div>
         </div>
       )}
-
+      </> 
+      ) : null}
       <ThemeToastViewport toasts={toasts} onClose={removeToast} />
     </div>
   );
