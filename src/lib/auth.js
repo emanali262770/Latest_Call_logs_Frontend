@@ -289,6 +289,10 @@ export function getReadPermissionForPath(path) {
     }
 
     if (secondSegment === 'customers') {
+      if (thirdSegment === 'group') {
+        return 'INVENTORY.CUSTOMER_GROUP.READ';
+      }
+
       return 'INVENTORY.CUSTOMER.READ';
     }
 

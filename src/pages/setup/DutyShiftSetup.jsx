@@ -311,7 +311,7 @@ export default function DutyShiftSetup() {
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
                     placeholder="Enter duty shift name"
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 focus:outline-none transition-all"
+                    className="mt-[2px] h-9 w-full rounded-xl border border-slate-300/80 bg-white px-4 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70"
                   />
                   {validationError && <p className="text-xs text-rose-600">{validationError}</p>}
                 </div>
@@ -321,7 +321,7 @@ export default function DutyShiftSetup() {
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 focus:border-brand focus:ring-4 focus:ring-brand/10 focus:outline-none transition-all"
+                    className="mt-[2px] h-9 w-full rounded-xl border border-slate-300/80 bg-white px-4 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70"
                   >
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>

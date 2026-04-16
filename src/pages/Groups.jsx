@@ -31,7 +31,7 @@ const TREE_LEVEL_SEQUENCE = {
   SETUP: ['COMPANY', 'EMPLOYEE SETUP', 'ITEMS', 'CUSTOMERS'],
   'EMPLOYEE SETUP': ['DEPARTMENTS', 'DESIGNATIONS', 'EMPLOYEE TYPES', 'DUTY SHIFTS', 'BANKS'],
   ITEMS: ['ITEM TYPES', 'CATEGORIES', 'SUB CATEGORIES', 'MANUFACTURERS', 'UNITS', 'LOCATIONS', 'SUPPLIERS'],
-  CUSTOMERS: ['CUSTOMER'],
+  CUSTOMERS: ['CUSTOMER', 'GROUP'],
   EMPLOYEES: ['EMPLOYEE'],
 };
 const EMPLOYEE_SETUP_SUBMODULES = new Set(['DEPARTMENT', 'DESIGNATION', 'EMPLOYEE_TYPE', 'DUTY_SHIFT', 'BANK']);
@@ -51,7 +51,7 @@ const ITEM_SETUP_SUBMODULES = new Set([
   'SUPPLIER',
   'SUPPLIERS',
 ]);
-const CUSTOMER_SETUP_SUBMODULES = new Set(['CUSTOMER', 'CUSTOMERS']);
+const CUSTOMER_SETUP_SUBMODULES = new Set(['CUSTOMER', 'CUSTOMERS', 'CUSTOMER_GROUP', 'CUSTOMER_GROUPS', 'GROUP', 'GROUPS']);
 const LABEL_OVERRIDES = {
   EMPLOYEE: 'Employee',
   EMPLOYEES: 'Employees',
@@ -84,6 +84,10 @@ const LABEL_OVERRIDES = {
   SUPPLIERS: 'Suppliers',
   CUSTOMER: 'Customers',
   CUSTOMERS: 'Customers',
+  CUSTOMER_GROUP: 'Group',
+  CUSTOMER_GROUPS: 'Group',
+  GROUP: 'Group',
+  GROUPS: 'Group',
   ITEM_DEFINITION: 'Item Definition',
   ITEM_DEFINITIONS: 'Item Definition',
   ITEM_RATE: 'Item Rate',
@@ -196,6 +200,10 @@ function getPermissionTreePath(permission) {
   }
 
   if (moduleName === 'INVENTORY' && CUSTOMER_SETUP_SUBMODULES.has(subModuleName)) {
+    if (['CUSTOMER_GROUP', 'CUSTOMER_GROUPS', 'GROUP', 'GROUPS'].includes(subModuleName)) {
+      return ['SETUP', 'CUSTOMERS', 'GROUP'];
+    }
+
     return ['SETUP', 'CUSTOMERS', 'CUSTOMER'];
   }
 

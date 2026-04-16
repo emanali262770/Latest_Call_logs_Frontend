@@ -25,6 +25,7 @@ const MODULE_LABEL_MAP = {
 const SUBMODULE_SEQUENCE = {
   EMPLOYEE: ['EMPLOYEE', 'DEPARTMENT', 'DESIGNATION', 'EMPLOYEE_TYPE', 'DUTY_SHIFT', 'BANK'],
   ACCESS: ['USERS', 'GROUPS', 'PERMISSIONS'],
+  INVENTORY: ['ITEM_DEFINITION', 'ITEM_RATE', 'OPENING_STOCK', 'CUSTOMER', 'CUSTOMER_GROUP', 'ITEM_REPORT'],
 };
 
 function toGroupCode(groupName = '') {
@@ -120,8 +121,20 @@ function comparePermissionDisplayOrder(left, right) {
   return String(left.id || '').localeCompare(String(right.id || ''));
 }
 
+function normalizeInventorySubModuleOrder(subModule = '') {
+  const normalized = String(subModule || '').toUpperCase();
+  if (normalized === 'CUSTOMERS') return 'CUSTOMER';
+  if (['CUSTOMER_GROUPS', 'GROUP', 'GROUPS'].includes(normalized)) return 'CUSTOMER_GROUP';
+  return normalized;
+}
+
 function sortPermissionItems(items) {
-  return [...items].sort(comparePermissionDisplayOrder);
+  return [...items].sort((left, right) =>
+    comparePermissionDisplayOrder(
+      left.module === 'INVENTORY' ? { ...left, subModule: normalizeInventorySubModuleOrder(left.subModule) } : left,
+      right.module === 'INVENTORY' ? { ...right, subModule: normalizeInventorySubModuleOrder(right.subModule) } : right,
+    ),
+  );
 }
 
 function mapApiGroup(group) {

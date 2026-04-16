@@ -324,9 +324,11 @@ export default function ItemRate() {
           subCategory: details.subCategoryName || prev.subCategory,
           manufacturer: details.manufacturerName || prev.manufacturer,
           itemSpecification: details.specification || prev.itemSpecification || '',
-          supplier: isEditing ? prev.supplier : details.defaultSupplierName || details.supplierName || prev.supplier,
-          salePrice: '',
-          salePriceWithTax: '',
+          supplier: isEditing
+            ? prev.supplier || details.defaultSupplierName || details.supplierName || ''
+            : details.defaultSupplierName || details.supplierName || prev.supplier,
+          salePrice: prev.salePrice || details.salePrice || '',
+          salePriceWithTax: prev.salePriceWithTax || '',
         }));
       })
       .catch((requestError) => {
@@ -447,7 +449,14 @@ export default function ItemRate() {
     const iTaxPercent = Number(raw.i_tax_percent ?? raw.iTaxPercent ?? 0);
     const otherTaxPercent = Number(raw.other_tax_percent ?? raw.otherTaxPercent ?? 0);
     const profitPercent = Number(raw.profit_percent ?? raw.profitPercent ?? 0);
-    const resellerPriceUsd = raw.reseller_price_usd ?? raw.resellerPriceUsd ?? '';
+    const resellerPriceUsd =
+      raw.reseller_price_usd ??
+      raw.resellerPriceUsd ??
+      raw.reseller_price_us ??
+      raw.resellerPriceUs ??
+      '';
+    const exchangeRate = raw.exchange_rate ?? raw.exchangeRate ?? '';
+    const resellerPrice = raw.reseller_price ?? raw.resellerPrice ?? '';
 
     setEditingItem(row);
     setFormData({
@@ -461,8 +470,8 @@ export default function ItemRate() {
       item: findNameById(setupOptions.items, raw.item_definition_id || raw.itemDefinitionId, row.item),
       itemSpecification: raw.item_specification || raw.itemSpecification || raw.specification || row.itemSpecification || '',
       resellerPriceUsd: Number(resellerPriceUsd) ? String(resellerPriceUsd) : '',
-      exchangeRate: raw.exchange_rate ? String(raw.exchange_rate) : '',
-      resellerPrice: raw.reseller_price ? String(raw.reseller_price) : '',
+      exchangeRate: exchangeRate ? String(exchangeRate) : '',
+      resellerPrice: resellerPrice ? String(resellerPrice) : '',
       iTaxChecked: iTaxPercent > 0,
       iTaxPercentage: iTaxPercent > 0 ? String(iTaxPercent) : '',
       othersChecked: otherTaxPercent > 0,
@@ -747,7 +756,7 @@ export default function ItemRate() {
                   <div className="xl:col-span-3">
                     <ReadOnlyField label="Manufacturer" value={formData.manufacturer} placeholder="Manufacturer" />
                   </div>
-                  <div className="space-y-2 xl:col-span-5 xl:col-start-1">
+                  <div className="space-y-2 xl:col-span-9 xl:col-start-1">
                     <FieldLabel>Item Specification</FieldLabel>
                     <textarea
                       value={formData.itemSpecification}

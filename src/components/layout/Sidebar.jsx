@@ -25,6 +25,7 @@ import {
   MapPin,
   Truck,
   ContactRound,
+  FolderTree,
   FileBarChart2,
   ClipboardList,
   ConciergeBell,
@@ -65,6 +66,12 @@ const navItems = [
         id: 'stock-item-rate',
         label: 'Item Rate',
         path: '/stock/item-rate',
+        icon: ReceiptText,
+      },
+      {
+        id: 'stock-estimation',
+        label: 'Estimation',
+        path: '/stock/estimation',
         icon: ReceiptText,
       },
       {
@@ -120,9 +127,22 @@ const navItems = [
       },
       {
         id: 'setup-customers',
-        label: 'Customers',
-        path: '/setup/customers',
+        label: 'Customer',
         icon: ContactRound,
+        subItems: [
+          {
+            id: 'setup-customer-records',
+            label: 'Customer',
+            path: '/setup/customers/customer',
+            icon: ContactRound,
+          },
+          {
+            id: 'setup-customer-groups',
+            label: 'Group',
+            path: '/setup/customers/group',
+            icon: FolderTree,
+          },
+        ],
       },
     ],
   },
@@ -270,6 +290,11 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     }
 
     if (hasAnyPermission(getReadPermissionsForPath(item.path))) {
+      navigate(item.path);
+      return;
+    }
+
+    if (item.path === '/stock/estimation') {
       navigate(item.path);
       return;
     }

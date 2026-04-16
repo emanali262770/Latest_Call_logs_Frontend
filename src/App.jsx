@@ -22,9 +22,11 @@ import UnitsSetup from './pages/setup/UnitsSetup';
 import LocationsSetup from './pages/setup/LocationsSetup';
 import SuppliersSetup from './pages/setup/SuppliersSetup';
 import CustomersSetup from './pages/setup/CustomersSetup';
+import CustomerGroupsSetup from './pages/setup/CustomerGroupsSetup';
 import CompanySetup from './pages/setup/CompanySetup';
 import ItemDefinition from './pages/stock/ItemDefinition';
 import ItemRate from './pages/stock/ItemRate';
+import Estimation from './pages/stock/Estimation';
 import OpeningStock from './pages/stock/OpeningStock';
 import ServicesProducts from './pages/stock/ServicesProducts';
 import ItemReport from './pages/reports/ItemReport';
@@ -180,8 +182,12 @@ export default function App() {
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/suppliers')} />}>
             <Route path="/setup/items/suppliers" element={<SuppliersSetup />} />
           </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/customers')} />}>
-            <Route path="/setup/customers" element={<CustomersSetup />} />
+          <Route path="/setup/customers" element={<Navigate to="/setup/customers/customer" replace />} />
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/customers/customer')} />}>
+            <Route path="/setup/customers/customer" element={<CustomersSetup />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/customers/group')} />}>
+            <Route path="/setup/customers/group" element={<CustomerGroupsSetup />} />
           </Route>
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-definition')} />}>
             <Route path="/stock/item-definition" element={<ItemDefinition />} />
@@ -189,6 +195,7 @@ export default function App() {
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-rate')} />}>
             <Route path="/stock/item-rate" element={<ItemRate />} />
           </Route>
+          <Route path="/stock/estimation" element={<Estimation />} />
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/opening-stock')} />}>
             <Route path="/stock/opening-stock" element={<OpeningStock />} />
           </Route>

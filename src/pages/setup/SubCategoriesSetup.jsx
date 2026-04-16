@@ -267,7 +267,7 @@ export default function SubCategoriesSetup() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Category <span className="text-red-500">*</span></label>
-                  <select value={categoryId} onChange={(event) => { setCategoryId(event.target.value); setValidationErrors((prev) => ({ ...prev, category: '' })); }} className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationErrors.category ? 'border-rose-400' : 'border-gray-200'}`}>
+                  <select value={categoryId} onChange={(event) => { setCategoryId(event.target.value); setValidationErrors((prev) => ({ ...prev, category: '' })); }} className={`mt-[2px] h-9 w-full rounded-xl border bg-white px-4 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:outline-none focus:ring-4 ${validationErrors.category ? 'border-rose-400 focus:border-rose-400 focus:ring-rose-100' : 'border-slate-300/80 focus:border-slate-500 focus:ring-slate-200/70'}`}>
                     <option value="">Select category...</option>
                     {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                   </select>
@@ -280,7 +280,7 @@ export default function SubCategoriesSetup() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Status</label>
-                  <select value={status} onChange={(event) => setStatus(event.target.value)} className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10">
+                  <select value={status} onChange={(event) => setStatus(event.target.value)} className="mt-[2px] h-9 w-full rounded-xl border border-slate-300/80 bg-white px-4 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70">
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                   </select>
