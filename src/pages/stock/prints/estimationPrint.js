@@ -498,25 +498,63 @@ function buildPrintSingleHtml(company, row) {
 <head>
   <meta charset="utf-8" />
   <title>Estimation ${escapePrintHtml(row.estimateId)} — ${escapePrintHtml(company.name)}</title>
-  <style>${SHARED_CSS}</style>
+  <style>${SHARED_CSS}
+    @page { size: A4 landscape; margin: 10mm 12mm; }
+    .table-wrap--single {
+      overflow: hidden;
+    }
+    .est-table--single {
+      width: 100%;
+      table-layout: auto;
+      font-size: 7.5pt;
+    }
+    .est-table--single th {
+      padding: 4pt 5pt;
+      font-size: 7pt;
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: break-word;
+      line-height: 1.2;
+      vertical-align: top;
+    }
+    .est-table--single td {
+      padding: 4pt 5pt;
+      font-size: 7.5pt;
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: break-word;
+      line-height: 1.25;
+      vertical-align: top;
+    }
+    .est-table--single td.num,
+    .est-table--single td.center,
+    .est-table--single .status-cell {
+      white-space: nowrap;
+    }
+    .est-table--single .cell-item,
+    .est-table--single .cell-customer,
+    .est-table--single .cell-product {
+      min-width: 0;
+    }
+  </style>
 </head>
 <body>
   <div class="sheet">
     ${buildHeaderHtml(company, `Estimation — ${row.estimateId}`, `${row.customerName} &nbsp;·&nbsp; ${row.estimateDate}`, `<br/><strong>Ref:</strong> ${escapePrintHtml(row.estimateId)}`)}
-    <div class="table-wrap">
-      <table class="est-table">
+    <div class="table-wrap table-wrap--single">
+      <table class="est-table est-table--single">
         <thead>
           <tr>
             <th>Sr.</th>
-            <th>Est. ID</th>
+            <th>Est ID</th>
             <th>Date</th>
             <th>Customer</th>
-            <th>For Product</th>
+            <th>Product</th>
             <th>Item</th>
             <th class="num">Qty</th>
-            <th class="num">Disc %</th>
-            <th class="num">Purchase Total</th>
-            <th class="num bold">Final Total</th>
+            <th class="num">Disc</th>
+            <th class="num">Purchase</th>
+            <th class="num bold">Final</th>
             <th>Status</th>
           </tr>
         </thead>
@@ -525,14 +563,14 @@ function buildPrintSingleHtml(company, row) {
             <td>1</td>
             <td class="bold">${escapePrintHtml(row.estimateId)}</td>
             <td>${escapePrintHtml(row.estimateDate)}</td>
-            <td>${escapePrintHtml(row.customerName)}</td>
-            <td>${escapePrintHtml(row.serviceName)}</td>
-            <td>${escapePrintHtml(row.itemName)}</td>
+            <td class="cell-customer">${escapePrintHtml(row.customerName)}</td>
+            <td class="cell-product">${escapePrintHtml(row.serviceName)}</td>
+            <td class="cell-item">${escapePrintHtml(row.itemName)}</td>
             <td class="num">${escapePrintHtml(row.qty)}</td>
-            <td class="num">${escapePrintHtml(row.discountPercent)}</td>
+            <td class="num">${escapePrintHtml(row.discountPercent)}%</td>
             <td class="num">${escapePrintHtml(row.purchaseTotal)}</td>
             <td class="num bold" style="color:#1d4ed8">${escapePrintHtml(row.finalTotal)}</td>
-            <td class="status-${row.status === 'active' ? 'active' : 'inactive'}" style="font-weight:700;text-transform:uppercase;font-size:8pt;">${escapePrintHtml(row.status)}</td>
+            <td class="status-cell status-${row.status === 'active' ? 'active' : 'inactive'}" style="font-weight:700;text-transform:uppercase;font-size:8pt;">${escapePrintHtml(row.status)}</td>
           </tr>
         </tbody>
       </table>

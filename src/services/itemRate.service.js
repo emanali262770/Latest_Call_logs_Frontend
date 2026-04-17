@@ -79,8 +79,10 @@ export const itemRateService = {
     };
   },
 
-  async getQuotationId(supplierId) {
-    const response = await axiosInstance.get(`/item-rates/suppliers/${supplierId}/quotation-id`);
+  async getQuotationId(supplierId, itemId) {
+    const response = await axiosInstance.get(`/item-rates/suppliers/${supplierId}/quotation-id`, {
+      params: itemId ? { item_definition_id: itemId } : undefined,
+    });
     const payload = response?.data?.data || response?.data || {};
     return {
       ...response,

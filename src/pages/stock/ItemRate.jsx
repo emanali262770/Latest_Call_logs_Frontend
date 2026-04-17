@@ -72,6 +72,7 @@ function ReadOnlyField({ label, value, placeholder }) {
 function SearchableSelect({ selectId, label, value, options, placeholder, searchablePlaceholder, onChange, isOpen, onToggle, onClose }) {
   const [query, setQuery] = useState('');
   const containerRef = useRef(null);
+  const shouldWrapValue = String(value || '').trim().length > 28;
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -95,10 +96,10 @@ function SearchableSelect({ selectId, label, value, options, placeholder, search
         <button
           type="button"
           onClick={() => onToggle(selectId)}
-          className={`mt-[2px] flex ${INPUT_CLASS_NAME} items-center justify-between text-left outline-none`}
+          className={`mt-[2px] flex ${INPUT_CLASS_NAME} ${shouldWrapValue ? 'h-auto min-h-9 py-2' : 'items-center'} justify-between text-left outline-none`}
         >
-          <span className={value ? 'text-gray-900' : 'text-gray-400'}>{value || placeholder}</span>
-          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <span className={`pr-3 ${shouldWrapValue ? 'leading-5 whitespace-normal break-words' : 'truncate'} ${value ? 'text-gray-900' : 'text-gray-400'}`}>{value || placeholder}</span>
+          <ChevronDown className={`h-4 w-4 shrink-0 self-center text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
         {isOpen ? (
           <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl shadow-gray-200/60">
@@ -206,6 +207,7 @@ export default function ItemRate() {
   const selectedSubCategory = useMemo(() => findByName(setupOptions.subCategories, formData.subCategory), [findByName, formData.subCategory, setupOptions.subCategories]);
   const selectedManufacturer = useMemo(() => findByName(setupOptions.manufacturers, formData.manufacturer), [findByName, formData.manufacturer, setupOptions.manufacturers]);
   const selectedItem = useMemo(() => findByName(setupOptions.items, formData.item), [findByName, formData.item, setupOptions.items]);
+  const shouldExpandItemField = String(formData.item || '').trim().length > 28;
   const isEditing = Boolean(editingItem);
   const filteredRows = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -291,12 +293,12 @@ export default function ItemRate() {
   }, [formData.exchangeRate, formData.resellerPrice, formData.resellerPriceUsd, lastEditedPriceField]);
 
   useEffect(() => {
-    if (!selectedSupplier?.id) return undefined;
+    if (!selectedSupplier?.id || !selectedItem?.id) return undefined;
     let isActive = true;
     setFormData((prev) => ({ ...prev, quotationId: '' }));
 
     itemRateService
-      .getQuotationId(selectedSupplier.id)
+      .getQuotationId(selectedSupplier.id, selectedItem.id)
       .then((response) => {
         if (isActive) {
           setFormData((prev) => ({ ...prev, quotationId: response.data || '' }));
@@ -307,7 +309,7 @@ export default function ItemRate() {
     return () => {
       isActive = false;
     };
-  }, [selectedSupplier?.id]);
+  }, [selectedItem?.id, selectedSupplier?.id]);
 
   useEffect(() => {
     if (!selectedItem?.id) return undefined;
@@ -634,7 +636,7 @@ export default function ItemRate() {
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-500">{(currentPage - 1) * pageSize + index + 1}</td>
                         <td className="border-b border-gray-50/30 px-8 py-6">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/10 bg-brand-light text-brand">
+                            <div className="flex h-9 w-9 items-center shrink-0 justify-center rounded-xl border border-brand/10 bg-brand-light text-brand">
                               <Package className="h-4 w-4" />
                             </div>
                             <span className="text-sm font-semibold text-gray-900">{formatCellValue(row.item)}</span>
@@ -744,7 +746,7 @@ export default function ItemRate() {
                       className={INPUT_CLASS_NAME}
                     />
                   </div>
-                  <div className="xl:col-span-3 xl:col-start-1">
+                  <div className={`${shouldExpandItemField ? 'xl:col-span-6' : 'xl:col-span-3'} xl:col-start-1`}>
                     <SearchableSelect selectId="item" label="Item" value={formData.item} options={itemOptions} placeholder="Select item" searchablePlaceholder="Search item" onChange={(value) => updateField('item', value)} isOpen={openSelectId === 'item'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                   </div>
                   <div className="xl:col-span-3">
@@ -753,10 +755,10 @@ export default function ItemRate() {
                   <div className="xl:col-span-3">
                     <ReadOnlyField label="Sub Category" value={formData.subCategory} placeholder="Sub category" />
                   </div>
-                  <div className="xl:col-span-3">
+                  <div className={`${shouldExpandItemField ? 'xl:col-span-3 xl:col-start-1' : 'xl:col-span-3'}`}>
                     <ReadOnlyField label="Manufacturer" value={formData.manufacturer} placeholder="Manufacturer" />
                   </div>
-                  <div className="space-y-2 xl:col-span-9 xl:col-start-1">
+                  <div className={`space-y-2 ${shouldExpandItemField ? 'xl:col-span-9' : 'xl:col-span-9'}`}>
                     <FieldLabel>Item Specification</FieldLabel>
                     <textarea
                       value={formData.itemSpecification}

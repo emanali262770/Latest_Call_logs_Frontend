@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChevronDown, Edit2, Package, Plus, Printer, ReceiptText, Save, Search as SearchIcon, Trash2, TrendingUp, TrendingDown, BadgeDollarSign, ShoppingCart, Tag } from 'lucide-react';
 import { Button, Card } from '@/src/components/ui/Card';
+import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import TableLoader from '@/src/components/ui/TableLoader';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
@@ -183,6 +184,41 @@ function formatIntegerOrDash(value) {
   return normalized || '-';
 }
 
+function buildNextEstimateId(items) {
+  const estimateIds = items
+    .map((item) => String(item?.estimateId || '').trim())
+    .filter(Boolean);
+
+  if (!estimateIds.length) return 'EST-0001';
+
+  const bestMatch = estimateIds.reduce(
+    (best, estimateId) => {
+      const match = estimateId.match(/^(.*?)(\d+)$/);
+      if (!match) return best;
+
+      const [, prefix, numericPart] = match;
+      const numericValue = Number.parseInt(numericPart, 10);
+      if (Number.isNaN(numericValue)) return best;
+
+      if (!best || numericValue > best.numericValue) {
+        return {
+          prefix,
+          numericValue,
+          width: numericPart.length,
+        };
+      }
+
+      return best;
+    },
+    null,
+  );
+
+  if (!bestMatch) return 'EST-0001';
+
+  const nextNumericValue = String(bestMatch.numericValue + 1).padStart(bestMatch.width, '0');
+  return `${bestMatch.prefix}${nextNumericValue}`;
+}
+
 export default function Estimation() {
   const canRead = hasPermission('INVENTORY.ESTIMATION.READ');
   const canCreate = hasPermission('INVENTORY.ESTIMATION.CREATE');
@@ -204,6 +240,7 @@ export default function Estimation() {
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [setupError, setSetupError] = useState('');
   const [setupOptions, setSetupOptions] = useState({ customers: [], services: [], itemRates: [] });
   const { toasts, toast, removeToast } = useThemeToast();
@@ -211,6 +248,7 @@ export default function Estimation() {
   const customerOptions = useMemo(() => setupOptions.customers.map((c) => c.company), [setupOptions.customers]);
   const serviceOptions = useMemo(() => setupOptions.services.map((s) => s.serviceName), [setupOptions.services]);
   const itemOptions = useMemo(() => setupOptions.itemRates.map((r) => r.item), [setupOptions.itemRates]);
+  const nextEstimateId = useMemo(() => buildNextEstimateId(estimations), [estimations]);
 
   const loadSetupOptions = useCallback(async () => {
     setIsLoadingSetup(true);
@@ -277,8 +315,9 @@ export default function Estimation() {
     const purchaseTotal = qty * purchasePrice;
     const saleTotal = qty * salePrice;
     const saleTotalWithTax = qty * salePriceWithTax;
-    const discountAmount = discountPercentage ? (salePriceWithTax * discountPercentage) / 100 : 0;
-    const finalPrice = Math.max(salePriceWithTax - discountAmount, 0);
+    const discountPerUnit = discountPercentage ? (salePriceWithTax * discountPercentage) / 100 : 0;
+    const discountAmount = discountPerUnit * qty;
+    const finalPrice = Math.max(salePriceWithTax - discountPerUnit, 0);
     const finalTotal = finalPrice * qty;
 
     setFormData((prev) => {
@@ -355,6 +394,18 @@ export default function Estimation() {
     setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
   };
 
+  const openCreateForm = useCallback(() => {
+    setRows([]);
+    setEditingItem(null);
+    setOpenSelectId(null);
+    setFormData({
+      ...EMPTY_FORM,
+      estimateId: nextEstimateId,
+      createdBy: loggedInUserName,
+    });
+    setShowForm(true);
+  }, [loggedInUserName, nextEstimateId]);
+
   const handleAddItem = () => {
     if (!formData.customer || !formData.item || !formData.qty) {
       toast.error('Required fields missing', 'Please select customer, item, and enter quantity before adding the item.');
@@ -369,6 +420,7 @@ export default function Estimation() {
     setRows((prev) => [nextRow, ...prev]);
     setFormData((prev) => ({
       ...EMPTY_FORM,
+      estimateId: prev.estimateId,
       date: prev.date,
       customer: prev.customer,
       customerId: prev.customerId,
@@ -387,8 +439,8 @@ export default function Estimation() {
 
   const openEditForm = (row) => {
     setEditingItem(row);
-    setRows([]);
-    setFormData({
+
+    const nextFormData = {
       ...EMPTY_FORM,
       estimateId: row.estimateId || '',
       date: row.estimateDate ? row.estimateDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
@@ -413,7 +465,11 @@ export default function Estimation() {
       discountAmount: String(row.discountAmount || ''),
       finalPrice: String(row.finalPrice || ''),
       finalTotal: String(row.finalTotal || ''),
-    });
+    };
+
+    console.log(nextFormData);
+    setRows([]);
+    setFormData(nextFormData);
     setShowForm(true);
   };
 
@@ -483,11 +539,10 @@ export default function Estimation() {
         lastResponse?.data?.estimateId ||
         '';
 
-      toast.success('Estimation saved', savedEstimateId ? `Saved as ${savedEstimateId}.` : 'Estimation saved successfully.');
-      setRows([]);
-      setShowForm(false);
-      setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
       await loadEstimations();
+      setRows([]);
+      closeForm();
+      toast.success('Estimation saved', savedEstimateId ? `Saved as ${savedEstimateId}.` : 'Estimation saved successfully.');
     } catch (requestError) {
       toast.error('Save failed', requestError?.response?.data?.message || requestError.message || 'Failed to save estimation.');
     } finally {
@@ -512,6 +567,22 @@ export default function Estimation() {
       toast.error('Print failed', requestError?.response?.data?.message || requestError.message || 'Could not load print data.');
     }
   }, [toast]);
+
+  const handleDeleteEstimation = async () => {
+    if (!deleteTarget?.id) return;
+
+    setIsSaving(true);
+    try {
+      await estimationService.remove(deleteTarget.id);
+      await loadEstimations();
+      setDeleteTarget(null);
+      toast.success('Estimation deleted', 'Estimation record has been deleted successfully.');
+    } catch (requestError) {
+      toast.error('Delete failed', requestError?.response?.data?.message || requestError.message || 'Failed to delete estimation.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const totals = useMemo(() => {
     return rows.reduce(
@@ -552,7 +623,7 @@ export default function Estimation() {
         ) : null}
 
         {!showForm && canCreate ? (
-          <Button onClick={() => setShowForm(true)} icon={<Plus className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
+          <Button onClick={openCreateForm} icon={<Plus className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
             Add Estimation
           </Button>
         ) : null}
@@ -676,6 +747,8 @@ export default function Estimation() {
                               {canDelete ? (
                                 <button
                                   type="button"
+                                  onClick={() => setDeleteTarget(row)}
+                                  disabled={isSaving}
                                   className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95"
                                   title="Delete"
                                 >
@@ -822,7 +895,7 @@ export default function Estimation() {
                       <div className="rounded-2xl border border-indigo-200/70 bg-indigo-50/60 p-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <FieldLabel>Sale Price Without Tax</FieldLabel>
+                            <FieldLabel>Sale Price </FieldLabel>
                             <input type="text" value={formData.salePrice} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
                           </div>
                           <div className="space-y-2">
@@ -847,7 +920,7 @@ export default function Estimation() {
                             <input type="text" value={formData.discountPercentage} onChange={(event) => updateField('discountPercentage', event.target.value)} placeholder="0" className={INPUT_CLASS_NAME} />
                           </div>
                           <div className="space-y-2">
-                            <FieldLabel>Discount Amount</FieldLabel>
+                            <FieldLabel>Total Discount Amount</FieldLabel>
                             <input type="text" value={formData.discountAmount} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
                           </div>
                         </div>
@@ -892,6 +965,15 @@ export default function Estimation() {
       )}
       </> 
       ) : null}
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        title="Delete Estimation"
+        description={`Are you sure you want to delete ${deleteTarget?.estimateId || 'this estimation'}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteEstimation}
+        isLoading={isSaving}
+      />
       <ThemeToastViewport toasts={toasts} onClose={removeToast} />
     </div>
   );

@@ -1,30 +1,50 @@
 import axiosInstance from '@/src/lib/axiosInstance';
 
+function pickFirstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null) ?? '';
+}
+
+function toNumber(value) {
+  const numeric = Number(value ?? 0);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function normalizeSummary(summary) {
+  return {
+    totalPurchases: toNumber(summary?.totalPurchases),
+    totalDiscount: toNumber(summary?.totalDiscount),
+    totalFinal: toNumber(summary?.totalFinal),
+    profit: toNumber(summary?.profit),
+  };
+}
+
 function normalize(item) {
   return {
-    id: item.id || item._id || item.uuid || '',
-    estimateId: item.estimate_id || item.estimateId || '',
-    estimateDate: item.estimate_date || item.estimateDate || '',
-    customerId: item.customer_id || item.customerId || '',
-    customerName: item.customerCompany || item.customer_name || item.customerName || item.customer?.company || item.customer?.customer_name || '',
-    serviceId: item.service_id || item.serviceId || '',
-    serviceName: item.service || item.service_name || item.serviceName || item.service?.service_name || '',
-    itemRateId: item.item_rate_id || item.itemRateId || '',
-    itemName: item.item_name || item.itemName || item.itemRate?.item || item.item || '',
-    qty: item.qty ?? '',
-    description: item.description || '',
-    discountPercent: item.discount_percent ?? item.discountPercent ?? '',
-    status: item.status || 'active',
-    purchasePrice: item.purchase_price ?? item.purchasePrice ?? '',
-    purchaseTotal: item.purchase_total ?? item.purchaseTotal ?? '',
-    salePrice: item.sale_price ?? item.salePrice ?? '',
-    saleTotal: item.sale_total ?? item.saleTotal ?? '',
-    salePriceWithTax: item.sale_price_with_tax ?? item.salePriceWithTax ?? '',
-    saleTotalWithTax: item.sale_total_with_tax ?? item.saleTotalWithTax ?? '',
-    discountAmount: item.discount_amount ?? item.discountAmount ?? '',
-    finalPrice: item.final_price ?? item.finalPrice ?? '',
-    finalTotal: item.final_total ?? item.finalTotal ?? '',
-    raw: item,
+    id: pickFirstDefined(item.id, item._id, item.uuid),
+    estimateId: pickFirstDefined(item.estimate_id, item.estimateId),
+    estimateDate: pickFirstDefined(item.estimate_date, item.estimateDate),
+    customerId: pickFirstDefined(item.customer_id, item.customerId),
+    customerName: pickFirstDefined(item.customerCompany, item.customer_name, item.customerName, item.customer?.company, item.customer?.customer_name),
+    person: pickFirstDefined(item.person, item.customer_person, item.customerPerson),
+    designation: pickFirstDefined(item.designation, item.customer_designation, item.customerDesignation),
+    serviceId: pickFirstDefined(item.service_id, item.serviceId),
+    serviceName: pickFirstDefined(item.service, item.service_name, item.serviceName, item.service?.service_name),
+    createdBy: pickFirstDefined(item.created_by, item.createdBy, item.created_by_name),
+    itemRateId: pickFirstDefined(item.item_rate_id, item.itemRateId),
+    itemName: pickFirstDefined(item.item_name, item.itemName, item.itemRate?.item, item.item),
+    qty: pickFirstDefined(item.qty),
+    description: pickFirstDefined(item.description),
+    discountPercent: pickFirstDefined(item.discount_percent, item.discountPercent),
+    status: pickFirstDefined(item.status, 'active'),
+    purchasePrice: pickFirstDefined(item.purchase_price, item.purchasePrice),
+    purchaseTotal: pickFirstDefined(item.purchase_total, item.purchaseTotal),
+    salePrice: pickFirstDefined(item.sale_price, item.salePrice),
+    saleTotal: pickFirstDefined(item.sale_total, item.saleTotal),
+    salePriceWithTax: pickFirstDefined(item.sale_price_with_tax, item.salePriceWithTax),
+    saleTotalWithTax: pickFirstDefined(item.sale_total_with_tax, item.saleTotalWithTax),
+    discountAmount: pickFirstDefined(item.discount_amount, item.discountAmount),
+    finalPrice: pickFirstDefined(item.final_price, item.finalPrice),
+    finalTotal: pickFirstDefined(item.final_total, item.finalTotal),
   };
 }
 
@@ -41,16 +61,10 @@ export const estimationService = {
   async list(params = {}) {
     const response = await axiosInstance.get('/estimations', { params });
     const payload = response?.data?.data || response?.data || {};
-    const rawSummary = payload?.summary || {};
     return {
       ...response,
       data: extractRows(response).map(normalize),
-      summary: {
-        totalPurchases: Number(rawSummary.totalPurchases ?? 0),
-        totalDiscount: Number(rawSummary.totalDiscount ?? 0),
-        totalFinal: Number(rawSummary.totalFinal ?? 0),
-        profit: Number(rawSummary.profit ?? 0),
-      },
+      summary: normalizeSummary(payload?.summary),
     };
   },
 
