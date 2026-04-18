@@ -27,6 +27,7 @@ import CompanySetup from './pages/setup/CompanySetup';
 import ItemDefinition from './pages/stock/ItemDefinition';
 import ItemRate from './pages/stock/ItemRate';
 import Estimation from './pages/stock/Estimation';
+import Quotation from './pages/stock/Quotation';
 import OpeningStock from './pages/stock/OpeningStock';
 import ServicesProducts from './pages/stock/ServicesProducts';
 import ItemReport from './pages/reports/ItemReport';
@@ -196,6 +197,7 @@ export default function App() {
             <Route path="/stock/item-rate" element={<ItemRate />} />
           </Route>
           <Route path="/stock/estimation" element={<Estimation />} />
+          <Route path="/stock/quotation" element={<Quotation />} />
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/opening-stock')} />}>
             <Route path="/stock/opening-stock" element={<OpeningStock />} />
           </Route>

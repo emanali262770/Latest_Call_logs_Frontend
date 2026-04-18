@@ -75,6 +75,12 @@ const navItems = [
         icon: ReceiptText,
       },
       {
+        id: 'stock-quotation',
+        label: 'Quotation',
+        path: '/stock/quotation',
+        icon: ReceiptText,
+      },
+      {
         id: 'stock-opening-stock',
         label: 'Opening Stock',
         path: '/stock/opening-stock',
@@ -294,7 +300,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
       return;
     }
 
-    if (item.path === '/stock/estimation') {
+    if (item.path === '/stock/estimation' || item.path === '/stock/quotation') {
       navigate(item.path);
       return;
     }

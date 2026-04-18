@@ -47,8 +47,13 @@ function formatCellValue(value) {
   return String(value ?? '').trim() || '-';
 }
 
-function FieldLabel({ children }) {
-  return <label className="ml-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">{children}</label>;
+function FieldLabel({ children, required: isRequired = false }) {
+  return (
+    <label className="ml-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">
+      {children}
+      {isRequired ? <span className="ml-1 text-rose-500">*</span> : null}
+    </label>
+  );
 }
 
 const INPUT_CLASS_NAME =
@@ -69,7 +74,7 @@ function ReadOnlyField({ label, value, placeholder }) {
   );
 }
 
-function SearchableSelect({ selectId, label, value, options, placeholder, searchablePlaceholder, onChange, isOpen, onToggle, onClose }) {
+function SearchableSelect({ selectId, label, required: isRequired = false, value, options, placeholder, searchablePlaceholder, onChange, isOpen, onToggle, onClose }) {
   const [query, setQuery] = useState('');
   const containerRef = useRef(null);
   const shouldWrapValue = String(value || '').trim().length > 28;
@@ -91,7 +96,7 @@ function SearchableSelect({ selectId, label, value, options, placeholder, search
 
   return (
     <div className={`space-y-2 ${isOpen ? 'relative z-40' : 'relative z-0'}`} ref={containerRef}>
-      <FieldLabel>{label}</FieldLabel>
+      <FieldLabel required={isRequired}>{label}</FieldLabel>
       <div className="relative">
         <button
           type="button"
@@ -320,18 +325,37 @@ export default function ItemRate() {
       .then((response) => {
         if (!isActive) return;
         const details = response.data || {};
-        setFormData((prev) => ({
-          ...prev,
-          category: details.categoryName || prev.category,
-          subCategory: details.subCategoryName || prev.subCategory,
-          manufacturer: details.manufacturerName || prev.manufacturer,
-          itemSpecification: details.specification || prev.itemSpecification || '',
-          supplier: isEditing
-            ? prev.supplier || details.defaultSupplierName || details.supplierName || ''
-            : details.defaultSupplierName || details.supplierName || prev.supplier,
-          salePrice: prev.salePrice || details.salePrice || '',
-          salePriceWithTax: prev.salePriceWithTax || '',
-        }));
+        const purchasePrice = String(details.purchasePrice || '').trim();
+        let shouldPrefillResellerPrice = false;
+
+        setFormData((prev) => {
+          shouldPrefillResellerPrice = !isEditing && !String(prev.resellerPrice || '').trim() && Boolean(purchasePrice);
+          const exchangeRate = Number(prev.exchangeRate || 0);
+          const purchasePriceAsNumber = Number(purchasePrice || 0);
+          const convertedUsdPrice =
+            shouldPrefillResellerPrice && exchangeRate && purchasePriceAsNumber
+              ? (purchasePriceAsNumber / exchangeRate).toFixed(2)
+              : prev.resellerPriceUsd;
+
+          return {
+            ...prev,
+            category: details.categoryName || prev.category,
+            subCategory: details.subCategoryName || prev.subCategory,
+            manufacturer: details.manufacturerName || prev.manufacturer,
+            itemSpecification: details.specification || prev.itemSpecification || '',
+            supplier: isEditing
+              ? prev.supplier || details.defaultSupplierName || details.supplierName || ''
+              : details.defaultSupplierName || details.supplierName || prev.supplier,
+            resellerPrice: shouldPrefillResellerPrice ? purchasePrice : prev.resellerPrice,
+            resellerPriceUsd: convertedUsdPrice,
+            salePrice: prev.salePrice || details.salePrice || '',
+            salePriceWithTax: prev.salePriceWithTax || '',
+          };
+        });
+
+        if (shouldPrefillResellerPrice) {
+          setLastEditedPriceField('pkr');
+        }
       })
       .catch((requestError) => {
         if (isActive) toast.error('Item details failed', requestError.message || 'Unable to load selected item details.');
@@ -747,7 +771,7 @@ export default function ItemRate() {
                     />
                   </div>
                   <div className={`${shouldExpandItemField ? 'xl:col-span-6' : 'xl:col-span-3'} xl:col-start-1`}>
-                    <SearchableSelect selectId="item" label="Item" value={formData.item} options={itemOptions} placeholder="Select item" searchablePlaceholder="Search item" onChange={(value) => updateField('item', value)} isOpen={openSelectId === 'item'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                    <SearchableSelect selectId="item" label="Item" required value={formData.item} options={itemOptions} placeholder="Select item" searchablePlaceholder="Search item" onChange={(value) => updateField('item', value)} isOpen={openSelectId === 'item'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                   </div>
                   <div className="xl:col-span-3">
                     <ReadOnlyField label="Category" value={formData.category} placeholder="Category" />
@@ -770,7 +794,7 @@ export default function ItemRate() {
                     />
                   </div>
                   <div className="xl:col-span-3 xl:col-start-1">
-                    <SearchableSelect selectId="supplier" label="Supplier" value={formData.supplier} options={supplierOptions} placeholder="Select supplier" searchablePlaceholder="Search supplier" onChange={(value) => updateField('supplier', value)} isOpen={openSelectId === 'supplier'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                    <SearchableSelect selectId="supplier" label="Supplier" required value={formData.supplier} options={supplierOptions} placeholder="Select supplier" searchablePlaceholder="Search supplier" onChange={(value) => updateField('supplier', value)} isOpen={openSelectId === 'supplier'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                   </div>
                   <div className="space-y-2 xl:col-span-3">
                     <FieldLabel>Quotation ID</FieldLabel>

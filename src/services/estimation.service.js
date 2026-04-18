@@ -11,10 +11,30 @@ function toNumber(value) {
 
 function normalizeSummary(summary) {
   return {
-    totalPurchases: toNumber(summary?.totalPurchases),
-    totalDiscount: toNumber(summary?.totalDiscount),
-    totalFinal: toNumber(summary?.totalFinal),
+    totalPurchases: toNumber(pickFirstDefined(summary?.totalPurchases, summary?.purchaseTotal)),
+    totalDiscount: toNumber(pickFirstDefined(summary?.totalDiscount, summary?.discountTotal)),
+    totalFinal: toNumber(pickFirstDefined(summary?.totalFinal, summary?.finalTotal)),
     profit: toNumber(summary?.profit),
+  };
+}
+
+function normalizeItem(item) {
+  return {
+    id: pickFirstDefined(item.id, item._id, item.uuid),
+    itemRateId: pickFirstDefined(item.item_rate_id, item.itemRateId),
+    itemName: pickFirstDefined(item.item_name, item.itemName, item.itemRate?.item, item.item),
+    qty: pickFirstDefined(item.qty),
+    description: pickFirstDefined(item.description),
+    discountPercent: pickFirstDefined(item.discount_percent, item.discountPercent),
+    purchasePrice: pickFirstDefined(item.purchase_price, item.purchasePrice),
+    purchaseTotal: pickFirstDefined(item.purchase_total, item.purchaseTotal),
+    salePrice: pickFirstDefined(item.sale_price, item.salePrice),
+    saleTotal: pickFirstDefined(item.sale_total, item.saleTotal),
+    salePriceWithTax: pickFirstDefined(item.sale_price_with_tax, item.salePriceWithTax),
+    saleTotalWithTax: pickFirstDefined(item.sale_total_with_tax, item.saleTotalWithTax),
+    discountAmount: pickFirstDefined(item.discount_amount, item.discountAmount),
+    finalPrice: pickFirstDefined(item.final_price, item.finalPrice),
+    finalTotal: pickFirstDefined(item.final_total, item.finalTotal),
   };
 }
 
@@ -30,11 +50,6 @@ function normalize(item) {
     serviceId: pickFirstDefined(item.service_id, item.serviceId),
     serviceName: pickFirstDefined(item.service, item.service_name, item.serviceName, item.service?.service_name),
     createdBy: pickFirstDefined(item.created_by, item.createdBy, item.created_by_name),
-    itemRateId: pickFirstDefined(item.item_rate_id, item.itemRateId),
-    itemName: pickFirstDefined(item.item_name, item.itemName, item.itemRate?.item, item.item),
-    qty: pickFirstDefined(item.qty),
-    description: pickFirstDefined(item.description),
-    discountPercent: pickFirstDefined(item.discount_percent, item.discountPercent),
     status: pickFirstDefined(item.status, 'active'),
     purchasePrice: pickFirstDefined(item.purchase_price, item.purchasePrice),
     purchaseTotal: pickFirstDefined(item.purchase_total, item.purchaseTotal),
@@ -42,6 +57,7 @@ function normalize(item) {
     saleTotal: pickFirstDefined(item.sale_total, item.saleTotal),
     salePriceWithTax: pickFirstDefined(item.sale_price_with_tax, item.salePriceWithTax),
     saleTotalWithTax: pickFirstDefined(item.sale_total_with_tax, item.saleTotalWithTax),
+    discountTotal: pickFirstDefined(item.discount_total, item.discountTotal),
     discountAmount: pickFirstDefined(item.discount_amount, item.discountAmount),
     finalPrice: pickFirstDefined(item.final_price, item.finalPrice),
     finalTotal: pickFirstDefined(item.final_total, item.finalTotal),
@@ -73,7 +89,11 @@ export const estimationService = {
     const payload = response?.data?.data || response?.data || {};
     return {
       ...response,
-      data: normalize(payload),
+      data: {
+        ...normalize(payload),
+        items: Array.isArray(payload?.items) ? payload.items.map(normalizeItem) : [],
+        summary: normalizeSummary(payload?.summary),
+      },
     };
   },
 
@@ -87,11 +107,6 @@ export const estimationService = {
 
   async remove(id) {
     return axiosInstance.delete(`/estimations/${id}`);
-  },
-
-  async printAll(params = {}) {
-    const response = await axiosInstance.get('/estimations/print', { params });
-    return response?.data?.data || response?.data || {};
   },
 
   async printSingle(id) {

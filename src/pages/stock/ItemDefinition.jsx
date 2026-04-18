@@ -546,6 +546,7 @@ export default function ItemDefinition() {
           : field === 'expiryDays'
             ? String(value || '').replace(/[^\d]/g, '')
             : value,
+      ...(field === 'unit' && String(value || '').trim() && !String(prev.unitQty || '').trim() ? { unitQty: '1' } : {}),
       ...(field === 'expirable' && String(value || '').toLowerCase() !== 'yes' ? { expiryDays: '' } : {}),
     }));
     setFormErrors((prev) => ({
@@ -990,9 +991,7 @@ export default function ItemDefinition() {
                       <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
                         Item
                       </th>
-                      <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
-                        Type
-                      </th>
+                    
                       <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
                         Category
                       </th>
@@ -1043,7 +1042,7 @@ export default function ItemDefinition() {
                               <p className="font-semibold text-gray-900">{item.itemName}</p>
                             </div>
                           </td>
-                          <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{item.itemType || '-'}</td>
+                         
                           <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{item.category || '-'}</td>
                           <td className="border-b border-gray-50/30 px-6 py-6 whitespace-nowrap">
                             <div className="flex items-center gap-2">

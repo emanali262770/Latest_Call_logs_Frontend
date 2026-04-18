@@ -109,6 +109,7 @@ export const itemRateService = {
         supplierName: payload?.defaultSupplierName || payload?.itemSupplierName || payload?.supplier_name || payload?.supplierName || '',
         defaultSupplierName: payload?.defaultSupplierName || payload?.itemSupplierName || payload?.supplier_name || payload?.supplierName || '',
         specification: payload?.item_specification || payload?.itemSpecification || '',
+        purchasePrice: payload?.purchasePrice ?? payload?.purchase_price ?? '',
         salePrice: payload?.sale_price ?? payload?.salePrice ?? '',
       },
     };

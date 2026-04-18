@@ -11,7 +11,7 @@ import { customerService } from '@/src/services/customer.service';
 import { itemRateService } from '@/src/services/itemRate.service';
 import { servicesService } from '@/src/services/services.service';
 import { estimationService } from '@/src/services/estimation.service';
-import { printAllEstimations, printSingleEstimation } from '@/src/pages/stock/prints/estimationPrint';
+import { printSingleEstimation } from '@/src/pages/stock/prints/estimationPrint';
 
 const EMPTY_FORM = {
   estimateId: '',
@@ -240,6 +240,7 @@ export default function Estimation() {
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [editingRowId, setEditingRowId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [setupError, setSetupError] = useState('');
   const [setupOptions, setSetupOptions] = useState({ customers: [], services: [], itemRates: [] });
@@ -261,6 +262,9 @@ export default function Estimation() {
         itemRateService.list(),
       ]);
 
+    
+      
+
       setSetupOptions({
         customers: customersResponse.data.map((c) => ({
           id: c.id,
@@ -275,6 +279,7 @@ export default function Estimation() {
         itemRates: itemRatesResponse.data.map((r) => ({
           id: r.id,
           item: r.item || '',
+          itemSpecification: r.raw?.item_specification ?? r.raw?.itemSpecification ?? r.itemSpecification ?? '',
           resellerPrice: r.raw?.reseller_price ?? r.raw?.resellerPrice ?? r.reseller ?? '',
           salePrice: r.raw?.sale_price ?? r.raw?.salePrice ?? '',
           salePriceWithTax: r.raw?.sale_price_with_tax ?? r.raw?.salePriceWithTax ?? r.sale ?? '',
@@ -286,6 +291,8 @@ export default function Estimation() {
       setIsLoadingSetup(false);
     }
   }, []);
+
+  
 
   const loadEstimations = useCallback(async () => {
     setIsLoadingList(true);
@@ -372,6 +379,7 @@ export default function Estimation() {
       ...prev,
       item: itemName,
       itemRateId: found?.id || '',
+      description: found?.itemSpecification || '',
       purchasePrice: found ? String(found.resellerPrice ?? '') : '',
       salePrice: found ? String(found.salePrice ?? '') : '',
       salePriceWithTax: found ? String(found.salePriceWithTax ?? '') : '',
@@ -391,12 +399,14 @@ export default function Estimation() {
     setOpenSelectId(null);
     setRows([]);
     setEditingItem(null);
+    setEditingRowId(null);
     setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
   };
 
   const openCreateForm = useCallback(() => {
     setRows([]);
     setEditingItem(null);
+    setEditingRowId(null);
     setOpenSelectId(null);
     setFormData({
       ...EMPTY_FORM,
@@ -407,17 +417,25 @@ export default function Estimation() {
   }, [loggedInUserName, nextEstimateId]);
 
   const handleAddItem = () => {
-    if (!formData.customer || !formData.item || !formData.qty) {
-      toast.error('Required fields missing', 'Please select customer, item, and enter quantity before adding the item.');
+    if (!formData.item) {
+      toast.error('Item required', 'Please select item.');
+      return;
+    }
+    if (!Number(formData.qty || 0)) {
+      toast.error('Quantity required', 'Please enter qty before adding item.');
       return;
     }
 
-    const nextRow = {
-      id: crypto.randomUUID(),
-      ...formData,
-    };
+    const nextRow = { id: editingRowId || crypto.randomUUID(), ...formData };
 
-    setRows((prev) => [nextRow, ...prev]);
+    setRows((prev) => {
+      if (editingRowId) {
+        return prev.map((row) => (row.id === editingRowId ? nextRow : row));
+      }
+      return [nextRow, ...prev];
+    });
+
+    setEditingRowId(null);
     setFormData((prev) => ({
       ...EMPTY_FORM,
       estimateId: prev.estimateId,
@@ -430,29 +448,47 @@ export default function Estimation() {
       createdBy: prev.createdBy,
       designation: prev.designation,
     }));
-    toast.success('Item added', 'Estimation item has been added to the preview list.');
+    toast.success(editingRowId ? 'Item updated' : 'Item added', editingRowId ? 'Queued estimation item updated successfully.' : 'Estimation item has been added to the preview list.');
   };
 
   const handleRemoveRow = (rowId) => {
+    const removedRow = rows.find((row) => row.id === rowId);
     setRows((prev) => prev.filter((row) => row.id !== rowId));
+
+    if (editingRowId === rowId) {
+      setEditingRowId(null);
+      setFormData((prev) => ({
+        ...EMPTY_FORM,
+        estimateId: prev.estimateId,
+        date: prev.date,
+        customer: prev.customer,
+        customerId: prev.customerId,
+        forProduct: prev.forProduct,
+        serviceId: prev.serviceId,
+        person: prev.person,
+        createdBy: prev.createdBy,
+        designation: prev.designation,
+      }));
+    }
+
+    toast.success('Item removed', removedRow?.item ? `${removedRow.item} removed from the queued list.` : 'Queued item removed successfully.');
   };
 
-  const openEditForm = (row) => {
-    setEditingItem(row);
-
-    const nextFormData = {
+  const handleEditQueuedRow = (row) => {
+    setEditingRowId(row.id);
+    setFormData({
       ...EMPTY_FORM,
       estimateId: row.estimateId || '',
-      date: row.estimateDate ? row.estimateDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      date: row.date || new Date().toISOString().slice(0, 10),
       customerId: row.customerId || '',
-      customer: row.customerName || '',
+      customer: row.customer || '',
       serviceId: row.serviceId || '',
-      forProduct: row.serviceName || '',
+      forProduct: row.forProduct || '',
       person: row.person || '',
-      designation: row.designation || '',
       createdBy: row.createdBy || loggedInUserName,
+      designation: row.designation || '',
       itemRateId: row.itemRateId || '',
-      item: row.itemName || '',
+      item: row.item || row.itemName || '',
       qty: String(row.qty || ''),
       description: row.description || '',
       purchasePrice: String(row.purchasePrice || ''),
@@ -461,40 +497,99 @@ export default function Estimation() {
       saleTotal: String(row.saleTotal || ''),
       salePriceWithTax: String(row.salePriceWithTax || ''),
       saleTotalWithTax: String(row.saleTotalWithTax || ''),
-      discountPercentage: String(row.discountPercent || ''),
+      discountPercentage: String(row.discountPercentage || row.discountPercent || ''),
       discountAmount: String(row.discountAmount || ''),
       finalPrice: String(row.finalPrice || ''),
       finalTotal: String(row.finalTotal || ''),
-    };
+    });
+  };
 
-    console.log(nextFormData);
-    setRows([]);
-    setFormData(nextFormData);
-    setShowForm(true);
+  const openEditForm = async (row) => {
+    setIsSaving(true);
+    try {
+      const response = await estimationService.get(row.id);
+      const estimation = response.data || {};
+      const detailRows = Array.isArray(estimation.items)
+        ? estimation.items.map((item) => ({
+            id: item.id || crypto.randomUUID(),
+            estimateId: estimation.estimateId || '',
+            date: estimation.estimateDate ? String(estimation.estimateDate).slice(0, 10) : new Date().toISOString().slice(0, 10),
+            customerId: estimation.customerId || '',
+            customer: estimation.customerName || '',
+            serviceId: estimation.serviceId || '',
+            forProduct: estimation.serviceName || '',
+            person: estimation.person || '',
+            designation: estimation.designation || '',
+            createdBy: estimation.createdBy || loggedInUserName,
+            itemRateId: item.itemRateId || '',
+            item: item.itemName || '',
+            qty: String(item.qty || ''),
+            description: item.description || '',
+            purchasePrice: String(item.purchasePrice || ''),
+            purchaseTotal: String(item.purchaseTotal || ''),
+            salePrice: String(item.salePrice || ''),
+            saleTotal: String(item.saleTotal || ''),
+            salePriceWithTax: String(item.salePriceWithTax || ''),
+            saleTotalWithTax: String(item.saleTotalWithTax || ''),
+            discountPercentage: String(item.discountPercent || ''),
+            discountAmount: String(item.discountAmount || ''),
+            finalPrice: String(item.finalPrice || ''),
+            finalTotal: String(item.finalTotal || ''),
+          }))
+        : [];
+
+      setEditingItem({ ...row, ...estimation });
+      setEditingRowId(null);
+      setRows(detailRows);
+
+      setFormData({
+        ...EMPTY_FORM,
+        estimateId: estimation.estimateId || '',
+        date: estimation.estimateDate ? String(estimation.estimateDate).slice(0, 10) : new Date().toISOString().slice(0, 10),
+        customerId: estimation.customerId || '',
+        customer: estimation.customerName || '',
+        serviceId: estimation.serviceId || '',
+        forProduct: estimation.serviceName || '',
+        person: estimation.person || '',
+        designation: estimation.designation || '',
+        createdBy: estimation.createdBy || loggedInUserName,
+      });
+      setShowForm(true);
+    } catch (requestError) {
+      toast.error('Load failed', requestError?.response?.data?.message || requestError.message || 'Failed to load estimation details.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSaveEstimation = async () => {
+    const hasCurrentFormEntry = formData.item && formData.itemRateId;
+    const rowsToSave = rows.length ? rows : hasCurrentFormEntry ? [{ id: crypto.randomUUID(), ...formData }] : [];
+
+    if (!rowsToSave.length) {
+      toast.error('No estimation items', 'Add at least one item before saving the estimation.');
+      return;
+    }
     // Edit mode — PUT single record
     if (editingItem) {
-      if (!formData.customer || !formData.item || !formData.qty) {
-        toast.error('Required fields missing', 'Please select customer, item, and enter quantity.');
-        return;
-      }
       setIsSaving(true);
       try {
         const payload = {
           estimate_date: formData.date,
-          customer_id: Number(formData.customerId),
-          service_id: Number(formData.serviceId),
-          item_rate_id: Number(formData.itemRateId),
-          qty: Number(formData.qty),
-          description: formData.description || '',
-          discount_percent: Number(formData.discountPercentage || 0),
+          customer_id: formData.customerId ? Number(formData.customerId) : null,
+          service_id: formData.serviceId ? Number(formData.serviceId) : null,
           status: 'active',
+          items: rowsToSave.map((row) => ({
+            item_rate_id: Number(row.itemRateId),
+            qty: Number(row.qty || 0),
+            description: row.description || '',
+            discount_percent: Number(row.discountPercentage || row.discountPercent || 0),
+          })),
         };
         await estimationService.update(editingItem.id, payload);
         toast.success('Estimation updated', 'Record updated successfully.');
         setEditingItem(null);
+        setEditingRowId(null);
         setShowForm(false);
         setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
         await loadEstimations();
@@ -507,30 +602,21 @@ export default function Estimation() {
     }
 
     // Create mode — POST one row per queued item (or current form if no rows queued)
-    const hasCurrentFormEntry = formData.customer && formData.item && formData.qty;
-    const rowsToSave = rows.length ? rows : hasCurrentFormEntry ? [{ id: crypto.randomUUID(), ...formData }] : [];
-
-    if (!rowsToSave.length) {
-      toast.error('No estimation items', 'Add at least one item before saving the estimation.');
-      return;
-    }
-
     setIsSaving(true);
     try {
-      let lastResponse = null;
-      for (const row of rowsToSave) {
-        const payload = {
-          estimate_date: row.date,
-          customer_id: Number(row.customerId),
-          service_id: Number(row.serviceId),
+      const payload = {
+        estimate_date: formData.date,
+        customer_id: formData.customerId ? Number(formData.customerId) : null,
+        service_id: formData.serviceId ? Number(formData.serviceId) : null,
+        status: 'active',
+        items: rowsToSave.map((row) => ({
           item_rate_id: Number(row.itemRateId),
-          qty: Number(row.qty),
+          qty: Number(row.qty || 0),
           description: row.description || '',
-          discount_percent: Number(row.discountPercentage || 0),
-          status: 'active',
-        };
-        lastResponse = await estimationService.create(payload);
-      }
+          discount_percent: Number(row.discountPercentage || row.discountPercent || 0),
+        })),
+      };
+      const lastResponse = await estimationService.create(payload);
 
       const savedEstimateId =
         lastResponse?.data?.data?.estimate_id ||
@@ -549,15 +635,6 @@ export default function Estimation() {
       setIsSaving(false);
     }
   };
-
-  const handlePrintAll = useCallback(async () => {
-    try {
-      const payload = await estimationService.printAll();
-      printAllEstimations(payload);
-    } catch (requestError) {
-      toast.error('Print failed', requestError?.response?.data?.message || requestError.message || 'Could not load print data.');
-    }
-  }, [toast]);
 
   const handlePrintSingle = useCallback(async (row) => {
     try {
@@ -603,11 +680,12 @@ export default function Estimation() {
     if (!normalizedQuery) return estimations;
 
     return estimations.filter((row) =>
-      `${row.itemName} ${row.customerName} ${row.estimateId} ${row.description} ${row.serviceName}`
+      `${row.estimateId} ${row.customerName} ${row.serviceName} ${row.estimateDate} ${row.status}`
         .toLowerCase()
         .includes(normalizedQuery),
     );
   }, [estimations, searchQuery]);
+  const tableColumnCount = hasRowActions ? 8 : 7;
 
   return (
     <div className="space-y-8">
@@ -647,16 +725,6 @@ export default function Estimation() {
                 <p className="text-sm font-medium text-gray-400">
                   <span className="font-bold text-gray-900">{filteredEstimations.length}</span> Records
                 </p>
-                {canPrint ? (
-                  <button
-                    type="button"
-                    title="Print all estimations"
-                    onClick={handlePrintAll}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-400 transition-all duration-200 hover:border-brand/30 hover:bg-brand-light hover:text-brand hover:shadow-md active:scale-95"
-                  >
-                    <Printer className="h-4 w-4" />
-                  </button>
-                ) : null}
               </div>
             </div>
 
@@ -670,51 +738,47 @@ export default function Estimation() {
 
             <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1320px] border-separate border-spacing-0 text-left">
+                <table className="min-w-full border-separate border-spacing-0 text-left">
                   <thead>
                     <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
                       <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Sr.#</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Est. ID</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Date</th>
+                     
+                     
+                     
+                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Estimate ID</th>
+                      <th className="border-b border-gray-100/60 whitespace-nowrap px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Date</th>
                       <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Customer</th>
-                      <th className="border-b border-gray-100/60 whitespace-nowrap px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">For Product</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Item</th>
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Qty</th>
-                      <th className="border-b border-gray-100/60 whitespace-nowrap px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Discount %</th>
+                      <th className="border-b border-gray-100/60 px-5 whitespace-nowrap py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Service</th>
+                      <th className="border-b border-gray-100/60 whitespace-nowrap px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Discount Total</th>
                       <th className="border-b border-gray-100/60 px-5 whitespace-nowrap py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Final Total</th>
                       <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Status</th>
-                      {hasRowActions ? <th className="border-b border-gray-100/60 px-8 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">Actions</th> : null}
+                      {hasRowActions ? <th className="border-b border-gray-100/60 px-5 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">Actions</th> : null}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50/50">
                     {isLoadingList ? (
                       <tr>
-                        <td colSpan={11} className="px-8 py-6 text-center">
+                        <td colSpan={tableColumnCount} className="px-5 py-6 text-center">
                           <TableLoader label="Loading estimations..." />
                         </td>
                       </tr>
                     ) : filteredEstimations.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="px-8 py-20 text-center text-sm font-medium text-gray-400">No estimation records found.</td>
+                        <td colSpan={tableColumnCount} className="px-5 py-20 text-center text-sm font-medium text-gray-400">No estimation records found.</td>
                       </tr>
                     ) : (
                       filteredEstimations.map((row, index) => (
                         <tr key={row.id} className="group transition-all duration-300 hover:bg-brand-light/40">
                           <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{index + 1}</td>
-                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.estimateId)}</td>
+                          
+                          
+                      
+                          
+                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-900 whitespace-nowrap">{formatCellValue(row.estimateId)}</td>
                           <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatDate(row.estimateDate)}</td>
                           <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.customerName)}</td>
                           <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.serviceName)}</td>
-                          <td className="border-b border-gray-50/30 px-5 py-6">
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/10 bg-brand-light text-brand">
-                                <Package className="h-4 w-4" />
-                              </div>
-                              <span className="text-sm font-semibold whitespace-nowrap text-gray-900">{formatCellValue(row.itemName)}</span>
-                            </div>
-                          </td>
-                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatIntegerOrDash(row.qty)}</td>
-                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.discountPercent)}</td>
+                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-amber-700 whitespace-nowrap">{formatCellValue(row.discountTotal)}</td>
                           <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.finalTotal)}</td>
                           <td className="border-b border-gray-50/30 px-5 py-6 whitespace-nowrap">
                             <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${row.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -722,7 +786,7 @@ export default function Estimation() {
                             </span>
                           </td>
                           {hasRowActions ? (
-                          <td className="border-b border-gray-50/30 px-8 py-6 text-right">
+                          <td className="border-b border-gray-50/30 px-5 py-6 text-start whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
                               {canPrint ? (
                                 <button
@@ -874,6 +938,22 @@ export default function Estimation() {
                           className="min-h-[222px] w-full rounded-xl border border-slate-300/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70"
                         />
                       </div>
+                      <div className="md:col-span-12">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-800">Build item list before saving</p>
+                            <p className="mt-1 text-xs text-slate-500">Add this item to the queue, then continue with more items if needed.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleAddItem}
+                            className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover"
+                          >
+                            <Plus className="h-4.5 w-4.5" />
+                            {editingRowId ? 'Update Item' : 'Add Item'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -944,15 +1024,94 @@ export default function Estimation() {
                 </div>
               </section>
 
+              {rows.length ? (
+                <section className={SECTION_PANEL_CLASS_NAME}>
+                  <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
+                    <div>
+                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Queued Items</h3>
+                      <p className="mt-1 text-xs text-slate-500">Review, edit, or remove estimation items before final save.</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-300/80 bg-white px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-600">
+                      {rows.length} {rows.length === 1 ? 'Item' : 'Items'}
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto p-6">
+                    <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+                      <thead>
+                        <tr className="bg-slate-100/80">
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item Detail</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Unit Price</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Discount</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Final Total</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row, index) => (
+                          <tr key={row.id} className="odd:bg-white even:bg-slate-50/45 transition-colors hover:bg-brand-light/30">
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-600">{index + 1}</td>
+                            <td className="border-b border-slate-100 px-4 py-4">
+                              <div className="min-w-[260px]">
+                                <p className="text-sm font-semibold text-slate-900">{formatCellValue(row.item)}</p>
+                                
+                              </div>
+                            </td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatIntegerOrDash(row.qty)}</td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatCellValue(row.salePriceWithTax || row.salePrice)}</td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-amber-700">{formatCellValue(row.discountAmount)}</td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-brand">{formatCellValue(row.finalTotal)}</td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditQueuedRow(row)}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-brand/20 hover:bg-brand-light hover:text-brand"
+                                  title="Edit item"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveRow(row.id)}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                                  title="Delete item"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="border-t border-slate-200/80 px-6 py-4">
+                    <div className="flex flex-col flex-wrap items-end justify-end gap-x-8 gap-y-2 text-sm font-semibold text-slate-700">
+                      <p>
+                        Item Discount Total:
+                        <span className="ml-2 tabular-nums text-amber-700">{formatCurrency(totals.discount)}</span>
+                      </p>
+                      <p>
+                        Item Final Total:
+                        <span className="ml-2 tabular-nums text-brand">{formatCurrency(totals.final)}</span>
+                      </p>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
               <div className="flex items-center justify-between rounded-2xl border border-slate-300/80 bg-slate-50/95 px-6 py-4">
-                <p className="text-xs leading-6 text-slate-600">Select a customer and item to auto-fill prices. Only Qty and Discount % are editable.</p>
+                <div>
+                  <p className="text-xs leading-6 text-slate-600">Select a customer and item to auto-fill prices. Only Qty and Discount % are editable.</p>
+                  {editingRowId ? <p className="text-xs font-semibold text-brand">You are editing a queued item. Click update item to apply changes.</p> : null}
+                </div>
                 <div className="flex justify-end gap-3">
                   <button type="button" onClick={closeForm} className="rounded-xl border border-slate-300/80 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900">
                     Cancel
                   </button>
-                
-                 
-
                   <button type="button" onClick={handleSaveEstimation} disabled={isSaving} className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-60">
                     <Save className="h-4.5 w-4.5" />
                     {isSaving ? (editingItem ? 'Updating…' : 'Saving…') : (editingItem ? 'Update Estimation' : 'Save Estimation')}
