@@ -52,7 +52,9 @@ function normalizeRate(item) {
     item: item?.item_name || item?.itemName || item?.item || item?.item_definition_name || item?.itemDefinitionName || '',
     itemSpecification: item?.item_specification || item?.itemSpecification || item?.specification || '',
     reseller: item?.reseller_price ?? item?.resellerPrice ?? '',
-    sale: item?.sale_price_with_tax ?? item?.salePriceWithTax ?? item?.sale_price ?? item?.salePrice ?? '',
+    sale: item?.sale_price ?? item?.salePrice ?? '',
+    salePrice: item?.sale_price ?? item?.salePrice ?? '',
+    salePriceWithTax: item?.sale_price_with_tax ?? item?.salePriceWithTax ?? '',
     status: item?.status || 'active',
     raw: item,
   };

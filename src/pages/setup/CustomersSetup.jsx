@@ -34,6 +34,7 @@ export default function CustomersSetup() {
   const [residenceAddress, setResidenceAddress] = useState("");
   const [residencePhone, setResidencePhone] = useState("");
   const [mobile, setMobile] = useState("");
+  const [whatsappNo, setWhatsappNo] = useState("");
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
   const [description, setDescription] = useState("");
@@ -113,6 +114,7 @@ export default function CustomersSetup() {
     setResidenceAddress("");
     setResidencePhone("");
     setMobile("");
+    setWhatsappNo("");
     setEmail("");
     setWebsite("");
     setDescription("");
@@ -138,6 +140,7 @@ export default function CustomersSetup() {
     setResidenceAddress(item.address || "");
     setResidencePhone(item.residencePhone || "");
     setMobile(item.mobile || item.phone || "");
+    setWhatsappNo(item.whatsappNo || "");
     setEmail(item.email || "");
     setWebsite(item.website || "");
     setDescription(item.description || "");
@@ -162,6 +165,7 @@ export default function CustomersSetup() {
     const trimmedResidenceAddress = residenceAddress.trim();
     const trimmedResidencePhone = residencePhone.trim();
     const trimmedMobile = mobile.trim();
+    const trimmedWhatsappNo = whatsappNo.trim();
     const trimmedEmail = email.trim();
     const trimmedWebsite = website.trim();
     const trimmedDescription = description.trim();
@@ -195,6 +199,7 @@ export default function CustomersSetup() {
           address: trimmedResidenceAddress,
           residencePhone: trimmedResidencePhone,
           mobile: trimmedMobile,
+          whatsappNo: trimmedWhatsappNo,
           email: trimmedEmail,
           website: trimmedWebsite,
           description: trimmedDescription,
@@ -213,6 +218,7 @@ export default function CustomersSetup() {
           address: trimmedResidenceAddress,
           residencePhone: trimmedResidencePhone,
           mobile: trimmedMobile,
+          whatsappNo: trimmedWhatsappNo,
           email: trimmedEmail,
           website: trimmedWebsite,
           description: trimmedDescription,
@@ -478,7 +484,7 @@ export default function CustomersSetup() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Department</label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Department <span className="text-red-500">*</span></label>
                         <input
                           type="text"
                           value={department}
@@ -552,7 +558,7 @@ export default function CustomersSetup() {
                           className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationError && !mobile.trim() ? "border-rose-400" : "border-gray-200"}`}
                         />
                       </div>
-                      <div className="space-y-2 md:col-span-2">
+                      <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Email</label>
                         <input
                           type="email"
@@ -563,6 +569,16 @@ export default function CustomersSetup() {
                           }}
                           placeholder="name@example.com"
                           className={`w-full rounded-xl border bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10 ${validationError && validateEmail(email.trim()) ? "border-rose-400" : "border-gray-200"}`}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-gray-500">WhatsApp No <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          value={whatsappNo}
+                          onChange={(event) => setWhatsappNo(event.target.value)}
+                          placeholder="WhatsApp no"
+                          className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">

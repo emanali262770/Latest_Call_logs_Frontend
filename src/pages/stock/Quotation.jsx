@@ -4,18 +4,27 @@ import { Button, Card } from '@/src/components/ui/Card';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { getStoredUser } from '@/src/lib/auth';
+import { customerService } from '@/src/services/customer.service';
+import { estimationService } from '@/src/services/estimation.service';
+import { itemRateService } from '@/src/services/itemRate.service';
+import { quotationService } from '@/src/services/quotation.service';
+import { servicesService } from '@/src/services/services.service';
 
 const EMPTY_FORM = {
-  quotationNo: 'AIT/QUT/04001',
-  day: '14',
-  month: 'April',
-  year: '2026',
-  docId: '001',
+  quotationNo: '',
+  day: String(new Date().getDate()).padStart(2, '0'),
+  month: new Date().toLocaleString('en-US', { month: 'long' }),
+  year: String(new Date().getFullYear()),
+  revisionId: '',
+  customerId: '',
+  estimationId: '',
+  serviceId: '',
   department: '',
   company: '',
   person: '',
   designation: '',
   letterType: 'Quotation',
+  taxMode: '',
   forProduct: '',
   createdBy: '',
   item: '',
@@ -33,6 +42,24 @@ const SECTION_PANEL_CLASS_NAME = 'rounded-[1.4rem] border border-slate-300/80 bg
 const COMPACT_FIELD_WRAPPER_CLASS_NAME = 'w-full xl:max-w-[540px]';
 const COMPACT_SMALL_FIELD_WRAPPER_CLASS_NAME = 'w-full xl:max-w-[245px]';
 const COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME = 'w-full xl:max-w-[360px]';
+const FALLBACK_ITEM_OPTIONS = ['IP CCTV Camera 4MP Night Vision', 'HikVision 8 Channel NVR', 'Samsung TV', 'DVR 4 Channel'];
+
+const MONTH_NAME_TO_NUMBER = {
+  January: '01',
+  February: '02',
+  March: '03',
+  April: '04',
+  May: '05',
+  June: '06',
+  July: '07',
+  August: '08',
+  September: '09',
+  October: '10',
+  November: '11',
+  December: '12',
+};
+
+const MONTH_NUMBER_TO_NAME = Object.fromEntries(Object.entries(MONTH_NAME_TO_NUMBER).map(([name, number]) => [number, name]));
 
 function FieldLabel({ children }) {
   return <label className="ml-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">{children}</label>;
@@ -60,7 +87,6 @@ function SearchableSelect({ selectId, label, value, options, placeholder, search
 
   useEffect(() => {
     if (!isOpen) {
-      setQuery('');
       return undefined;
     }
     const handleClickOutside = (event) => {
@@ -130,18 +156,28 @@ export default function Quotation() {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [rows, setRows] = useState([]);
   const [quotations, setQuotations] = useState([]);
+  const [customerOptions, setCustomerOptions] = useState([]);
+  const [serviceOptions, setServiceOptions] = useState([]);
+  const [estimationOptions, setEstimationOptions] = useState([]);
+  const [itemRateOptions, setItemRateOptions] = useState([]);
   const [editingRowId, setEditingRowId] = useState(null);
   const [editingQuotationId, setEditingQuotationId] = useState(null);
+  const [revisionSourceQuotationId, setRevisionSourceQuotationId] = useState(null);
+  const [formMode, setFormMode] = useState('create');
+  const [isSaving, setIsSaving] = useState(false);
   const [openSelectId, setOpenSelectId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { toasts, toast, removeToast } = useThemeToast();
 
-  const departmentOptions = ['Sales', 'Projects', 'Support', 'Accounts'];
-  const companyOptions = ['Sony', 'Samsung', 'Afaq Technologies', 'ABC Traders'];
-  const letterTypeOptions = ['Quotation', 'Proposal', 'Offer Letter'];
-  const productOptions = ['CCTV', 'Networking', 'Solar', 'Access Control'];
-  const itemOptions = ['IP CCTV Camera 4MP Night Vision', 'HikVision 8 Channel NVR', 'Samsung TV', 'DVR 4 Channel'];
+  const letterTypeOptions = ['Letter', 'Quotation', 'Bill', 'Invoice'];
+  const companyOptions = useMemo(() => customerOptions.map((customer) => customer.company || customer.name).filter(Boolean), [customerOptions]);
+  const productOptions = useMemo(() => serviceOptions.map((service) => service.serviceName).filter(Boolean), [serviceOptions]);
+  const itemOptions = useMemo(
+    () => (itemRateOptions.length ? itemRateOptions.map((item) => item.name) : FALLBACK_ITEM_OPTIONS),
+    [itemRateOptions],
+  );
+  const estimationSelectOptions = useMemo(() => estimationOptions.map((estimation) => estimation.estimateId).filter(Boolean), [estimationOptions]);
 
   const totals = useMemo(
     () =>
@@ -149,18 +185,20 @@ export default function Quotation() {
         (acc, row) => {
           acc.qty += Number(row.qty || 0);
           acc.total += Number(row.total || 0);
+          acc.gstTotal += Number(row.gstAmount || row.gst || 0) * Number(row.qty || 0);
+          acc.grandTotal += formData.taxMode === 'withTax' ? Number(row.totalWithGst || 0) : Number(row.total || 0);
           return acc;
         },
-        { qty: 0, total: 0 },
+        { qty: 0, total: 0, gstTotal: 0, grandTotal: 0 },
       ),
-    [rows],
+    [rows, formData.taxMode],
   );
 
   const filteredQuotations = useMemo(() => {
     const normalized = searchQuery.trim().toLowerCase();
     if (!normalized) return quotations;
     return quotations.filter((row) =>
-      `${row.quotationNo} ${row.company} ${row.forProduct} ${row.createdBy} ${row.docId}`.toLowerCase().includes(normalized),
+      `${row.quotationNo} ${row.company} ${row.forProduct} ${row.createdBy} ${row.revisionId} ${row.estimationId}`.toLowerCase().includes(normalized),
     );
   }, [quotations, searchQuery]);
 
@@ -179,47 +217,224 @@ export default function Quotation() {
     setFormData((prev) => (prev.createdBy === loggedInUserName ? prev : { ...prev, createdBy: loggedInUserName }));
   }, [loggedInUserName]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    const loadSetupOptions = async () => {
+      try {
+        const [quotationsResponse, nextNoResponse, nextRevisionResponse, customersResponse, servicesResponse, estimationsResponse, ratesResponse] = await Promise.all([
+          quotationService.list(),
+          quotationService.getNextQuotationNo('Quotation'),
+          quotationService.getNextRevisionId(),
+          customerService.list(''),
+          servicesService.list(''),
+          estimationService.list(),
+          itemRateService.list(),
+        ]);
+        if (!isActive) return;
+        setQuotations(Array.isArray(quotationsResponse?.data) ? quotationsResponse.data : []);
+        setCustomerOptions(Array.isArray(customersResponse?.data) ? customersResponse.data : []);
+        setServiceOptions(Array.isArray(servicesResponse?.data) ? servicesResponse.data : []);
+        setEstimationOptions(Array.isArray(estimationsResponse?.data) ? estimationsResponse.data : []);
+        setItemRateOptions(
+          (Array.isArray(ratesResponse?.data) ? ratesResponse.data : [])
+            .map((item) => ({
+              id: item.id,
+              name: item.item,
+              rate: item.salePrice || item.sale || item.reseller || '',
+              description: item.itemSpecification || item.specification || item.description || '',
+            }))
+            .filter((item) => item.name),
+        );
+        setFormData((prev) => ({
+          ...prev,
+          quotationNo: prev.quotationNo || nextNoResponse?.data?.quotationNo || '',
+          revisionId: prev.revisionId || nextRevisionResponse?.data?.revisionId || '',
+        }));
+      } catch {
+        if (isActive) {
+          setQuotations([]);
+          setCustomerOptions([]);
+          setServiceOptions([]);
+          setEstimationOptions([]);
+          setItemRateOptions([]);
+        }
+      }
+    };
+
+    loadSetupOptions();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const updateField = (field, value) => {
     const normalizedValue = ['price', 'qty'].includes(field) ? sanitizeNumericInput(value) : value;
     setFormData((prev) => ({ ...prev, [field]: normalizedValue }));
   };
 
-  const handleCompanyChange = (value) => {
-    const contacts = {
-      Sony: { person: 'Farman', designation: 'Salesman' },
-      Samsung: { person: 'Ali', designation: 'Manager' },
-      'Afaq Technologies': { person: 'Usman', designation: 'Coordinator' },
-      'ABC Traders': { person: 'Hamza', designation: 'Executive' },
-    };
+  const handleLetterTypeChange = async (value) => {
+    setFormData((prev) => ({ ...prev, letterType: value }));
+    try {
+      const response = await quotationService.getNextQuotationNo(value);
+      setFormData((prev) => ({ ...prev, quotationNo: response?.data?.quotationNo || prev.quotationNo }));
+    } catch (requestError) {
+      toast.error('Quotation no failed', requestError.message || 'Could not fetch next quotation number.');
+    }
+  };
+
+  const handleItemChange = (value) => {
+    const selectedRate = itemRateOptions.find((item) => item.name === value);
     setFormData((prev) => ({
       ...prev,
-      company: value,
-      person: contacts[value]?.person || '',
-      designation: contacts[value]?.designation || '',
+      item: value,
+      price: selectedRate?.rate ? String(selectedRate.rate) : prev.price,
+      itemRateId: selectedRate?.id || '',
+      description: selectedRate?.description || prev.description,
     }));
   };
 
-  const quotationDateValue = useMemo(() => {
-    const monthMap = {
-      January: '01',
-      February: '02',
-      March: '03',
-      April: '04',
-      May: '05',
-      June: '06',
-      July: '07',
-      August: '08',
-      September: '09',
-      October: '10',
-      November: '11',
-      December: '12',
-    };
+  const handleCompanyChange = async (value) => {
+    const selectedCustomer = customerOptions.find((customer) => (customer.company || customer.name) === value);
+    if (!selectedCustomer?.id) {
+      setFormData((prev) => ({ ...prev, company: value, customerId: '', person: '', designation: '', department: '' }));
+      return;
+    }
 
+    try {
+      const response = await customerService.get(selectedCustomer.id);
+      const customer = response.data || selectedCustomer;
+      setFormData((prev) => ({
+        ...prev,
+        customerId: customer.id,
+        company: customer.company || customer.name || value,
+        person: customer.person || '',
+        designation: customer.designation || '',
+        department: customer.department || '',
+      }));
+    } catch (requestError) {
+      toast.error('Customer load failed', requestError.message || 'Could not load customer details.');
+    }
+  };
+
+  const handleServiceChange = (value) => {
+    const selectedService = serviceOptions.find((service) => service.serviceName === value);
+    setFormData((prev) => ({
+      ...prev,
+      serviceId: selectedService?.id || '',
+      forProduct: selectedService?.serviceName || value,
+    }));
+  };
+
+  const fillFormFromQuotation = (quotation, nextRevisionId) => {
+    setRows(quotation.items || []);
+    setEditingRowId(null);
+    const [year, month, day] = String(quotation.quotationDate || '').split('-');
+    setFormData((prev) => ({
+      ...prev,
+      quotationNo: quotation.quotationNo || prev.quotationNo,
+      day: day || quotation.day || prev.day,
+      month: MONTH_NUMBER_TO_NAME[month] || quotation.month || prev.month,
+      year: year || quotation.year || prev.year,
+      revisionId: nextRevisionId,
+      customerId: quotation.customerId || '',
+      estimationId: quotation.estimationId || '',
+      serviceId: quotation.serviceId || '',
+      department: quotation.department || '',
+      company: quotation.company || '',
+      person: quotation.person || '',
+      designation: quotation.designation || '',
+      letterType: quotation.letterType || 'Quotation',
+      taxMode: quotation.taxMode || '',
+      forProduct: quotation.forProduct || '',
+      createdBy: quotation.createdBy || loggedInUserName,
+      item: '',
+      price: '',
+      qty: '',
+      total: '',
+      description: '',
+    }));
+  };
+
+  const handleRevisionIdChange = (value) => {
+    updateField('revisionId', value);
+  };
+
+  const handleRevisionSearch = async () => {
+    const normalizedValue = String(formData.revisionId || '').trim();
+    if (!normalizedValue) return;
+    if (!quotations.some((quotation) => String(quotation.revisionId || '').trim() === normalizedValue)) return;
+    try {
+      const response = await quotationService.getByRevisionId(normalizedValue);
+      const quotation = response.data;
+      setEditingQuotationId(null);
+      setRevisionSourceQuotationId(quotation.id);
+      setFormMode('revision');
+      fillFormFromQuotation(quotation, quotation.revisionId || normalizedValue);
+      toast.success('Revision loaded', 'Previous quotation data loaded. Saving will create a new revision.');
+    } catch (requestError) {
+      setRevisionSourceQuotationId(null);
+      toast.error('Revision not found', requestError.message || 'Could not load quotation by revision id.');
+    }
+  };
+
+  const quotationDateValue = useMemo(() => {
     const day = String(formData.day || '').padStart(2, '0');
-    const month = monthMap[formData.month] || '01';
+    const month = MONTH_NAME_TO_NUMBER[formData.month] || '01';
     const year = formData.year || new Date().getFullYear();
     return `${year}-${month}-${day}`;
   }, [formData.day, formData.month, formData.year]);
+
+  const handleEstimationChange = async (value) => {
+    const selectedEstimation = estimationOptions.find((estimation) => estimation.estimateId === value);
+    if (!selectedEstimation?.id) {
+      updateField('estimationId', value);
+      return;
+    }
+
+    try {
+      const response = await estimationService.get(selectedEstimation.id);
+      const estimation = response.data || {};
+      const estimationRows = (estimation.items || []).map((item) => {
+        const rate = Number(item.salePrice || item.salePriceWithTax || 0);
+        const qty = Number(item.qty || 0);
+        const total = rate * qty;
+        const gstAmount = (rate * 18) / 100;
+        const rateWithGst = rate + gstAmount;
+        return {
+          id: crypto.randomUUID(),
+          itemRateId: item.itemRateId || '',
+          item: item.itemName || '',
+          price: rate ? String(rate) : '',
+          qty: qty ? String(qty) : '',
+          total: total ? total.toFixed(2) : '',
+          gst: gstAmount,
+          gstAmount,
+          gstPercent: 18,
+          rateWithGst,
+          totalWithGst: rateWithGst * qty,
+          description: item.description || '',
+        };
+      });
+
+      setRows(estimationRows);
+      setFormData((prev) => ({
+        ...prev,
+        estimationId: estimation.estimateId || value,
+        customerId: estimation.customerId || '',
+        company: estimation.customerName || '',
+        person: estimation.person || '',
+        designation: estimation.designation || '',
+        department: estimation.department || '',
+        serviceId: estimation.serviceId || '',
+        forProduct: estimation.serviceName || '',
+        taxMode: prev.taxMode || 'withoutTax',
+      }));
+    } catch (requestError) {
+      toast.error('Estimation load failed', requestError.message || 'Could not load estimation details.');
+    }
+  };
 
   const handleAddItem = () => {
     if (!formData.item) {
@@ -231,12 +446,24 @@ export default function Quotation() {
       return;
     }
 
+    const price = Number(formData.price || 0);
+    const qty = Number(formData.qty || 0);
+    const total = price * qty;
+    const gstAmount = (price * 18) / 100;
+    const rateWithGst = price + gstAmount;
+
     const nextRow = {
       id: editingRowId || crypto.randomUUID(),
+      itemRateId: formData.itemRateId || itemRateOptions.find((item) => item.name === formData.item)?.id || '',
       item: formData.item,
       price: formData.price,
       qty: formData.qty,
-      total: formData.total,
+      total: total ? total.toFixed(2) : '',
+      gst: gstAmount,
+      gstAmount,
+      gstPercent: 18,
+      rateWithGst,
+      totalWithGst: rateWithGst * qty,
       description: formData.description,
     };
 
@@ -244,7 +471,9 @@ export default function Quotation() {
     setEditingRowId(null);
     setFormData((prev) => ({
       ...prev,
+      taxMode: prev.taxMode || 'withoutTax',
       item: '',
+      itemRateId: '',
       price: '',
       qty: '',
       total: '',
@@ -258,6 +487,7 @@ export default function Quotation() {
     setFormData((prev) => ({
       ...prev,
       item: row.item,
+      itemRateId: row.itemRateId || '',
       price: row.price,
       qty: row.qty,
       total: row.total,
@@ -272,74 +502,145 @@ export default function Quotation() {
     }
   };
 
-  const openCreateForm = () => {
+  const openCreateForm = async () => {
     setEditingQuotationId(null);
+    setRevisionSourceQuotationId(null);
+    setFormMode('create');
     setEditingRowId(null);
     setRows([]);
     setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
     setShowForm(true);
+    try {
+      const [nextNoResponse, nextRevisionResponse] = await Promise.all([
+        quotationService.getNextQuotationNo('Quotation'),
+        quotationService.getNextRevisionId(),
+      ]);
+      setFormData((prev) => ({
+        ...prev,
+        quotationNo: nextNoResponse?.data?.quotationNo || prev.quotationNo,
+        revisionId: nextRevisionResponse?.data?.revisionId || prev.revisionId,
+      }));
+    } catch (requestError) {
+      toast.error('Form setup failed', requestError.message || 'Could not fetch next quotation numbers.');
+    }
   };
 
   const closeForm = () => {
     setShowForm(false);
     setEditingQuotationId(null);
+    setRevisionSourceQuotationId(null);
     setEditingRowId(null);
     setRows([]);
+    setFormMode('create');
     setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
   };
 
-  const handleSaveQuotation = () => {
-    const payload = {
-      id: editingQuotationId || crypto.randomUUID(),
-      quotationNo: formData.quotationNo,
-      day: formData.day,
-      month: formData.month,
-      year: formData.year,
-      docId: formData.docId,
-      department: formData.department,
-      company: formData.company,
-      person: formData.person,
-      designation: formData.designation,
+  const buildQuotationPayload = () => ({
+      quotationDate: quotationDateValue,
+      customerId: formData.customerId || null,
+      estimationId: formData.estimationId,
+      serviceId: formData.serviceId || null,
       letterType: formData.letterType,
-      forProduct: formData.forProduct,
-      createdBy: formData.createdBy,
-      items: rows,
-      itemsTotal: totals.total.toFixed(2),
-    };
+      taxMode: formData.taxMode,
+      status: 'active',
+      items: rows.map((row) => ({
+        itemRateId: row.itemRateId,
+        itemName: row.item,
+        rate: Number(row.price || row.rate || 0),
+        qty: Number(row.qty || 0),
+        description: row.description || '',
+      })),
+  });
 
-    setQuotations((prev) => (editingQuotationId ? prev.map((item) => (item.id === editingQuotationId ? payload : item)) : [payload, ...prev]));
-    toast.success(editingQuotationId ? 'Quotation updated' : 'Quotation saved', editingQuotationId ? 'Quotation updated locally.' : 'Quotation saved locally.');
-    closeForm();
+  const validateQuotation = () => {
+    if (!quotationDateValue) return 'Quotation date is required.';
+    if (!formData.customerId) return 'Customer is required.';
+    if (!formData.letterType) return 'Letter type is required.';
+    if (!formData.taxMode) return 'Tax mode is required.';
+    if (!rows.length) return 'At least one item is required.';
+    if (rows.some((row) => !row.itemRateId)) return 'Each item must come from item rate.';
+    if (rows.some((row) => Number(row.qty || 0) <= 0)) return 'Each item qty must be greater than 0.';
+    return '';
   };
 
-  const handleEditQuotation = (quotation) => {
-    setEditingQuotationId(quotation.id);
-    setEditingRowId(null);
-    setRows(quotation.items || []);
-    setFormData({
-      quotationNo: quotation.quotationNo || '',
-      day: quotation.day || '',
-      month: quotation.month || '',
-      year: quotation.year || '',
-      docId: quotation.docId || '',
-      department: quotation.department || '',
-      company: quotation.company || '',
-      person: quotation.person || '',
-      designation: quotation.designation || '',
-      letterType: quotation.letterType || 'Quotation',
-      forProduct: quotation.forProduct || '',
-      createdBy: quotation.createdBy || loggedInUserName,
-      item: '',
-      price: '',
-      qty: '',
-      total: '',
-      description: '',
-    });
-    setShowForm(true);
+  const refreshQuotations = async () => {
+    const response = await quotationService.list();
+    setQuotations(Array.isArray(response?.data) ? response.data : []);
   };
 
-  const handleDeleteQuotation = (quotationId) => {
-    setQuotations((prev) => prev.filter((row) => row.id !== quotationId));
+  const handleSaveQuotation = async () => {
+    const validationMessage = validateQuotation();
+    if (validationMessage) {
+      toast.error('Validation failed', validationMessage);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const payload = buildQuotationPayload();
+      let response;
+      if (formMode === 'revision' && revisionSourceQuotationId) {
+        response = await quotationService.revise(revisionSourceQuotationId, payload);
+      } else if (formMode === 'edit' && editingQuotationId) {
+        response = await quotationService.update(editingQuotationId, payload);
+      } else {
+        response = await quotationService.create(payload);
+      }
+
+      const saved = response?.data || {};
+      await refreshQuotations();
+      toast.success(formMode === 'revision' ? 'Revision saved' : formMode === 'edit' ? 'Quotation updated' : 'Quotation saved', saved.revisionId ? `Saved as revision ${saved.revisionId}.` : 'Record saved successfully.');
+      closeForm();
+    } catch (requestError) {
+      toast.error('Save failed', requestError?.response?.data?.message || requestError.message || 'Could not save quotation.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleEditQuotation = async (quotation) => {
+    try {
+      const response = await quotationService.get(quotation.id);
+      const loadedQuotation = response.data || quotation;
+      const [year, month, day] = String(loadedQuotation.quotationDate || '').split('-');
+      setEditingQuotationId(loadedQuotation.id);
+      setRevisionSourceQuotationId(null);
+      setFormMode('edit');
+      setEditingRowId(null);
+      setRows(loadedQuotation.items || []);
+      setFormData({
+        ...EMPTY_FORM,
+        quotationNo: loadedQuotation.quotationNo || '',
+        day: day || loadedQuotation.day || EMPTY_FORM.day,
+        month: MONTH_NUMBER_TO_NAME[month] || loadedQuotation.month || EMPTY_FORM.month,
+        year: year || loadedQuotation.year || EMPTY_FORM.year,
+        revisionId: loadedQuotation.revisionId || loadedQuotation.docId || '',
+        customerId: loadedQuotation.customerId || '',
+        estimationId: loadedQuotation.estimationId || '',
+        serviceId: loadedQuotation.serviceId || '',
+        department: loadedQuotation.department || '',
+        company: loadedQuotation.company || '',
+        person: loadedQuotation.person || '',
+        designation: loadedQuotation.designation || '',
+        letterType: loadedQuotation.letterType || 'Quotation',
+        taxMode: loadedQuotation.taxMode || '',
+        forProduct: loadedQuotation.forProduct || '',
+        createdBy: loadedQuotation.createdBy || loggedInUserName,
+      });
+      setShowForm(true);
+    } catch (requestError) {
+      toast.error('Load failed', requestError.message || 'Could not load quotation details.');
+    }
+  };
+
+  const handleDeleteQuotation = async (quotationId) => {
+    try {
+      await quotationService.remove(quotationId);
+      await refreshQuotations();
+      toast.success('Quotation deleted', 'Quotation record deleted successfully.');
+    } catch (requestError) {
+      toast.error('Delete failed', requestError.message || 'Could not delete quotation.');
+    }
   };
 
   return (
@@ -383,7 +684,7 @@ export default function Quotation() {
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Quotation No</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Customer</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">For Product</th>
-                        <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Doc ID</th>
+                        <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Revision ID</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Items Total</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">Actions</th>
                       </tr>
@@ -400,7 +701,7 @@ export default function Quotation() {
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-900 whitespace-nowrap">{row.quotationNo}</td>
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{row.company || '-'}</td>
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{row.forProduct || '-'}</td>
-                            <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{row.docId || '-'}</td>
+                            <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{row.revisionId || '-'}</td>
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-brand whitespace-nowrap">{row.itemsTotal || '0.00'}</td>
                             <td className="border-b border-gray-50/30 px-5 py-6 text-right whitespace-nowrap">
                               <div className="flex items-center justify-end gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
@@ -448,7 +749,7 @@ export default function Quotation() {
               <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Quotation Setup</h3>
-                  <p className="mt-1 text-xs text-slate-500">Quotation no, date, doc id, department, customer, and related contact details.</p>
+                  <p className="mt-1 text-xs text-slate-500">Quotation no, date, revision id, employee, department, customer, and related contact details.</p>
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200/70 text-brand">
                   <FileText className="h-4 w-4" />
@@ -460,7 +761,7 @@ export default function Quotation() {
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,0.95fr)_minmax(0,0.95fr)]">
                     <div className={COMPACT_SMALL_FIELD_WRAPPER_CLASS_NAME}>
                       <FieldLabel>Quotation No</FieldLabel>
-                      <input type="text" value={formData.quotationNo} onChange={(event) => updateField('quotationNo', event.target.value)} className={INPUT_CLASS_NAME} />
+                      <input type="text" value={formData.quotationNo} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
                     </div>
                     <div className={`space-y-2 ${COMPACT_SMALL_FIELD_WRAPPER_CLASS_NAME}`}>
                       <FieldLabel>Date</FieldLabel>
@@ -472,20 +773,7 @@ export default function Quotation() {
                           updateField('year', year || '');
                           updateField(
                             'month',
-                            {
-                              '01': 'January',
-                              '02': 'February',
-                              '03': 'March',
-                              '04': 'April',
-                              '05': 'May',
-                              '06': 'June',
-                              '07': 'July',
-                              '08': 'August',
-                              '09': 'September',
-                              '10': 'October',
-                              '11': 'November',
-                              '12': 'December',
-                            }[month] || '',
+                            MONTH_NUMBER_TO_NAME[month] || '',
                           );
                           updateField('day', day || '');
                         }}
@@ -501,23 +789,36 @@ export default function Quotation() {
                     <div className={`md:col-span-2 ${COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME}`}>
                       <ReadOnlyField label="Designation" value={formData.designation} placeholder="Auto-filled from customer" />
                     </div>
+                    <div className="flex flex-wrap items-center gap-5 md:col-span-2">
+                      <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <input type="radio" checked={formData.taxMode === 'withoutTax'} onChange={() => updateField('taxMode', 'withoutTax')} className="h-4 w-4 border-slate-300 text-slate-700 focus:ring-slate-300" />
+                        <span>Without Tax</span>
+                      </label>
+                      <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                        <input type="radio" checked={formData.taxMode === 'withTax'} onChange={() => updateField('taxMode', 'withTax')} className="h-4 w-4 border-slate-300 text-slate-700 focus:ring-slate-300" />
+                        <span>With Tax</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
                 <div className="xl:col-span-6">
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:pt-0">
                     <div className={COMPACT_SMALL_FIELD_WRAPPER_CLASS_NAME}>
-                      <FieldLabel>Doc ID</FieldLabel>
-                      <input type="text" value={formData.docId} onChange={(event) => updateField('docId', event.target.value)} className={INPUT_CLASS_NAME} />
+                      <FieldLabel>Revision ID</FieldLabel>
+                      <input type="text" value={formData.revisionId} onChange={(event) => handleRevisionIdChange(event.target.value)} onBlur={handleRevisionSearch} className={INPUT_CLASS_NAME} />
+                    </div>
+                    <div className={COMPACT_SMALL_FIELD_WRAPPER_CLASS_NAME}>
+                      <SearchableSelect selectId="estimationId" label="Estimation ID" value={formData.estimationId} options={estimationSelectOptions} placeholder="Select estimation" searchablePlaceholder="Search estimation" onChange={handleEstimationChange} isOpen={openSelectId === 'estimationId'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                     </div>
                     <div className={`md:col-span-2 ${COMPACT_FIELD_WRAPPER_CLASS_NAME}`}>
-                      <SearchableSelect selectId="forProduct" label="For Product" value={formData.forProduct} options={productOptions} placeholder="Select product" searchablePlaceholder="Search product" onChange={(value) => updateField('forProduct', value)} isOpen={openSelectId === 'forProduct'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                      <SearchableSelect selectId="forProduct" label="For Product" value={formData.forProduct} options={productOptions} placeholder="Select product" searchablePlaceholder="Search product" onChange={handleServiceChange} isOpen={openSelectId === 'forProduct'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                     </div>
                     <div className={COMPACT_SMALL_FIELD_WRAPPER_CLASS_NAME}>
-                      <SearchableSelect selectId="department" label="Department" value={formData.department} options={departmentOptions} placeholder="Select department" searchablePlaceholder="Search department" onChange={(value) => updateField('department', value)} isOpen={openSelectId === 'department'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                      <ReadOnlyField label="Department" value={formData.department} placeholder="Auto-filled from customer" />
                     </div>
                     <div className={COMPACT_SMALL_FIELD_WRAPPER_CLASS_NAME}>
-                      <SearchableSelect selectId="letterType" label="Letter Type" value={formData.letterType} options={letterTypeOptions} placeholder="Select letter type" searchablePlaceholder="Search letter type" onChange={(value) => updateField('letterType', value)} isOpen={openSelectId === 'letterType'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                      <SearchableSelect selectId="letterType" label="Letter Type" value={formData.letterType} options={letterTypeOptions} placeholder="Select letter type" searchablePlaceholder="Search letter type" onChange={handleLetterTypeChange} isOpen={openSelectId === 'letterType'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                     </div>
                     <div className={COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME}>
                       <ReadOnlyField label="Created By" value={formData.createdBy} placeholder="Logged in user" />
@@ -541,7 +842,7 @@ export default function Quotation() {
               <div className="grid grid-cols-1 gap-6 p-6">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
                   <div className="md:col-span-5">
-                    <SearchableSelect selectId="item" label="Item" value={formData.item} options={itemOptions} placeholder="Select product" searchablePlaceholder="Search item" onChange={(value) => updateField('item', value)} isOpen={openSelectId === 'item'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
+                    <SearchableSelect selectId="item" label="Item" value={formData.item} options={itemOptions} placeholder="Select product" searchablePlaceholder="Search item" onChange={handleItemChange} isOpen={openSelectId === 'item'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <FieldLabel>Price</FieldLabel>
@@ -571,64 +872,85 @@ export default function Quotation() {
                 </div>
 
                 {rows.length ? (
-                  <section className={SECTION_PANEL_CLASS_NAME}>
-                    <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
-                      <div>
-                        <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Queued Items</h3>
-                        <p className="mt-1 text-xs text-slate-500">Review, edit, or remove quotation items before final save.</p>
-                      </div>
-                      <div className="rounded-xl border border-slate-300/80 bg-white px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-600">
-                        {rows.length} {rows.length === 1 ? 'Item' : 'Items'}
-                      </div>
+                <section className={SECTION_PANEL_CLASS_NAME}>
+                  <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
+                    <div>
+                      <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Queued Items</h3>
+                      <p className="mt-1 text-xs text-slate-500">Review, edit, or remove quotation items before final save.</p>
                     </div>
-                    <div className="overflow-x-auto p-6">
-                    <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
-                      <thead>
+                    <div className="rounded-xl border border-slate-300/80 bg-white px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-600">
+                      {rows.length} {rows.length === 1 ? 'Item' : 'Items'}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto p-6">
+                  <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+                    <thead>
+                      {formData.taxMode === 'withTax' ? (
                         <tr className="bg-slate-100/80">
                           <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
                           <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Price</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">18% GST</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate With GST</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Total With GST</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Actions</th>
+                        </tr>
+                      ) : (
+                        <tr className="bg-slate-100/80">
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
                           <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
                           <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Total</th>
                           <th className="border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Actions</th>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {rows.map((row, index) => (
-                          <tr key={row.id} className="odd:bg-white even:bg-slate-50/45 transition-colors hover:bg-brand-light/30">
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-600">{index + 1}</td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-900">{row.item}</td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{row.price || '-'}</td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{row.qty || '-'}</td>
+                      )}
+                    </thead>
+                    <tbody>
+                      {rows.map((row, index) => (
+                        <tr key={row.id} className="odd:bg-white even:bg-slate-50/45 transition-colors hover:bg-brand-light/30">
+                          <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-600">{index + 1}</td>
+                          <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-900">{row.item}</td>
+                          <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{row.price || '-'}</td>
+                          <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{row.qty || '-'}</td>
+                          {formData.taxMode === 'withTax' ? (
+                            <>
+                              <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{Number(row.gst || 0).toFixed(2)}</td>
+                              <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{Number(row.rateWithGst || 0).toFixed(2)}</td>
+                              <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-brand">{Number(row.totalWithGst || 0).toFixed(2)}</td>
+                            </>
+                          ) : (
                             <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-brand">{row.total || '-'}</td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-right whitespace-nowrap">
-                              <div className="flex items-center justify-end gap-2">
-                                <button type="button" onClick={() => handleEditRow(row)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-brand/20 hover:bg-brand-light hover:text-brand">
-                                  <Edit2 className="h-4 w-4" />
-                                </button>
-                                <button type="button" onClick={() => handleDeleteRow(row.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <div className="flex flex-wrap items-center justify-end gap-8 border-t border-slate-200/80 px-6 py-4 text-sm font-semibold text-slate-700">
-                      <p>Total Qty: <span className="ml-2 tabular-nums text-slate-900">{totals.qty.toFixed(2)}</span></p>
-                      <p>Items Total: <span className="ml-2 tabular-nums text-brand">{totals.total.toFixed(2)}</span></p>
-                    </div>
+                          )}
+                          <td className="border-b border-slate-100 px-4 py-4 text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2">
+                              <button type="button" onClick={() => handleEditRow(row)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-brand/20 hover:bg-brand-light hover:text-brand">
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button type="button" onClick={() => handleDeleteRow(row.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="flex flex-wrap items-center justify-end gap-8 border-t border-slate-200/80 px-6 py-4 text-sm font-semibold text-slate-700">
+                    <p>Total Qty: <span className="ml-2 tabular-nums text-slate-900">{totals.qty.toFixed(2)}</span></p>
+                    <p>Items Total: <span className="ml-2 tabular-nums text-brand">{totals.total.toFixed(2)}</span></p>
                   </div>
-                  </section>
+                </div>
+                </section>
                 ) : null}
               </div>
             </section>
 
             <div className="flex items-center justify-end rounded-2xl border border-slate-300/80 bg-slate-50/95 px-6 py-4">
-              <button type="button" onClick={handleSaveQuotation} className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover">
+              <button type="button" onClick={handleSaveQuotation} disabled={isSaving} className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-60">
                 <Save className="h-4.5 w-4.5" />
-                {editingQuotationId ? 'Update Quotation' : 'Save Quotation'}
+                {isSaving ? 'Saving...' : editingQuotationId ? 'Update Quotation' : formMode === 'revision' ? 'Save Revision' : 'Save Quotation'}
               </button>
             </div>
           </div>

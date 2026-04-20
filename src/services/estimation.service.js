@@ -47,6 +47,7 @@ function normalize(item) {
     customerName: pickFirstDefined(item.customerCompany, item.customer_name, item.customerName, item.customer?.company, item.customer?.customer_name),
     person: pickFirstDefined(item.person, item.customer_person, item.customerPerson),
     designation: pickFirstDefined(item.designation, item.customer_designation, item.customerDesignation),
+    department: pickFirstDefined(item.department, item.customer_department, item.customerDepartment, item.customer?.department),
     serviceId: pickFirstDefined(item.service_id, item.serviceId),
     serviceName: pickFirstDefined(item.service, item.service_name, item.serviceName, item.service?.service_name),
     createdBy: pickFirstDefined(item.created_by, item.createdBy, item.created_by_name),
