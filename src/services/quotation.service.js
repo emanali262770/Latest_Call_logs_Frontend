@@ -82,9 +82,26 @@ function unwrapData(response) {
   return response?.data?.data || response?.data || {};
 }
 
+function normalizeWithDelivery(response) {
+  const payload = unwrapData(response);
+  return {
+    ...normalize(payload),
+    delivery: payload.delivery,
+  };
+}
+
 export const quotationService = {
   async list(params = {}) {
-    const response = await axiosInstance.get('/quotations', { params });
+    const response = await axiosInstance.get('/quotations', {
+      params: {
+        ...params,
+        _t: Date.now(),
+      },
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    });
     return {
       ...response,
       data: extractRows(response).map(normalize),
@@ -135,7 +152,7 @@ export const quotationService = {
     const response = await axiosInstance.post('/quotations', values);
     return {
       ...response,
-      data: normalize(unwrapData(response)),
+      data: normalizeWithDelivery(response),
     };
   },
 
@@ -143,7 +160,7 @@ export const quotationService = {
     const response = await axiosInstance.post(`/quotations/${id}/revise`, values);
     return {
       ...response,
-      data: normalize(unwrapData(response)),
+      data: normalizeWithDelivery(response),
     };
   },
 
@@ -151,8 +168,17 @@ export const quotationService = {
     const response = await axiosInstance.put(`/quotations/${id}`, values);
     return {
       ...response,
-      data: normalize(unwrapData(response)),
+      data: normalizeWithDelivery(response),
     };
+  },
+
+  async send(id) {
+    return axiosInstance.post(`/quotations/${id}/send`, { email: true });
+  },
+
+  async printSingle(id) {
+    const response = await axiosInstance.get(`/quotations/${id}/print`);
+    return response?.data?.data || response?.data || {};
   },
 
   async remove(id) {

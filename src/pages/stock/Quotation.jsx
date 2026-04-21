@@ -1,9 +1,11 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
-import { ArrowLeft, ChevronDown, Edit2, FileText, Package, Plus, Save, Search as SearchIcon, Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
+import { ArrowLeft, ChevronDown, Edit2, FileText, Package, Plus, Printer, Save, Search as SearchIcon, Trash2 } from 'lucide-react';
 import { Button, Card } from '@/src/components/ui/Card';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
-import { getStoredUser } from '@/src/lib/auth';
+import { getStoredUser, hasPermission } from '@/src/lib/auth';
+import AccessDenied from '@/src/pages/AccessDenied';
+import { printSingleQuotation } from '@/src/pages/stock/prints/quotationPrint';
 import { customerService } from '@/src/services/customer.service';
 import { estimationService } from '@/src/services/estimation.service';
 import { itemRateService } from '@/src/services/itemRate.service';
@@ -151,6 +153,12 @@ function SearchableSelect({ selectId, label, value, options, placeholder, search
 }
 
 export default function Quotation() {
+  const canRead = hasPermission('INVENTORY.QUOTATION.READ');
+  const canCreate = hasPermission('INVENTORY.QUOTATION.CREATE');
+  const canEdit = hasPermission('INVENTORY.QUOTATION.UPDATE');
+  const canDelete = hasPermission('INVENTORY.QUOTATION.DELETE');
+  const canPrint = hasPermission('INVENTORY.QUOTATION.PRINT');
+  const hasRowActions = canEdit || canDelete || canPrint;
   const storedUser = useMemo(() => getStoredUser(), []);
   const loggedInUserName = storedUser?.fullName || storedUser?.username || 'admin';
   const [formData, setFormData] = useState(EMPTY_FORM);
@@ -222,8 +230,19 @@ export default function Quotation() {
 
     const loadSetupOptions = async () => {
       try {
-        const [quotationsResponse, nextNoResponse, nextRevisionResponse, customersResponse, servicesResponse, estimationsResponse, ratesResponse] = await Promise.all([
-          quotationService.list(),
+        const quotationsResponse = await quotationService.list();
+        if (!isActive) return;
+        setQuotations(Array.isArray(quotationsResponse?.data) ? quotationsResponse.data : []);
+      } catch {
+        if (isActive) {
+          setQuotations([]);
+        }
+      }
+
+      if (!canCreate && !canEdit) return;
+
+      try {
+        const [nextNoResponse, nextRevisionResponse, customersResponse, servicesResponse, estimationsResponse, ratesResponse] = await Promise.all([
           quotationService.getNextQuotationNo('Quotation'),
           quotationService.getNextRevisionId(),
           customerService.list(''),
@@ -232,7 +251,6 @@ export default function Quotation() {
           itemRateService.list(),
         ]);
         if (!isActive) return;
-        setQuotations(Array.isArray(quotationsResponse?.data) ? quotationsResponse.data : []);
         setCustomerOptions(Array.isArray(customersResponse?.data) ? customersResponse.data : []);
         setServiceOptions(Array.isArray(servicesResponse?.data) ? servicesResponse.data : []);
         setEstimationOptions(Array.isArray(estimationsResponse?.data) ? estimationsResponse.data : []);
@@ -253,7 +271,6 @@ export default function Quotation() {
         }));
       } catch {
         if (isActive) {
-          setQuotations([]);
           setCustomerOptions([]);
           setServiceOptions([]);
           setEstimationOptions([]);
@@ -267,7 +284,7 @@ export default function Quotation() {
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [canCreate, canEdit]);
 
   const updateField = (field, value) => {
     const normalizedValue = ['price', 'qty'].includes(field) ? sanitizeNumericInput(value) : value;
@@ -542,6 +559,7 @@ export default function Quotation() {
       serviceId: formData.serviceId || null,
       letterType: formData.letterType,
       taxMode: formData.taxMode,
+      sendEmail: true,
       status: 'active',
       items: rows.map((row) => ({
         itemRateId: row.itemRateId,
@@ -588,8 +606,20 @@ export default function Quotation() {
       }
 
       const saved = response?.data || {};
+      const emailDelivery = saved.delivery?.email;
+      console.log('email delivery:', emailDelivery);
       await refreshQuotations();
-      toast.success(formMode === 'revision' ? 'Revision saved' : formMode === 'edit' ? 'Quotation updated' : 'Quotation saved', saved.revisionId ? `Saved as revision ${saved.revisionId}.` : 'Record saved successfully.');
+      if (emailDelivery?.sent) {
+        toast.success(
+          formMode === 'revision' ? 'Revision saved' : formMode === 'edit' ? 'Quotation updated' : 'Quotation saved',
+          `PDF emailed to ${emailDelivery.to}.`,
+        );
+      } else {
+        toast.error(
+          'Email not sent',
+          emailDelivery?.reason || emailDelivery?.error || 'Quotation saved, but email was not sent.',
+        );
+      }
       closeForm();
     } catch (requestError) {
       toast.error('Save failed', requestError?.response?.data?.message || requestError.message || 'Could not save quotation.');
@@ -643,8 +673,20 @@ export default function Quotation() {
     }
   };
 
+  const handlePrintQuotation = useCallback(async (quotation) => {
+    try {
+      const payload = await quotationService.printSingle(quotation.id);
+      printSingleQuotation(payload);
+    } catch (requestError) {
+      toast.error('Print failed', requestError?.response?.data?.message || requestError.message || 'Could not load quotation print data.');
+    }
+  }, [toast]);
+
   return (
     <div className="space-y-8">
+      {!canRead ? <AccessDenied /> : null}
+      {canRead ? (
+      <>
       {!showForm ? (
         <>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -652,9 +694,11 @@ export default function Quotation() {
               <h1 className="text-3xl font-bold tracking-tight text-gray-900">Quotation</h1>
               <p className="mt-1 text-gray-500">Manage quotation records with the same table flow as estimation.</p>
             </div>
+            {canCreate ? (
             <Button onClick={openCreateForm} icon={<Plus className="h-4 w-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
               Add Quotation
             </Button>
+            ) : null}
           </div>
 
           <Card className="border-none p-0 shadow-xl shadow-gray-200/50">
@@ -686,13 +730,13 @@ export default function Quotation() {
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">For Product</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Revision ID</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Items Total</th>
-                        <th className="border-b border-gray-100/60 px-5 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">Actions</th>
+                        {hasRowActions ? <th className="border-b border-gray-100/60 px-5 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">Actions</th> : null}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50/50">
                       {filteredQuotations.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="px-5 py-20 text-center text-sm font-medium text-gray-400">No quotation records found.</td>
+                          <td colSpan={hasRowActions ? 7 : 6} className="px-5 py-20 text-center text-sm font-medium text-gray-400">No quotation records found.</td>
                         </tr>
                       ) : (
                         filteredQuotations.map((row, index) => (
@@ -703,16 +747,21 @@ export default function Quotation() {
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{row.forProduct || '-'}</td>
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{row.revisionId || '-'}</td>
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-brand whitespace-nowrap">{row.itemsTotal || '0.00'}</td>
+                            {hasRowActions ? (
                             <td className="border-b border-gray-50/30 px-5 py-6 text-right whitespace-nowrap">
                               <div className="flex items-center justify-end gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
-                                <button type="button" onClick={() => handleEditQuotation(row)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95">
+                                {canPrint ? <button type="button" title="Print" onClick={() => handlePrintQuotation(row)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-violet-600 hover:shadow-xl hover:shadow-violet-100/50 active:scale-95">
+                                  <Printer className="h-4.5 w-4.5" />
+                                </button> : null}
+                                {canEdit ? <button type="button" onClick={() => handleEditQuotation(row)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95">
                                   <Edit2 className="h-4.5 w-4.5" />
-                                </button>
-                                <button type="button" onClick={() => handleDeleteQuotation(row.id)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95">
+                                </button> : null}
+                                {canDelete ? <button type="button" onClick={() => handleDeleteQuotation(row.id)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95">
                                   <Trash2 className="h-4.5 w-4.5" />
-                                </button>
+                                </button> : null}
                               </div>
                             </td>
+                            ) : null}
                           </tr>
                         ))
                       )}
@@ -957,6 +1006,8 @@ export default function Quotation() {
         </div>
       </div>
       )}
+      </>
+      ) : null}
       <ThemeToastViewport toasts={toasts} onClose={removeToast} />
     </div>
   );

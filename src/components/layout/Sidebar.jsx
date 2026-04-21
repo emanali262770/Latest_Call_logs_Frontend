@@ -300,11 +300,6 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
       return;
     }
 
-    if (item.path === '/stock/estimation' || item.path === '/stock/quotation') {
-      navigate(item.path);
-      return;
-    }
-
     navigate('/access-denied');
   };
 

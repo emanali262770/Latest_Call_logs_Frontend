@@ -196,8 +196,12 @@ export default function App() {
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-rate')} />}>
             <Route path="/stock/item-rate" element={<ItemRate />} />
           </Route>
-          <Route path="/stock/estimation" element={<Estimation />} />
-          <Route path="/stock/quotation" element={<Quotation />} />
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/estimation')} />}>
+            <Route path="/stock/estimation" element={<Estimation />} />
+          </Route>
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/quotation')} />}>
+            <Route path="/stock/quotation" element={<Quotation />} />
+          </Route>
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/opening-stock')} />}>
             <Route path="/stock/opening-stock" element={<OpeningStock />} />
           </Route>

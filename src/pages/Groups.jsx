@@ -25,7 +25,7 @@ const ACTION_SEQUENCE = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'ASSIGN'];
 const TREE_LEVEL_SEQUENCE = {
   ROOT: ['DASHBOARD', 'EMPLOYEES', 'ACCESS CONTROL', 'STOCK', 'SERVICES & PRODUCTS', 'SETUP', 'REPORTS', 'SETTINGS'],
   'ACCESS CONTROL': ['GROUPS', 'USERS', 'PERMISSIONS'],
-  STOCK: ['ITEM_DEFINITION', 'ITEM_RATE', 'ESTIMATION', 'OPENING_STOCK'],
+  STOCK: ['ITEM_DEFINITION', 'ITEM_RATE', 'ESTIMATION', 'QUOTATION', 'OPENING_STOCK'],
   'SERVICES & PRODUCTS': ['SERVICE'],
   REPORTS: ['ITEM_REPORT'],
   SETUP: ['COMPANY', 'EMPLOYEE SETUP', 'ITEMS', 'CUSTOMERS'],
@@ -87,11 +87,11 @@ const LABEL_OVERRIDES = {
   CUSTOMER_GROUP: 'Group',
   CUSTOMER_GROUPS: 'Group',
   GROUP: 'Group',
-  GROUPS: 'Group',
   ITEM_DEFINITION: 'Item Definition',
   ITEM_DEFINITIONS: 'Item Definition',
   ITEM_RATE: 'Item Rate',
   ESTIMATION: 'Estimation',
+  QUOTATION: 'Quotation',
   OPENING_STOCK: 'Opening Stock',
   ITEM_REPORT: 'Item Report',
   REPORTS: 'Reports',
@@ -194,6 +194,10 @@ function getPermissionTreePath(permission) {
 
   if (moduleName === 'INVENTORY' && subModuleName === 'ESTIMATION') {
     return ['STOCK', 'ESTIMATION'];
+  }
+
+  if (moduleName === 'INVENTORY' && subModuleName === 'QUOTATION') {
+    return ['STOCK', 'QUOTATION'];
   }
 
   if (moduleName === 'INVENTORY' && subModuleName === 'ITEM_REPORT') {
@@ -627,7 +631,10 @@ export default function Groups() {
     () => new Set(currentGroupPermissions.assignedItems.map((permission) => permission.id)),
     [currentGroupPermissions.assignedItems],
   );
-  const savedPermissions = savedGroupPermissions[selectedGroup?.id] || [];
+  const savedPermissions = useMemo(
+    () => savedGroupPermissions[selectedGroup?.id] || [],
+    [savedGroupPermissions, selectedGroup?.id],
+  );
   const groupPermissionsLoading = groupPermissionsLoadingByGroup[selectedGroup?.id] ?? false;
   const groupPermissionsError = groupPermissionsErrorByGroup[selectedGroup?.id] || '';
   const hasUnsavedChanges = useMemo(

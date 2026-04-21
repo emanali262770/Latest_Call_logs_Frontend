@@ -25,7 +25,7 @@ const MODULE_LABEL_MAP = {
 const SUBMODULE_SEQUENCE = {
   EMPLOYEE: ['EMPLOYEE', 'DEPARTMENT', 'DESIGNATION', 'EMPLOYEE_TYPE', 'DUTY_SHIFT', 'BANK'],
   ACCESS: ['USERS', 'GROUPS', 'PERMISSIONS'],
-  STOCK: ['ITEM_DEFINITION', 'ITEM_RATE', 'ESTIMATION', 'OPENING_STOCK', 'CUSTOMER', 'CUSTOMER_GROUP', 'ITEM_REPORT'],
+  STOCK: ['ITEM_DEFINITION', 'ITEM_RATE', 'ESTIMATION', 'QUOTATION', 'OPENING_STOCK', 'CUSTOMER', 'CUSTOMER_GROUP', 'ITEM_REPORT'],
 };
 
 function toGroupCode(groupName = '') {
@@ -251,23 +251,31 @@ function buildPermissionTree(items) {
       { module: left.label, subModule: '', action: '', id: left.id },
       { module: right.label, subModule: '', action: '', id: right.id },
     ))
-    .map(({ subModuleMap, ...moduleNode }) => ({
-      ...moduleNode,
-      children: moduleNode.children
-        .sort((left, right) => comparePermissionDisplayOrder(
-          { module: moduleNode.label, subModule: left.label, action: '', id: left.id },
-          { module: moduleNode.label, subModule: right.label, action: '', id: right.id },
-        ))
-        .map((subModuleNode) => ({
-          ...subModuleNode,
-          children: subModuleNode.children.sort((left, right) =>
-            comparePermissionDisplayOrder(
-              { module: moduleNode.label, subModule: subModuleNode.label, action: left.label, id: left.id },
-              { module: moduleNode.label, subModule: subModuleNode.label, action: right.label, id: right.id },
+    .map((moduleNodeWithMap) => {
+      const moduleNode = {
+        id: moduleNodeWithMap.id,
+        label: moduleNodeWithMap.label,
+        children: moduleNodeWithMap.children,
+      };
+
+      return {
+        ...moduleNode,
+        children: moduleNode.children
+          .sort((left, right) => comparePermissionDisplayOrder(
+            { module: moduleNode.label, subModule: left.label, action: '', id: left.id },
+            { module: moduleNode.label, subModule: right.label, action: '', id: right.id },
+          ))
+          .map((subModuleNode) => ({
+            ...subModuleNode,
+            children: subModuleNode.children.sort((left, right) =>
+              comparePermissionDisplayOrder(
+                { module: moduleNode.label, subModule: subModuleNode.label, action: left.label, id: left.id },
+                { module: moduleNode.label, subModule: subModuleNode.label, action: right.label, id: right.id },
+              ),
             ),
-          ),
-        })),
-    }));
+          })),
+      };
+    });
 }
 
 function flattenPermissionLeaves(nodes) {
