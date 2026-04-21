@@ -256,27 +256,28 @@ export default function Estimation() {
     setSetupError('');
 
     try {
-      const [customersResponse, servicesResponse, itemRatesResponse] = await Promise.all([
+      const [customersResult, servicesResult, itemRatesResult] = await Promise.allSettled([
         customerService.list(),
         servicesService.list(),
         itemRateService.list(),
       ]);
 
-    
-      
+      const customersData = customersResult.status === 'fulfilled' ? (customersResult.value.data ?? []) : [];
+      const servicesData = servicesResult.status === 'fulfilled' ? (servicesResult.value.data ?? []) : [];
+      const itemRatesData = itemRatesResult.status === 'fulfilled' ? (itemRatesResult.value.data ?? []) : [];
 
       setSetupOptions({
-        customers: customersResponse.data.map((c) => ({
+        customers: customersData.map((c) => ({
           id: c.id,
           company: c.company || c.name || '',
           person: c.person || '',
           designation: c.designation || '',
         })),
-        services: servicesResponse.data.map((s) => ({
+        services: servicesData.map((s) => ({
           id: s.id,
           serviceName: s.serviceName || '',
         })),
-        itemRates: itemRatesResponse.data.map((r) => ({
+        itemRates: itemRatesData.map((r) => ({
           id: r.id,
           item: r.item || '',
           itemSpecification: r.raw?.item_specification ?? r.raw?.itemSpecification ?? r.itemSpecification ?? '',
@@ -285,6 +286,10 @@ export default function Estimation() {
           salePriceWithTax: r.raw?.sale_price_with_tax ?? r.raw?.salePriceWithTax ?? r.sale ?? '',
         })),
       });
+
+      if (customersResult.status === 'rejected') {
+        setSetupError(customersResult.reason?.message || 'Failed to load customers.');
+      }
     } catch (requestError) {
       setSetupError(requestError.message || 'Failed to load estimation form setup options.');
     } finally {

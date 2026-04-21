@@ -182,7 +182,7 @@ export default function Quotation() {
   const companyOptions = useMemo(() => customerOptions.map((customer) => customer.company || customer.name).filter(Boolean), [customerOptions]);
   const productOptions = useMemo(() => serviceOptions.map((service) => service.serviceName).filter(Boolean), [serviceOptions]);
   const itemOptions = useMemo(
-    () => (itemRateOptions.length ? itemRateOptions.map((item) => item.name) : FALLBACK_ITEM_OPTIONS),
+    () => itemRateOptions.map((item) => item.name),
     [itemRateOptions],
   );
   const estimationSelectOptions = useMemo(() => estimationOptions.map((estimation) => estimation.estimateId).filter(Boolean), [estimationOptions]);
@@ -242,7 +242,7 @@ export default function Quotation() {
       if (!canCreate && !canEdit) return;
 
       try {
-        const [nextNoResponse, nextRevisionResponse, customersResponse, servicesResponse, estimationsResponse, ratesResponse] = await Promise.all([
+        const [nextNoResult, nextRevisionResult, customersResult, servicesResult, estimationsResult, ratesResult] = await Promise.allSettled([
           quotationService.getNextQuotationNo('Quotation'),
           quotationService.getNextRevisionId(),
           customerService.list(''),
@@ -251,11 +251,19 @@ export default function Quotation() {
           itemRateService.list(),
         ]);
         if (!isActive) return;
-        setCustomerOptions(Array.isArray(customersResponse?.data) ? customersResponse.data : []);
-        setServiceOptions(Array.isArray(servicesResponse?.data) ? servicesResponse.data : []);
-        setEstimationOptions(Array.isArray(estimationsResponse?.data) ? estimationsResponse.data : []);
+
+        const customersData = customersResult.status === 'fulfilled' ? (customersResult.value?.data ?? []) : [];
+        const servicesData = servicesResult.status === 'fulfilled' ? (servicesResult.value?.data ?? []) : [];
+        const estimationsData = estimationsResult.status === 'fulfilled' ? (estimationsResult.value?.data ?? []) : [];
+        const ratesData = ratesResult.status === 'fulfilled' ? (ratesResult.value?.data ?? []) : [];
+        const nextNo = nextNoResult.status === 'fulfilled' ? nextNoResult.value : null;
+        const nextRevision = nextRevisionResult.status === 'fulfilled' ? nextRevisionResult.value : null;
+
+        setCustomerOptions(Array.isArray(customersData) ? customersData : []);
+        setServiceOptions(Array.isArray(servicesData) ? servicesData : []);
+        setEstimationOptions(Array.isArray(estimationsData) ? estimationsData : []);
         setItemRateOptions(
-          (Array.isArray(ratesResponse?.data) ? ratesResponse.data : [])
+          (Array.isArray(ratesData) ? ratesData : [])
             .map((item) => ({
               id: item.id,
               name: item.item,
@@ -266,8 +274,8 @@ export default function Quotation() {
         );
         setFormData((prev) => ({
           ...prev,
-          quotationNo: prev.quotationNo || nextNoResponse?.data?.quotationNo || '',
-          revisionId: prev.revisionId || nextRevisionResponse?.data?.revisionId || '',
+          quotationNo: prev.quotationNo || nextNo?.data?.quotationNo || '',
+          revisionId: prev.revisionId || nextRevision?.data?.revisionId || '',
         }));
       } catch {
         if (isActive) {
@@ -988,7 +996,7 @@ export default function Quotation() {
                   </table>
                   <div className="flex flex-wrap items-center justify-end gap-8 border-t border-slate-200/80 px-6 py-4 text-sm font-semibold text-slate-700">
                     <p>Total Qty: <span className="ml-2 tabular-nums text-slate-900">{totals.qty.toFixed(2)}</span></p>
-                    <p>Items Total: <span className="ml-2 tabular-nums text-brand">{totals.total.toFixed(2)}</span></p>
+                    <p>Items Total: <span className="ml-2 tabular-nums text-brand">{totals.grandTotal.toFixed(2)}</span></p>
                   </div>
                 </div>
                 </section>

@@ -5,6 +5,7 @@ import { AccessControlShell, Modal } from '@/src/components/access-control/Acces
 import { Card, Button, Badge } from '@/src/components/ui/Card';
 import TablePagination from '@/src/components/ui/TablePagination';
 import TableLoader from '@/src/components/ui/TableLoader';
+import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useAccessControl } from '@/src/context/AccessControlContext';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
@@ -238,6 +239,7 @@ export default function UsersPage() {
   const [assignError, setAssignError] = useState('');
   const [isAssigningGroups, setIsAssigningGroups] = useState(false);
   const [isLoadingAssignedGroups, setIsLoadingAssignedGroups] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [togglingUserId, setTogglingUserId] = useState(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState([]);
   const [openSelectId, setOpenSelectId] = useState(null);
@@ -694,7 +696,7 @@ export default function UsersPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => deleteUser(user.id)}
+                          onClick={() => setDeleteTarget(user)}
                           className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95"
                           title="Delete"
                         >
@@ -1058,6 +1060,19 @@ export default function UsersPage() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="Delete User"
+        description={deleteTarget ? `Are you sure you want to delete ${deleteTarget.full_name || deleteTarget.username || 'this user'}?` : ''}
+        confirmLabel="Delete"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          await deleteUser(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+      />
 
       <ThemeToastViewport toasts={toasts} onClose={removeToast} />
     </AccessControlShell>

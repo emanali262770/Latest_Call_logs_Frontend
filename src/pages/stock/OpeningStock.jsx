@@ -153,17 +153,17 @@ export default function OpeningStock() {
     setSetupError('');
 
     try {
-      const [itemTypesResponse, categoriesResponse, subCategoriesResponse] = await Promise.all([
+      const [itemTypesResult, categoriesResult, subCategoriesResult] = await Promise.allSettled([
         axiosInstance.get('/item-types', { params: { status: 'active' } }),
         axiosInstance.get('/categories', { params: { status: 'active' } }),
         axiosInstance.get('/sub-categories', { params: { status: 'active' } }),
       ]);
-
+      const get = (result) => (result.status === 'fulfilled' ? result.value : null);
       setSetupOptions({
-        itemTypes: mapSetupItems(extractApiRows(itemTypesResponse, ['itemTypes', 'item_types']), ['item_type_name']),
-        categories: mapSetupItems(extractApiRows(categoriesResponse, ['categories']), ['category_name']),
+        itemTypes: mapSetupItems(extractApiRows(get(itemTypesResult), ['itemTypes', 'item_types']), ['item_type_name']),
+        categories: mapSetupItems(extractApiRows(get(categoriesResult), ['categories']), ['category_name']),
         subCategories: mapSetupItems(
-          extractApiRows(subCategoriesResponse, ['subCategories', 'sub_categories']),
+          extractApiRows(get(subCategoriesResult), ['subCategories', 'sub_categories']),
           ['sub_category_name'],
           (item) => ({
             categoryId: item?.category_id || '',

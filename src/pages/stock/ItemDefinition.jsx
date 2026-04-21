@@ -331,14 +331,14 @@ export default function ItemDefinition() {
 
     try {
       const [
-        itemTypesResponse,
-        categoriesResponse,
-        subCategoriesResponse,
-        manufacturersResponse,
-        suppliersResponse,
-        unitsResponse,
-        locationsResponse,
-      ] = await Promise.all([
+        itemTypesResult,
+        categoriesResult,
+        subCategoriesResult,
+        manufacturersResult,
+        suppliersResult,
+        unitsResult,
+        locationsResult,
+      ] = await Promise.allSettled([
         axiosInstance.get('/item-types', { params: { status: 'active' } }),
         axiosInstance.get('/categories', { params: { status: 'active' } }),
         axiosInstance.get('/sub-categories', { params: { status: 'active' } }),
@@ -348,21 +348,23 @@ export default function ItemDefinition() {
         axiosInstance.get('/locations', { params: { status: 'active' } }),
       ]);
 
+      const get = (result) => (result.status === 'fulfilled' ? result.value : null);
+
       setSetupOptions({
-        itemTypes: mapSetupItems(extractApiRows(itemTypesResponse, ['itemTypes', 'item_types']), ['item_type_name']),
-        categories: mapSetupItems(extractApiRows(categoriesResponse, ['categories']), ['category_name']),
+        itemTypes: mapSetupItems(extractApiRows(get(itemTypesResult), ['itemTypes', 'item_types']), ['item_type_name']),
+        categories: mapSetupItems(extractApiRows(get(categoriesResult), ['categories']), ['category_name']),
         subCategories: mapSetupItems(
-          extractApiRows(subCategoriesResponse, ['subCategories', 'sub_categories']),
+          extractApiRows(get(subCategoriesResult), ['subCategories', 'sub_categories']),
           ['sub_category_name'],
           (item) => ({
             categoryId: item?.category_id || '',
             categoryName: item?.category_name || '',
           }),
         ),
-        manufacturers: mapSetupItems(extractApiRows(manufacturersResponse, ['manufacturers']), ['manufacturer_name']),
-        suppliers: mapSetupItems(extractApiRows(suppliersResponse, ['suppliers']), ['supplier_name', 'name']),
-        units: mapSetupItems(extractApiRows(unitsResponse, ['units']), ['unit_name']),
-        locations: mapSetupItems(extractApiRows(locationsResponse, ['locations']), ['location_name']),
+        manufacturers: mapSetupItems(extractApiRows(get(manufacturersResult), ['manufacturers']), ['manufacturer_name']),
+        suppliers: mapSetupItems(extractApiRows(get(suppliersResult), ['suppliers']), ['supplier_name', 'name']),
+        units: mapSetupItems(extractApiRows(get(unitsResult), ['units']), ['unit_name']),
+        locations: mapSetupItems(extractApiRows(get(locationsResult), ['locations']), ['location_name']),
       });
     } catch (requestError) {
       setSetupError(requestError.message || 'Failed to load item setup options.');

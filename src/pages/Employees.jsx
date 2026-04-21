@@ -311,7 +311,7 @@ export default function Employees() {
     setIsSetupLoading(true);
 
     try {
-      const [departmentRes, designationRes, employeeTypeRes, dutyShiftRes, bankRes] = await Promise.all([
+      const [departmentRes, designationRes, employeeTypeRes, dutyShiftRes, bankRes] = await Promise.allSettled([
         departmentService.list(''),
         designationService.list(''),
         employeeTypeService.list(''),
@@ -320,11 +320,11 @@ export default function Employees() {
       ]);
 
       setSetupOptions({
-        departments: (departmentRes?.data || []).map((item) => item.name),
-        designations: (designationRes?.data || []).map((item) => item.name),
-        employeeTypes: (employeeTypeRes?.data || []).map((item) => item.name),
-        dutyShifts: (dutyShiftRes?.data || []).map((item) => item.name),
-        banks: (bankRes?.data || []).map((item) => item.name),
+        departments: (departmentRes.status === 'fulfilled' ? departmentRes.value?.data || [] : []).map((item) => item.name),
+        designations: (designationRes.status === 'fulfilled' ? designationRes.value?.data || [] : []).map((item) => item.name),
+        employeeTypes: (employeeTypeRes.status === 'fulfilled' ? employeeTypeRes.value?.data || [] : []).map((item) => item.name),
+        dutyShifts: (dutyShiftRes.status === 'fulfilled' ? dutyShiftRes.value?.data || [] : []).map((item) => item.name),
+        banks: (bankRes.status === 'fulfilled' ? bankRes.value?.data || [] : []).map((item) => item.name),
       });
     } catch (requestError) {
       setPageError(requestError.message || 'Could not load dropdown options.');

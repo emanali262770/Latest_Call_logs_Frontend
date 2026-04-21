@@ -36,6 +36,9 @@ function normalizeItem(item) {
   const rate = Number(item?.rate ?? item?.price ?? item?.salePrice ?? item?.sale_price ?? 0);
   const qty = Number(item?.qty ?? 0);
   const amount = Number(item?.total ?? item?.amount ?? rate * qty);
+  const gstPercent = Number(item?.gstPercent ?? item?.gst_percent ?? 0);
+  const gstAmount = Number(item?.gstAmount ?? item?.gst_amount ?? 0);
+  const rateWithGst = Number(item?.rateWithGst ?? item?.rate_with_gst ?? rate);
   const totalWithGst = Number(item?.totalWithGst ?? item?.total_with_gst ?? amount);
 
   return {
@@ -43,13 +46,16 @@ function normalizeItem(item) {
     rate,
     qty,
     amount,
+    gstPercent,
+    gstAmount,
+    rateWithGst,
     totalWithGst,
   };
 }
 
 function normalizeQuotation(quotation) {
   const items = Array.isArray(quotation?.items) ? quotation.items.map(normalizeItem) : [];
-  const isWithTax = String(quotation?.taxMode || quotation?.tax_mode || '').toLowerCase().includes('with');
+  const isWithTax = /^with\s*tax$/i.test(String(quotation?.taxMode || quotation?.tax_mode || '').trim());
   const calculatedQty = items.reduce((sum, item) => sum + Number(item.qty || 0), 0);
   const calculatedGrandTotal = items.reduce((sum, item) => sum + Number(isWithTax ? item.totalWithGst : item.amount), 0);
 
@@ -199,18 +205,24 @@ const QUOTATION_CSS = `
     text-align: left;
     text-transform: uppercase;
   }
+  .items-table thead th.num {
+    text-align: right;
+  }
   .items-table tbody td {
     border-bottom: 0.75pt solid #e2e8f0;
     color: #0f172a;
     font-size: 8pt;
     padding: 10pt;
-    vertical-align: top;
+    vertical-align: middle;
   }
   .items-table tbody tr:nth-child(even) td { background: #f8fafc; }
-  .items-table .sr { width: 10mm; }
-  .items-table .rate { width: 26mm; }
-  .items-table .qty { width: 22mm; }
-  .items-table .amount { width: 34mm; }
+  .items-table .sr { width: 8mm; }
+  .items-table .desc { }
+  .items-table .rate { width: 22mm; }
+  .items-table .qty { width: 14mm; }
+  .items-table .gst-amt { width: 20mm; }
+  .items-table .rate-gst { width: 22mm; }
+  .items-table .amount { width: 22mm; }
   .bold { font-weight: 600; }
   .num {
     text-align: right;
@@ -292,15 +304,32 @@ function runPrint(frameId, html) {
 
 function buildQuotationHtml(company, quotation) {
   const printedDate = new Date().toLocaleDateString('en-GB');
-  const itemRows = quotation.items.map((item, index) => `
-    <tr>
-      <td>${index + 1}</td>
-      <td class="bold">${escapePrintHtml(item.description)}</td>
-      <td class="num">${formatMoney(item.rate)}</td>
-      <td class="num">${formatMoney(item.qty)}</td>
-      <td class="num">${formatMoney(item.amount)}</td>
-    </tr>
-  `).join('');
+  const isWithTax = /^with\s*tax$/i.test(String(quotation.taxMode || '').trim());
+
+  const itemRows = quotation.items.map((item, index) => {
+    if (isWithTax) {
+      return `
+        <tr>
+          <td>${index + 1}</td>
+          <td class="bold">${escapePrintHtml(item.description)}</td>
+          <td class="num">${formatMoney(item.rate)}</td>
+          <td class="num">${formatMoney(item.qty)}</td>
+          <td class="num">${formatMoney(item.gstAmount)}</td>
+          <td class="num">${formatMoney(item.rateWithGst)}</td>
+          <td class="num">${formatMoney(item.totalWithGst)}</td>
+        </tr>
+      `;
+    }
+    return `
+      <tr>
+        <td>${index + 1}</td>
+        <td class="bold">${escapePrintHtml(item.description)}</td>
+        <td class="num">${formatMoney(item.rate)}</td>
+        <td class="num">${formatMoney(item.qty)}</td>
+        <td class="num">${formatMoney(item.amount)}</td>
+      </tr>
+    `;
+  }).join('');
 
   return `<!doctype html>
 <html>
@@ -350,14 +379,20 @@ function buildQuotationHtml(company, quotation) {
       <thead>
         <tr>
           <th class="sr">Sr.</th>
-          <th>Description</th>
+          <th class="desc">Description</th>
           <th class="rate num">Rate</th>
           <th class="qty num">Qty</th>
+          ${isWithTax ? `
+          <th class="gst-amt num">GST</th>
+          <th class="rate-gst num">Rate+GST</th>
           <th class="amount num">Amount</th>
+          ` : `
+          <th class="amount num">Amount</th>
+          `}
         </tr>
       </thead>
       <tbody>
-        ${itemRows || '<tr><td colspan="5" style="text-align:center;color:#64748b;">No line items found.</td></tr>'}
+        ${itemRows || `<tr><td colspan="${isWithTax ? 7 : 5}" style="text-align:center;color:#64748b;">No line items found.</td></tr>`}
       </tbody>
     </table>
 
