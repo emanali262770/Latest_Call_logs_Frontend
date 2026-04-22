@@ -28,9 +28,18 @@ function formatDate(value, options = { day: '2-digit', month: 'short', year: 'nu
 
 function normalizeCompany(company) {
   return {
-    name: v(company?.company_name || company?.name, 'Company'),
+    name: v(company?.company_name || company?.name, 'Infinity Byte Solution'),
+    address: v(company?.address || company?.company_address, ''),
+    phone: v(company?.phone || company?.contact_no || company?.mobile, ''),
+    email: v(company?.email || company?.company_email, ''),
   };
 }
+
+const STATIC_COMPANY_PROFILE = {
+  name: 'Infinity Byte Solution',
+  address: 'Abid Majeed Road, Lahore Cantt, Lahore',
+  contact: 'Attn: M. Anas (IT Dept)',
+};
 
 function normalizeItem(item) {
   const rate = Number(item?.rate ?? item?.price ?? item?.salePrice ?? item?.sale_price ?? 0);
@@ -80,199 +89,346 @@ const QUOTATION_CSS = `
   @page { size: A4 portrait; margin: 0; }
   html, body {
     background: #ffffff;
-    color: #0f172a;
+    color: #1a1a1a;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 9pt;
-    line-height: 1.35;
+    font-size: 9.5pt;
+    line-height: 1.5;
     width: 210mm;
     min-height: 297mm;
   }
   .sheet {
     width: 210mm;
     min-height: 297mm;
-    padding: 24mm 14mm 14mm;
+    padding: 0;
     background: #ffffff;
   }
-  .brand-eyebrow {
-    color: #4f46e5;
-    font-size: 6.8pt;
-    font-weight: 800;
-    letter-spacing: 0.34em;
+
+  /* ══ TOP ACCENT ══ */
+  .top-accent {
+    height: 3.5pt;
+    background: #1a1a1a;
+  }
+
+  /* ══ HEADER ══ */
+  .header {
+    padding: 7mm 16mm 6mm;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1pt solid #cccccc;
+  }
+  .company-name {
+    color: #1a1a1a;
+    font-size: 18pt;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+    line-height: 1.05;
     text-transform: uppercase;
   }
-  .brand-name {
-    margin-top: 2pt;
-    color: #111827;
-    font-size: 16pt;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+  .company-tagline {
+    margin-top: 2.5pt;
+    color: #888888;
+    font-size: 7pt;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
   }
-  .top-rule {
-    height: 2pt;
-    margin: 29pt 0 14pt;
-    background: #4f46e5;
+  .company-address {
+    margin-top: 4pt;
+    color: #555555;
+    font-size: 8pt;
+    line-height: 1.5;
   }
-  .title-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 58mm;
-    gap: 16mm;
-    align-items: start;
-    padding-bottom: 16pt;
-    border-bottom: 0.75pt solid #e2e8f0;
+  .doc-meta {
+    text-align: right;
+    flex-shrink: 0;
+    padding-left: 14mm;
   }
-  .doc-title {
-    color: #111827;
-    font-size: 18pt;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
+  .doc-meta-label {
+    font-size: 6.5pt;
+    font-weight: 700;
+    letter-spacing: 0.30em;
+    text-transform: uppercase;
+    color: #aaaaaa;
   }
-  .prepared {
+  .doc-meta-no {
+    margin-top: 4pt;
+    font-size: 13pt;
+    font-weight: 900;
+    color: #1a1a1a;
+    letter-spacing: 0.05em;
+    font-family: "Courier New", monospace;
+  }
+  .doc-meta-date {
     margin-top: 3pt;
-    color: #334155;
+    font-size: 8pt;
+    color: #555555;
+  }
+
+  /* ══ BODY ══ */
+  .body-pad { padding: 5mm 16mm 10mm; }
+
+  /* ══ ADDRESS ══ */
+  .address-row {
+    display: flex;
+    gap: 0;
+    padding: 5pt 0 5pt;
+    margin-bottom: 6pt;
+  }
+  .address-col-label {
+    display: none;
+  }
+  .address-col-content { flex: 1; }
+  .client-name-inline {
+    display: block;
+    color: #1a1a1a;
+    font-size: 10.5pt;
+    font-weight: 700;
+    line-height: 1.4;
+  }
+  .client-detail {
+    display: block;
+    color: #444444;
+    font-size: 8.5pt;
+    line-height: 1.5;
+  }
+
+  /* ══ SUBJECT + ATTENTION ══ */
+  .subj-attn-row {
+    display: flex;
+    gap: 10pt;
+    margin-bottom: 8pt;
+    
+  
+    padding: 6pt 0;
+  }
+  .subject-block {
+    flex: 1;
+    padding: 0 10pt 0 0;
+    border-right: 0.75pt solid #cccccc;
+    background: transparent;
+  }
+  .attn-block {
+    flex: 1;
+    padding: 0 0 0 10pt;
+    background: transparent;
+  }
+  .subject-label {
+    font-size: 6.5pt;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #888888;
+    margin-bottom: 3pt;
+  }
+  .subject-text {
+    color: #1a1a1a;
+    font-size: 9.5pt;
+    font-weight: 700;
+  }
+  .attn-name {
+    color: #1a1a1a;
+    font-size: 8.5pt;
+  }
+  .attn-detail {
+    color: #555555;
     font-size: 8pt;
   }
-  .meta-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 7.2pt;
+
+  /* ══ SECTION HEADER ══ */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8pt;
+    margin-bottom: 4pt;
+    margin-top: 0;
   }
-  .meta-table td {
-    padding: 0 0 6pt;
-    vertical-align: top;
-  }
-  .meta-label {
-    color: #64748b;
-    font-weight: 800;
-    text-align: right;
-    width: 52%;
-  }
-  .meta-value {
-    color: #111827;
-    font-weight: 800;
-    text-align: right;
-  }
-  .details-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16mm;
-    margin-top: 17pt;
-  }
-  .section-title {
-    padding-bottom: 7pt;
-    border-bottom: 0.75pt solid #94a3b8;
-    color: #0f172a;
-    font-size: 7.6pt;
+  .section-header-text {
+    font-size: 6.5pt;
     font-weight: 900;
-    letter-spacing: 0.28em;
+    letter-spacing: 0.26em;
     text-transform: uppercase;
+    color: #1a1a1a;
+    white-space: nowrap;
   }
-  .detail-field { margin-top: 11pt; }
-  .detail-label {
-    color: #64748b;
-    font-size: 6.4pt;
-    font-weight: 900;
-    letter-spacing: 0.34em;
-    text-transform: uppercase;
+  .section-header-line {
+    flex: 1;
+    height: 0.75pt;
+    background: #cccccc;
   }
-  .detail-value {
-    margin-top: 3pt;
-    color: #020617;
-    font-size: 8.6pt;
-    font-weight: 600;
-  }
-  .line-items-title {
-    margin-top: 11pt;
-    color: #0f172a;
-    font-size: 7.6pt;
-    font-weight: 900;
-    letter-spacing: 0.28em;
-    text-transform: uppercase;
-  }
+
+  /* ══ ITEMS TABLE ══ */
   .items-table {
     width: 100%;
-    margin-top: 9pt;
     border-collapse: collapse;
     table-layout: fixed;
+    border: 0.75pt solid #cccccc;
   }
   .items-table thead th {
-    background: #0f172a;
-    color: #ffffff;
-    font-size: 7.2pt;
+    background: #f2f2f2;
+    color: #1a1a1a;
+    font-size: 6.8pt;
     font-weight: 900;
-    letter-spacing: 0.16em;
-    padding: 8.5pt 10pt;
+    letter-spacing: 0.12em;
+    padding: 6pt 8pt;
     text-align: left;
     text-transform: uppercase;
+    border-bottom: 1.5pt solid #1a1a1a;
+    border-right: 0.75pt solid #dddddd;
   }
-  .items-table thead th.num {
-    text-align: right;
-  }
+  .items-table thead th:last-child { border-right: none; }
+  .items-table thead th.num { text-align: right; }
+  .items-table tbody tr:nth-child(even) td { background: #fafafa; }
   .items-table tbody td {
-    border-bottom: 0.75pt solid #e2e8f0;
-    color: #0f172a;
-    font-size: 8pt;
-    padding: 10pt;
+    border-bottom: 0.5pt solid #e8e8e8;
+    border-right: 0.75pt solid #e8e8e8;
+    color: #1a1a1a;
+    font-size: 8.5pt;
+    font-weight: 600;
+    padding: 6.5pt 8pt;
     vertical-align: middle;
   }
-  .items-table tbody tr:nth-child(even) td { background: #f8fafc; }
-  .items-table .sr { width: 8mm; }
-  .items-table .desc { }
-  .items-table .rate { width: 22mm; }
-  .items-table .qty { width: 14mm; }
-  .items-table .gst-amt { width: 20mm; }
-  .items-table .rate-gst { width: 22mm; }
-  .items-table .amount { width: 22mm; }
-  .bold { font-weight: 600; }
+  .items-table tbody td:last-child { border-right: none; }
+  .items-table tbody tr:last-child td { border-bottom: none; }
+  .items-table .sr { width: 8mm; text-align: center; color: #999999; font-size: 8pt; }
+  .items-table .rate { width: 26mm; }
+  .items-table .qty { width: 13mm; }
+  .items-table .gst-amt { width: 22mm; }
+  .items-table .rate-gst { width: 26mm; }
+  .items-table .amount { width: 27mm; }
+  .bold { font-weight: 700; }
   .num {
     text-align: right;
     font-variant-numeric: tabular-nums;
+    font-family: "Courier New", monospace;
+    font-size: 8.2pt;
   }
-  .summary {
-    width: 68mm;
-    margin: 20pt 0 0 auto;
-  }
-  .summary-line {
+
+  /* ══ TOTALS ══ */
+  .total-section {
     display: flex;
-    justify-content: space-between;
-    gap: 14pt;
-    border-top: 0.75pt solid #94a3b8;
-    padding: 10pt 0;
-    color: #0f172a;
-    font-size: 8pt;
-    font-weight: 800;
+    justify-content: flex-end;
+    margin-top: 5pt;
+    margin-bottom: 5pt;
   }
-  .summary-total {
-    display: flex;
-    justify-content: space-between;
-    gap: 14pt;
-    margin-top: 8pt;
-    background: #f1f5f9;
-    padding: 11pt 13pt;
-    color: #020617;
-    font-size: 11pt;
+  .total-table {
+    min-width: 72mm;
+    border-collapse: collapse;
+    border: 0.75pt solid #cccccc;
+  }
+  .total-table tr td {
+    padding: 4.5pt 9pt;
+    font-size: 8.3pt;
+    border-bottom: 0.5pt solid #e8e8e8;
+  }
+  .total-table tr:last-child td { border-bottom: none; }
+  .total-label {
+    font-size: 7pt;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: #888888;
+    text-align: left;
+  }
+  .total-value {
+    text-align: right;
+    font-family: "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+    color: #1a1a1a;
+    font-size: 8.5pt;
+  }
+  .total-table tr.grand-total td {
+    background: #f2f2f2;
+    border-top: 1.5pt solid #1a1a1a;
+    padding: 6pt 9pt;
+  }
+  .total-table tr.grand-total .total-label {
+    color: #1a1a1a;
+    font-size: 7.5pt;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+  }
+  .total-table tr.grand-total .total-value {
+    color: #1a1a1a;
+    font-size: 10pt;
     font-weight: 900;
   }
-  .notes {
-    margin-top: 23pt;
-    width: 88mm;
+
+  /* ══ TERMS ══ */
+  .terms-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1pt 14pt;
+    margin-top: 6pt;
   }
-  .notes-text {
-    margin-top: 11pt;
-    color: #334155;
-    font-size: 7.6pt;
+  .terms-item {
+    display: flex;
+    gap: 6pt;
+    align-items: flex-start;
+    padding: 3.5pt 0;
+    border-bottom: 0.5pt solid #eeeeee;
+    font-size: 7.8pt;
+    color: #444444;
+    line-height: 1.5;
+  }
+  .terms-bullet {
+    width: 4.5pt;
+    height: 4.5pt;
+    border: 1.5pt solid #1a1a1a;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 3.5pt;
+  }
+
+  /* ══ FOOTER ══ */
+  .footer {
+    margin-top: 8pt;
+    padding: 6pt 16mm 14pt;
+    
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .footer-note {
+    color: #888888;
+    font-size: 7.5pt;
+    font-style: italic;
+    max-width: 95mm;
     line-height: 1.55;
   }
+  .signature-block { text-align: center; min-width: 55mm; }
+  .signature-line {
+    width: 55mm;
+    height: 0.75pt;
+    background: #1a1a1a;
+    margin: 0 auto 4pt;
+  }
+  .signature-name {
+    font-size: 7.5pt;
+    font-weight: 700;
+    color: #1a1a1a;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .signature-title {
+    margin-top: 1.5pt;
+    font-size: 6.5pt;
+    color: #888888;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* ══ BOTTOM ══ */
+  .bottom-bar {
+    display: none;
+  }
+
   @media print {
     html, body {
+      background: #ffffff !important;
       margin: 0 !important;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-    .sheet {
-      margin: 0;
-      box-shadow: none;
-    }
+    .sheet { margin: 0; box-shadow: none; }
   }
 `;
 
@@ -303,14 +459,14 @@ function runPrint(frameId, html) {
 }
 
 function buildQuotationHtml(company, quotation) {
-  const printedDate = new Date().toLocaleDateString('en-GB');
   const isWithTax = /^with\s*tax$/i.test(String(quotation.taxMode || '').trim());
+  const colSpan = isWithTax ? 7 : 5;
 
   const itemRows = quotation.items.map((item, index) => {
     if (isWithTax) {
       return `
         <tr>
-          <td>${index + 1}</td>
+          <td class="sr">${index + 1}</td>
           <td class="bold">${escapePrintHtml(item.description)}</td>
           <td class="num">${formatMoney(item.rate)}</td>
           <td class="num">${formatMoney(item.qty)}</td>
@@ -322,7 +478,7 @@ function buildQuotationHtml(company, quotation) {
     }
     return `
       <tr>
-        <td>${index + 1}</td>
+        <td class="sr">${index + 1}</td>
         <td class="bold">${escapePrintHtml(item.description)}</td>
         <td class="num">${formatMoney(item.rate)}</td>
         <td class="num">${formatMoney(item.qty)}</td>
@@ -340,71 +496,122 @@ function buildQuotationHtml(company, quotation) {
 </head>
 <body>
   <main class="sheet">
-    <p class="brand-eyebrow">Quotation Print</p>
-    <h1 class="brand-name">${escapePrintHtml(company.name)}</h1>
-    <div class="top-rule"></div>
 
-    <section class="title-row">
+    <div class="top-accent"></div>
+
+    <!-- HEADER -->
+    <div class="header">
       <div>
-        <h2 class="doc-title">Quotation</h2>
-        <p class="prepared">Prepared for ${escapePrintHtml(quotation.customerName)}</p>
+        <div class="company-name">${escapePrintHtml(STATIC_COMPANY_PROFILE.name)}</div>
+        <div class="company-tagline">IT Solutions &amp; Services</div>
+        <div class="company-address">${escapePrintHtml(STATIC_COMPANY_PROFILE.address)}</div>
       </div>
-      <table class="meta-table">
+      <div class="doc-meta">
+        <div class="doc-meta-label">Quotation</div>
+        <div class="doc-meta-no">${escapePrintHtml(quotation.quotationNo)}</div>
+        <div class="doc-meta-date">${escapePrintHtml(formatDate(quotation.quotationDate, { day: '2-digit', month: 'long', year: 'numeric' }))}</div>
+      </div>
+    </div>
+
+    <!-- BODY -->
+    <div class="body-pad">
+
+   
+
+      <!-- SUBJECT + ATTENTION ROW -->
+      <div class="subj-attn-row">
+        <div class="subject-block">
+          <div class="subject-label">Subject</div>
+          <div class="subject-text">Quotation for ${escapePrintHtml(quotation.serviceName)}</div>
+        </div>
+        <div class="attn-block">
+          <div class="subject-label">Attention</div>
+          ${quotation.person !== '-' ? `<div class="attn-name"><strong>${escapePrintHtml(quotation.person)}</strong>${quotation.designation !== '-' ? ' &mdash; ' + escapePrintHtml(quotation.designation) : ''}</div>` : ''}
+          ${quotation.department !== '-' ? `<div class="attn-detail">${escapePrintHtml(quotation.department)}</div>` : ''}
+        </div>
+      </div>
+
+      <!-- COMMERCIAL OFFER -->
+      <div class="section-header">
+        <span class="section-header-text">Commercial Offer</span>
+        <div class="section-header-line"></div>
+      </div>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th class="sr">#</th>
+            <th class="desc">Description</th>
+            <th class="rate num">Unit Rate</th>
+            <th class="qty num">Qty</th>
+            ${isWithTax ? `
+            <th class="gst-amt num">GST Amt</th>
+            <th class="rate-gst num">Rate + GST</th>
+            <th class="amount num">Total</th>
+            ` : `
+            <th class="amount num">Total</th>
+            `}
+          </tr>
+        </thead>
         <tbody>
-          <tr><td class="meta-label">Quotation No</td><td class="meta-value">${escapePrintHtml(quotation.quotationNo)}</td></tr>
-          <tr><td class="meta-label">Revision Ref</td><td class="meta-value">${escapePrintHtml(quotation.revisionId)}</td></tr>
-          <tr><td class="meta-label">Date</td><td class="meta-value">${escapePrintHtml(formatDate(quotation.quotationDate))}</td></tr>
-          <tr><td class="meta-label">Printed</td><td class="meta-value">${escapePrintHtml(printedDate)}</td></tr>
+          ${itemRows || `<tr><td colspan="${colSpan}" style="text-align:center;color:#999;padding:12pt;font-size:8pt;">No line items found.</td></tr>`}
         </tbody>
       </table>
-    </section>
 
-    <section class="details-grid">
-      <div>
-        <h3 class="section-title">Client Details</h3>
-        <div class="detail-field"><p class="detail-label">Customer</p><p class="detail-value">${escapePrintHtml(quotation.customerName)}</p></div>
-        <div class="detail-field"><p class="detail-label">Contact Person</p><p class="detail-value">${escapePrintHtml(quotation.person)}</p></div>
-        <div class="detail-field"><p class="detail-label">Designation</p><p class="detail-value">${escapePrintHtml(quotation.designation)}</p></div>
-      </div>
-      <div>
-        <h3 class="section-title">Project Details</h3>
-        <div class="detail-field"><p class="detail-label">Service</p><p class="detail-value">${escapePrintHtml(quotation.serviceName)}</p></div>
-        <div class="detail-field"><p class="detail-label">Department</p><p class="detail-value">${escapePrintHtml(quotation.department)}</p></div>
-        <div class="detail-field"><p class="detail-label">Tax Mode</p><p class="detail-value">${escapePrintHtml(quotation.taxMode)}</p></div>
-      </div>
-    </section>
-
-    <h3 class="line-items-title">Line Items</h3>
-    <table class="items-table">
-      <thead>
-        <tr>
-          <th class="sr">Sr.</th>
-          <th class="desc">Description</th>
-          <th class="rate num">Rate</th>
-          <th class="qty num">Qty</th>
+      <!-- TOTALS -->
+      <div class="total-section">
+        <table class="total-table">
           ${isWithTax ? `
-          <th class="gst-amt num">GST</th>
-          <th class="rate-gst num">Rate+GST</th>
-          <th class="amount num">Amount</th>
-          ` : `
-          <th class="amount num">Amount</th>
-          `}
-        </tr>
-      </thead>
-      <tbody>
-        ${itemRows || `<tr><td colspan="${isWithTax ? 7 : 5}" style="text-align:center;color:#64748b;">No line items found.</td></tr>`}
-      </tbody>
-    </table>
+          <tr>
+            <td class="total-label">Sub-Total (PKR)</td>
+            <td class="total-value">${formatMoney(quotation.items.reduce((s, i) => s + i.amount, 0))}</td>
+          </tr>
+          <tr>
+            <td class="total-label">GST Amount (PKR)</td>
+            <td class="total-value">${formatMoney(quotation.items.reduce((s, i) => s + i.gstAmount, 0))}</td>
+          </tr>
+          ` : ''}
+          <tr class="grand-total">
+            <td class="total-label">Grand Total (PKR)</td>
+            <td class="total-value">${formatMoney(quotation.grandTotal)}</td>
+          </tr>
+        </table>
+      </div>
 
-    <section class="summary">
-      <div class="summary-line"><span>Total Quantity</span><span>${formatMoney(quotation.totalQty)}</span></div>
-      <div class="summary-total"><span>Grand Total</span><span>${formatMoney(quotation.grandTotal)}</span></div>
-    </section>
+      <!-- TERMS & CONDITIONS -->
+      <div class="section-header" style="margin-top:6pt;">
+        <span class="section-header-text">Terms &amp; Conditions</span>
+        <div class="section-header-line"></div>
+      </div>
+      <div class="terms-grid">
+        <div class="terms-item"><div class="terms-bullet"></div><span>Quoted prices are valid for <strong>30 days</strong> from the date of this quotation.</span></div>
+        <div class="terms-item"><div class="terms-bullet"></div><span>Delivery / execution schedule will be confirmed upon receipt of formal Purchase Order.</span></div>
+        <div class="terms-item"><div class="terms-bullet"></div><span>All applicable government taxes (GST, WHT) will be charged as per prevailing laws unless stated above.</span></div>
+        <div class="terms-item"><div class="terms-bullet"></div><span>Payment terms: <strong>50% advance</strong> with PO; remaining balance before delivery / handover.</span></div>
+        <div class="terms-item"><div class="terms-bullet"></div><span>Installation, cabling, civil works, and consumables not explicitly listed are excluded.</span></div>
+        <div class="terms-item"><div class="terms-bullet"></div><span>Warranty as per respective manufacturer's standard policy unless otherwise specified.</span></div>
+        <div class="terms-item"><div class="terms-bullet"></div><span>Any change in scope of work may result in a revised quotation before execution.</span></div>
+        <div class="terms-item"><div class="terms-bullet"></div><span>This quotation supersedes all previous verbal or written communications on the same subject.</span></div>
+        <div class="terms-item"><div class="terms-bullet"></div><span>Force majeure events (natural disasters, strikes, etc.) shall not be the liability of the vendor.</span></div>
+        <div class="terms-item"><div class="terms-bullet"></div><span>All disputes, if any, shall be subject to the exclusive jurisdiction of Lahore courts.</span></div>
+      </div>
 
-    <section class="notes">
-      <h3 class="section-title">Notes</h3>
-      <p class="notes-text">This quotation is prepared based on the listed items and quantities.<br/>Prices are subject to confirmation at the time of order placement.</p>
-    </section>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <p class="footer-note">
+        We trust this offer meets your requirements. For clarifications, please feel free to contact us.<br>
+        <em>Thank you for considering Infinity Byte Solution.</em>
+      </p>
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <p class="signature-name">Authorized Signatory</p>
+        <p class="signature-title">Infinity Byte Solution</p>
+      </div>
+    </div>
+
+    <div class="bottom-bar"></div>
+
   </main>
 </body>
 </html>`;

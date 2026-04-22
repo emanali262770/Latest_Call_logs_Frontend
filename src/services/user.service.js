@@ -24,4 +24,8 @@ export const userService = {
   create(payload) {
     return axiosInstance.post('/users', payload);
   },
+
+  delete(id) {
+    return axiosInstance.delete(`/users/${id}`);
+  },
 };

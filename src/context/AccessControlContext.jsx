@@ -392,9 +392,11 @@ export function AccessControlProvider({ children }) {
       const response = await userService.list();
       const nextUsers = Array.isArray(response?.data) ? response.data.map(mapApiUser) : [];
       setUsers(nextUsers);
+      return nextUsers;
     } catch (requestError) {
       setUsersError(requestError.message || 'Failed to load users.');
       setUsers([]);
+      return [];
     } finally {
       setUsersLoading(false);
     }
@@ -681,8 +683,10 @@ export function AccessControlProvider({ children }) {
     return response;
   };
 
-  const deleteUser = (userId) => {
+  const deleteUser = async (userId) => {
+    const response = await userService.delete(userId);
     setUsers((prev) => prev.filter((user) => user.id !== userId));
+    return response;
   };
 
   const value = {

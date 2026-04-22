@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { ArrowLeft, ChevronDown, Edit2, FileText, Package, Plus, Printer, Save, Search as SearchIcon, Trash2 } from 'lucide-react';
 import { Button, Card } from '@/src/components/ui/Card';
+import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { getStoredUser, hasPermission } from '@/src/lib/auth';
@@ -171,8 +172,11 @@ export default function Quotation() {
   const [editingRowId, setEditingRowId] = useState(null);
   const [editingQuotationId, setEditingQuotationId] = useState(null);
   const [revisionSourceQuotationId, setRevisionSourceQuotationId] = useState(null);
+  const [nextRevisionId, setNextRevisionId] = useState('');
   const [formMode, setFormMode] = useState('create');
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [itemDeleteTarget, setItemDeleteTarget] = useState(null);
   const [openSelectId, setOpenSelectId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -258,6 +262,7 @@ export default function Quotation() {
         const ratesData = ratesResult.status === 'fulfilled' ? (ratesResult.value?.data ?? []) : [];
         const nextNo = nextNoResult.status === 'fulfilled' ? nextNoResult.value : null;
         const nextRevision = nextRevisionResult.status === 'fulfilled' ? nextRevisionResult.value : null;
+        const resolvedNextRevisionId = nextRevision?.data?.revisionId || '';
 
         setCustomerOptions(Array.isArray(customersData) ? customersData : []);
         setServiceOptions(Array.isArray(servicesData) ? servicesData : []);
@@ -272,10 +277,11 @@ export default function Quotation() {
             }))
             .filter((item) => item.name),
         );
+        setNextRevisionId(resolvedNextRevisionId);
         setFormData((prev) => ({
           ...prev,
           quotationNo: prev.quotationNo || nextNo?.data?.quotationNo || '',
-          revisionId: prev.revisionId || nextRevision?.data?.revisionId || '',
+          revisionId: prev.revisionId || resolvedNextRevisionId,
         }));
       } catch {
         if (isActive) {
@@ -446,6 +452,7 @@ export default function Quotation() {
       setRows(estimationRows);
       setFormData((prev) => ({
         ...prev,
+        revisionId: formMode === 'revision' ? nextRevisionId || prev.revisionId : prev.revisionId,
         estimationId: estimation.estimateId || value,
         customerId: estimation.customerId || '',
         company: estimation.customerName || '',
@@ -520,11 +527,14 @@ export default function Quotation() {
     }));
   };
 
-  const handleDeleteRow = (rowId) => {
-    setRows((prev) => prev.filter((row) => row.id !== rowId));
-    if (editingRowId === rowId) {
+  const handleDeleteRow = () => {
+    if (!itemDeleteTarget?.id) return;
+
+    setRows((prev) => prev.filter((row) => row.id !== itemDeleteTarget.id));
+    if (editingRowId === itemDeleteTarget.id) {
       setEditingRowId(null);
     }
+    setItemDeleteTarget(null);
   };
 
   const openCreateForm = async () => {
@@ -540,10 +550,12 @@ export default function Quotation() {
         quotationService.getNextQuotationNo('Quotation'),
         quotationService.getNextRevisionId(),
       ]);
+      const resolvedNextRevisionId = nextRevisionResponse?.data?.revisionId || '';
+      setNextRevisionId(resolvedNextRevisionId);
       setFormData((prev) => ({
         ...prev,
         quotationNo: nextNoResponse?.data?.quotationNo || prev.quotationNo,
-        revisionId: nextRevisionResponse?.data?.revisionId || prev.revisionId,
+        revisionId: resolvedNextRevisionId || prev.revisionId,
       }));
     } catch (requestError) {
       toast.error('Form setup failed', requestError.message || 'Could not fetch next quotation numbers.');
@@ -555,6 +567,7 @@ export default function Quotation() {
     setEditingQuotationId(null);
     setRevisionSourceQuotationId(null);
     setEditingRowId(null);
+    setItemDeleteTarget(null);
     setRows([]);
     setFormMode('create');
     setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
@@ -671,13 +684,19 @@ export default function Quotation() {
     }
   };
 
-  const handleDeleteQuotation = async (quotationId) => {
+  const handleDeleteQuotation = async () => {
+    if (!deleteTarget?.id) return;
+
+    setIsSaving(true);
     try {
-      await quotationService.remove(quotationId);
+      await quotationService.remove(deleteTarget.id);
       await refreshQuotations();
+      setDeleteTarget(null);
       toast.success('Quotation deleted', 'Quotation record deleted successfully.');
     } catch (requestError) {
       toast.error('Delete failed', requestError.message || 'Could not delete quotation.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -764,7 +783,7 @@ export default function Quotation() {
                                 {canEdit ? <button type="button" onClick={() => handleEditQuotation(row)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95">
                                   <Edit2 className="h-4.5 w-4.5" />
                                 </button> : null}
-                                {canDelete ? <button type="button" onClick={() => handleDeleteQuotation(row.id)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95">
+                                {canDelete ? <button type="button" onClick={() => setDeleteTarget(row)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95">
                                   <Trash2 className="h-4.5 w-4.5" />
                                 </button> : null}
                               </div>
@@ -985,7 +1004,7 @@ export default function Quotation() {
                               <button type="button" onClick={() => handleEditRow(row)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-brand/20 hover:bg-brand-light hover:text-brand">
                                 <Edit2 className="h-4 w-4" />
                               </button>
-                              <button type="button" onClick={() => handleDeleteRow(row.id)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
+                              <button type="button" onClick={() => setItemDeleteTarget(row)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600">
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
@@ -1016,6 +1035,23 @@ export default function Quotation() {
       )}
       </>
       ) : null}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="Delete Quotation"
+        description={deleteTarget ? `Are you sure you want to delete ${deleteTarget.quotationNo || 'this quotation'}?` : ''}
+        confirmLabel="Delete"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteQuotation}
+        isLoading={isSaving}
+      />
+      <ConfirmDialog
+        isOpen={!!itemDeleteTarget}
+        title="Delete Quotation Item"
+        description={itemDeleteTarget ? `Are you sure you want to delete ${itemDeleteTarget.item || 'this item'}?` : ''}
+        confirmLabel="Delete"
+        onCancel={() => setItemDeleteTarget(null)}
+        onConfirm={handleDeleteRow}
+      />
       <ThemeToastViewport toasts={toasts} onClose={removeToast} />
     </div>
   );

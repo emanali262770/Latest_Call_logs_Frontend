@@ -62,6 +62,17 @@ function getNextUserId(users) {
   return `${best.prefix}${String(nextNumber).padStart(best.width, '0')}`;
 }
 
+function getCreatedUserFromResponse(response) {
+  const payload = response?.data?.user || response?.data || response?.user || response;
+  if (!payload || typeof payload !== 'object') return null;
+
+  return {
+    id: payload.id,
+    username: payload.UserName || payload.username || '',
+    employeeId: payload.employee_id ?? payload.employeeId ?? null,
+  };
+}
+
 const EMPTY_CREATE_FORM = {
   employeeId: '',
   department: '',
@@ -534,10 +545,19 @@ export default function UsersPage() {
 
       const response = await userService.create(payload);
       toast.success('User created', response?.message || 'New user created successfully.');
+      const createdUser = getCreatedUserFromResponse(response);
       const employeesResponse = await employeeService.list('');
       setEmployees(Array.isArray(employeesResponse?.data) ? employeesResponse.data : []);
-      await loadUsers();
+      const nextUsers = await loadUsers();
       closeCreateModal();
+      const nextAssigningUser =
+        nextUsers.find((user) => createdUser?.id && String(user.id) === String(createdUser.id)) ||
+        nextUsers.find((user) => String(user.username || '').trim() === createForm.username.trim()) ||
+        nextUsers.find((user) => String(user.employeeId || '') === String(createForm.employeeId));
+
+      if (nextAssigningUser?.id) {
+        setAssigningUserId(nextAssigningUser.id);
+      }
     } catch (requestError) {
       const message = requestError.message || 'Could not create user.';
       setCreateErrors({ form: message });
@@ -1069,8 +1089,13 @@ export default function UsersPage() {
         onCancel={() => setDeleteTarget(null)}
         onConfirm={async () => {
           if (!deleteTarget) return;
-          await deleteUser(deleteTarget.id);
-          setDeleteTarget(null);
+          try {
+            const response = await deleteUser(deleteTarget.id);
+            toast.success('User deleted', response?.message || 'User deleted successfully.');
+            setDeleteTarget(null);
+          } catch (requestError) {
+            toast.error('Delete failed', requestError.message || 'Could not delete user.');
+          }
         }}
       />
 
