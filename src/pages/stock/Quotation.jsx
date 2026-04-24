@@ -628,17 +628,24 @@ export default function Quotation() {
 
       const saved = response?.data || {};
       const emailDelivery = saved.delivery?.email;
-      console.log('email delivery:', emailDelivery);
+      const whatsappDelivery = saved.delivery?.whatsapp;
+      console.log('delivery:', saved.delivery);
       await refreshQuotations();
-      if (emailDelivery?.sent) {
-        toast.success(
-          formMode === 'revision' ? 'Revision saved' : formMode === 'edit' ? 'Quotation updated' : 'Quotation saved',
-          `PDF emailed to ${emailDelivery.to}.`,
-        );
+
+      const actionLabel = formMode === 'revision' ? 'Revision saved' : formMode === 'edit' ? 'Quotation updated' : 'Quotation saved';
+      const deliveryParts = [];
+      if (emailDelivery?.sent) deliveryParts.push(`Email sent to ${emailDelivery.to}`);
+      if (whatsappDelivery?.sent) deliveryParts.push(`WhatsApp sent to ${whatsappDelivery.to || whatsappDelivery.phone}`);
+
+      if (deliveryParts.length) {
+        toast.success(actionLabel, deliveryParts.join(' · ') + '.');
       } else {
+        const failReasons = [];
+        if (emailDelivery && !emailDelivery.sent) failReasons.push(`Email: ${emailDelivery.reason || emailDelivery.error || 'not sent'}`);
+        if (whatsappDelivery && !whatsappDelivery.sent) failReasons.push(`WhatsApp: ${whatsappDelivery.reason || whatsappDelivery.error || 'not sent'}`);
         toast.error(
-          'Email not sent',
-          emailDelivery?.reason || emailDelivery?.error || 'Quotation saved, but email was not sent.',
+          failReasons.length ? 'Delivery failed' : actionLabel,
+          failReasons.length ? failReasons.join(' · ') : 'Quotation saved, but delivery was not sent.',
         );
       }
       closeForm();

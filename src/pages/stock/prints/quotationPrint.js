@@ -356,18 +356,18 @@ const QUOTATION_CSS = `
   .terms-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1pt 14pt;
+    gap: 0 14pt;
     margin-top: 6pt;
   }
   .terms-item {
     display: flex;
     gap: 6pt;
     align-items: flex-start;
-    padding: 3.5pt 0;
+    padding: 2pt 0;
     border-bottom: 0.5pt solid #eeeeee;
     font-size: 7.8pt;
     color: #444444;
-    line-height: 1.5;
+    line-height: 1.6;
   }
   .terms-bullet {
     width: 4.5pt;

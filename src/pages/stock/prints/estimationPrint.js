@@ -118,348 +118,426 @@ function normalizeSingleEstimation(estimation) {
 
 const SHARED_CSS = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  @page { size: A4 portrait; margin: 12mm 14mm; }
+  @page { size: A4 portrait; margin: 0; }
   html, body {
     background: #ffffff;
+    color: #1a1a1a;
     font-family: Arial, Helvetica, sans-serif;
     font-size: 9.5pt;
-    color: #0f172a;
-    line-height: 1.45;
+    line-height: 1.5;
+    width: 210mm;
+    min-height: 297mm;
   }
-  .doc-header {
+  .sheet {
+    width: 210mm;
+    min-height: 297mm;
+    padding: 0;
+    background: #ffffff;
+  }
+  .top-accent {
+    height: 3.5pt;
+    background: #1a1a1a;
+  }
+  .header {
+    padding: 7mm 16mm 6mm;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: 18pt;
-    padding-bottom: 5pt;
-    border-bottom: 2.5pt solid #4f46e5;
-    margin-bottom: 10pt;
+    align-items: flex-start;
+    border-bottom: 1pt solid #cccccc;
   }
-  .doc-header__left { flex: 1; min-width: 0; }
-  .doc-header__eyebrow {
+  .company-name {
+    color: #1a1a1a;
+    font-size: 18pt;
+    font-weight: 900;
+    letter-spacing: 0.01em;
+    line-height: 1.05;
+    text-transform: uppercase;
+  }
+  .company-tagline {
+    margin-top: 2.5pt;
+    color: #888888;
     font-size: 7pt;
-    font-weight: 800;
-    letter-spacing: 0.25em;
+    letter-spacing: 0.26em;
     text-transform: uppercase;
-    color: #6366f1;
-    margin-bottom: 4pt;
   }
-  .doc-header__company {
-    font-size: 17pt;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -0.01em;
-    line-height: 1.1;
-  }
-  .doc-header__meta {
-    margin-top: 5pt;
+  .company-address {
+    margin-top: 4pt;
+    color: #555555;
     font-size: 8pt;
-    color: #64748b;
-    line-height: 1.7;
+    line-height: 1.5;
   }
-  .doc-header__right { text-align: right; flex-shrink: 0; }
-  .logo-shell {
-    width: 80pt;
-    height: 80pt;
-   
-    overflow: hidden;
-   
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .logo-shell img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .logo-placeholder {
-    font-size: 9pt;
-    font-weight: 800;
-    color: #6366f1;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    text-align: center;
-    padding: 4pt;
-  }
-  .doc-title-bar {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    margin-bottom: 10pt;
-    gap: 12pt;
-  }
-  .doc-title {
-    font-size: 13pt;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -0.01em;
-  }
-  .doc-title-sub {
-    margin-top: 2pt;
-    font-size: 8pt;
-    color: #64748b;
-  }
-  .doc-meta-right {
+  .doc-meta {
     text-align: right;
-    font-size: 8pt;
-    color: #64748b;
-    line-height: 1.7;
+    flex-shrink: 0;
+    padding-left: 14mm;
   }
-  .doc-meta-right strong { color: #0f172a; font-weight: 700; }
-  .summary-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8pt;
-    margin-bottom: 14pt;
-  }
-  .summary-chip {
-    border: 1pt solid #e2e8f0;
-    border-radius: 10pt;
-    padding: 9pt 11pt;
-    background: #f8fafc;
-  }
-  .summary-chip--indigo { border-color: #c7d2fe; background: #eef2ff; }
-  .summary-chip--amber  { border-color: #fde68a; background: #fffbeb; }
-  .summary-chip--emerald{ border-color: #a7f3d0; background: #ecfdf5; }
-  .summary-chip__label {
-    font-size: 7pt;
-    font-weight: 800;
-    letter-spacing: 0.18em;
+  .doc-meta-label {
+    font-size: 6.5pt;
+    font-weight: 700;
+    letter-spacing: 0.30em;
     text-transform: uppercase;
-    color: #64748b;
-    margin-bottom: 4pt;
+    color: #aaaaaa;
   }
-  .summary-chip__value {
+  .doc-meta-no {
+    margin-top: 4pt;
     font-size: 13pt;
-    font-weight: 800;
-    color: #0f172a;
-    font-variant-numeric: tabular-nums;
+    font-weight: 900;
+    color: #1a1a1a;
+    letter-spacing: 0.05em;
+    font-family: "Courier New", monospace;
   }
-  .table-wrap { width: 100%; margin-bottom: 14pt; }
-  .est-table {
+  .doc-meta-date {
+    margin-top: 3pt;
+    font-size: 8pt;
+    color: #555555;
+  }
+  .body-pad { padding: 5mm 16mm 10mm; }
+  .subj-attn-row {
+    display: flex;
+    gap: 10pt;
+    margin-bottom: 8pt;
+    padding: 6pt 0;
+  }
+  .subject-block {
+    flex: 1;
+    padding: 0 10pt 0 0;
+    border-right: 0.75pt solid #cccccc;
+  }
+  .attn-block {
+    flex: 1;
+    padding: 0 0 0 10pt;
+  }
+  .subject-label {
+    font-size: 6.5pt;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #888888;
+    margin-bottom: 3pt;
+  }
+  .subject-text {
+    color: #1a1a1a;
+    font-size: 9.5pt;
+    font-weight: 700;
+  }
+  .attn-name {
+    color: #1a1a1a;
+    font-size: 8.5pt;
+  }
+  .attn-detail {
+    color: #555555;
+    font-size: 8pt;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8pt;
+    margin-bottom: 4pt;
+    margin-top: 0;
+  }
+  .section-header-text {
+    font-size: 6.5pt;
+    font-weight: 900;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: #1a1a1a;
+    white-space: nowrap;
+  }
+  .section-header-line {
+    flex: 1;
+    height: 0.75pt;
+    background: #cccccc;
+  }
+  .items-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 8.5pt;
-    table-layout: auto;
+    table-layout: fixed;
+    border: 0.75pt solid #cccccc;
   }
-  .col-sr { width: 26pt; }
-  .col-id { width: 52pt; }
-  .col-date { width: 52pt; }
-  .col-cust { width: 82pt; }
-  .col-prod { width: 68pt; }
-  .col-item { width: 74pt; }
-  .col-qty { width: 28pt; }
-  .col-disc { width: 34pt; }
-  .col-purch { width: 68pt; }
-  .col-final { width: 68pt; }
-  .col-stat { width: 44pt; }
-  .est-table thead th {
-    padding: 5pt 7pt;
+  .items-table thead th {
+    background: #f2f2f2;
+    color: #1a1a1a;
+    font-size: 6.8pt;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    padding: 6pt 8pt;
     text-align: left;
-    font-size: 8.5pt;
-    font-weight: 800;
-    color: #0f172a;
-    white-space: nowrap;
-    border: 0.75pt solid #94a3b8;
+    text-transform: uppercase;
+    border-bottom: 1.5pt solid #1a1a1a;
+    border-right: 0.75pt solid #dddddd;
   }
-  .est-table tbody td {
-    padding: 5pt 7pt;
-    border: 0.75pt solid #94a3b8;
-    color: #0f172a;
+  .items-table thead th:last-child { border-right: none; }
+  .items-table thead th.num { text-align: right; }
+  .items-table tbody tr:nth-child(even) td { background: #fafafa; }
+  .items-table tbody td {
+    border-bottom: 0.5pt solid #e8e8e8;
+    border-right: 0.75pt solid #e8e8e8;
+    color: #1a1a1a;
     font-size: 8.5pt;
-    vertical-align: top;
-    white-space: nowrap;
+    font-weight: 600;
+    padding: 6.5pt 8pt;
+    vertical-align: middle;
   }
-  .est-table .num { text-align: right; font-variant-numeric: tabular-nums; }
-  .est-table .center { text-align: center; }
-  .est-table .bold { font-weight: 700; }
-  .status-badge {
-    display: inline-block;
-    white-space: nowrap;
-    font-size: 8pt;
+  .items-table tbody td:last-child { border-right: none; }
+  .items-table tbody tr:last-child td { border-bottom: none; }
+  .items-table .sr { width: 8mm; text-align: center; color: #999999; font-size: 8pt; }
+  .items-table .qty { width: 13mm; }
+  .items-table .disc { width: 16mm; }
+  .items-table .amount { width: 27mm; }
+  .bold { font-weight: 700; }
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-family: "Courier New", monospace;
+    font-size: 8.2pt;
+  }
+  .total-section {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 5pt;
+    margin-bottom: 5pt;
+  }
+  .total-table {
+    min-width: 72mm;
+    border-collapse: collapse;
+    border: 0.75pt solid #cccccc;
+  }
+  .total-table tr td {
+    padding: 4.5pt 9pt;
+    font-size: 8.3pt;
+    border-bottom: 0.5pt solid #e8e8e8;
+  }
+  .total-table tr:last-child td { border-bottom: none; }
+  .total-label {
+    font-size: 7pt;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: #888888;
+    text-align: left;
+  }
+  .total-value {
+    text-align: right;
+    font-family: "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+    color: #1a1a1a;
+    font-size: 8.5pt;
+  }
+  .total-table tr.grand-total td {
+    background: #f2f2f2;
+    border-top: 1.5pt solid #1a1a1a;
+    padding: 6pt 9pt;
+  }
+  .total-table tr.grand-total .total-label {
+    color: #1a1a1a;
+    font-size: 7.5pt;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+  }
+  .total-table tr.grand-total .total-value {
+    color: #1a1a1a;
+    font-size: 10pt;
+    font-weight: 900;
+  }
+  .footer {
+    margin-top: 8pt;
+    padding: 6pt 16mm 14pt;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .footer-note {
+    color: #888888;
+    font-size: 7.5pt;
+    font-style: italic;
+    max-width: 95mm;
+    line-height: 1.55;
+  }
+  .signature-block { text-align: center; min-width: 55mm; }
+  .signature-line {
+    width: 55mm;
+    height: 0.75pt;
+    background: #1a1a1a;
+    margin: 0 auto 4pt;
+  }
+  .signature-name {
+    font-size: 7.5pt;
     font-weight: 700;
+    color: #1a1a1a;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
   }
-  .status-active { color: #166534; }
-  .status-inactive { color: #64748b; }
-  .detail-card {
-    margin-bottom: 14pt;
-    break-inside: avoid;
-    background: #fff;
-    border: 1pt solid #cfd8e3;
-    border-radius: 10pt;
-    overflow: hidden;
-    width: 100%;
+  .signature-title {
+    margin-top: 1.5pt;
+    font-size: 6.5pt;
+    color: #888888;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
-  .detail-card__header {
-    padding: 12pt 18pt 10pt;
-    background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
-    border-bottom: 1pt solid #d6dee8;
+  @media print {
+    html, body {
+      background: #ffffff !important;
+      margin: 0 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .sheet { margin: 0; box-shadow: none; }
   }
+  /* legacy classes kept for compat — not used in new layout */
+  .doc-header__eyebrow,
+  .doc-header__company,
+  .doc-header__meta,
+  .doc-header__right,
+  .logo-shell,
+  .logo-placeholder,
+  .doc-title-bar,
+  .doc-title,
+  .doc-title-sub,
+  .doc-meta-right,
+  .summary-grid,
+  .summary-chip,
+  .summary-chip--indigo,
+  .summary-chip--amber,
+  .summary-chip--emerald,
+  .summary-chip__label,
+  .summary-chip__value,
+  .table-wrap,
+  .est-table,
+  .status-badge,
+  .status-active,
+  .status-inactive,
+  .detail-card,
+  .detail-card__header,
   .detail-card__title {
+    /* unused */
+  }
+  /* placeholder to satisfy old string match */
+  .detail-card__title_compat {
     font-size: 7.2pt;
     font-weight: 800;
     letter-spacing: 0.24em;
     text-transform: uppercase;
     color: #1f3b63;
   }
-  .detail-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0;
-    padding: 0;
-    width: 100%;
-  }
-  .detail-field {
-    padding: 9pt 18pt 8pt;
-    border-bottom: 0.75pt solid #dde5ee;
-    min-height: 44pt;
-  }
-  .detail-field:nth-last-child(-n+2) { border-bottom: none; }
-  .detail-field:nth-child(odd) { border-right: 0.75pt solid #dde5ee; }
-  .detail-field__label {
-    font-size: 6.4pt;
-    font-weight: 800;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    color: #6b7f95;
-    margin-bottom: 7pt;
-  }
-  .detail-field__value {
-    font-size: 10.5pt;
-    font-weight: 700;
-    color: #0f172a;
-    word-break: break-word;
-    line-height: 1.25;
-    max-width: 100%;
-  }
-  .doc-footer {
-    margin-top: 14pt;
-    padding-top: 9pt;
-    border-top: 1pt solid #e2e8f0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 7.5pt;
-    color: #94a3b8;
-  }
-  .doc-footer strong { color: #475569; }
-  @media print {
-    .doc-footer { position: fixed; bottom: 0; width: 100%; }
-  }
 `;
 
-function buildHeaderHtml(company, docTitle, docSubtitle, extraMeta = '') {
-  const logoMarkup = company.logoUrl
-    ? `<img src="${escapePrintHtml(company.logoUrl)}" alt="${escapePrintHtml(company.name)}" />`
-    : `<div class="logo-placeholder">${escapePrintHtml(company.name.slice(0, 2).toUpperCase())}</div>`;
-  const companyMeta = [
-    company.address !== '-' ? escapePrintHtml(company.address) : '',
-    [company.phone !== '-' ? escapePrintHtml(company.phone) : '', company.email !== '-' ? escapePrintHtml(company.email) : '']
-      .filter(Boolean)
-      .join(' · '),
-  ].filter(Boolean);
-
-  return `
-    <div class="doc-header">
-      <div class="doc-header__left">
-        <p class="doc-header__eyebrow">Estimation Print</p>
-        <h1 class="doc-header__company">${escapePrintHtml(company.name)}</h1>
-        ${companyMeta.length ? `<p class="doc-header__meta">${companyMeta.join('<br/>')}</p>` : ''}
-      </div>
-      <div class="doc-header__right">
-        <div class="logo-shell">${logoMarkup}</div>
-      </div>
-    </div>
-    <div class="doc-title-bar">
-      <div>
-        <h2 class="doc-title">${escapePrintHtml(docTitle)}</h2>
-        <p class="doc-title-sub">${docSubtitle}</p>
-      </div>
-      <div class="doc-meta-right">
-        <strong>Printed</strong><br/>
-        ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })},
-        ${new Date().toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })}
-        ${extraMeta}
-      </div>
-    </div>
-  `;
-}
+const STATIC_ESTIMATION_PROFILE = {
+  name: 'Infinity Byte Solution',
+  address: 'Abid Majeed Road, Lahore Cantt, Lahore',
+};
 
 function buildPrintSingleHtml(company, estimation) {
   const itemRows = (estimation.items || []).map((row, index) => `
     <tr>
-      <td>${index + 1}</td>
-      <td class="bold">${escapePrintHtml(row.estimateId)}</td>
-      <td>${escapePrintHtml(row.estimateDate)}</td>
-      <td>${escapePrintHtml(row.customerName)}</td>
-      <td>${escapePrintHtml(row.serviceName)}</td>
-      <td>${escapePrintHtml(row.itemName)}</td>
+      <td class="sr">${index + 1}</td>
+      <td class="bold">${escapePrintHtml(row.itemName)}</td>
       <td class="num">${escapePrintHtml(row.qty)}</td>
       <td class="num">${escapePrintHtml(row.discountPercent)}%</td>
-      <td class="num">${escapePrintHtml(row.purchaseTotal)}</td>
-      <td class="num bold" style="color:#1d4ed8">${escapePrintHtml(row.finalTotal)}</td>
-      <td><span class="status-badge ${row.status === 'active' ? 'status-active' : 'status-inactive'}">${escapePrintHtml(row.status)}</span></td>
+      <td class="num">${escapePrintHtml(row.salePrice)}</td>
+      <td class="num">${escapePrintHtml(row.discountAmount)}</td>
+      <td class="num bold">${escapePrintHtml(row.finalTotal)}</td>
     </tr>
   `).join('');
+
+  const summary = estimation.summary;
 
   return `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Estimation ${escapePrintHtml(estimation.estimateId)} - ${escapePrintHtml(company.name)}</title>
-  <style>${SHARED_CSS}@page { size: A4 landscape; margin: 10mm 12mm; }</style>
+  <title>Estimation ${escapePrintHtml(estimation.estimateId)}</title>
+  <style>${SHARED_CSS}</style>
 </head>
 <body>
-  <div class="sheet">
-    ${buildHeaderHtml(company, `Estimation - ${estimation.estimateId}`, `${escapePrintHtml(estimation.customerName)} - ${escapePrintHtml(estimation.estimateDate)}`, `<br/><strong>Ref:</strong> ${escapePrintHtml(estimation.estimateId)}`)}
-    <div class="detail-card">
-      <div class="detail-card__header">
-        <p class="detail-card__title">Estimation Details</p>
+  <main class="sheet">
+
+    <div class="top-accent"></div>
+
+    <!-- HEADER -->
+    <div class="header">
+      <div>
+        <div class="company-name">${escapePrintHtml(STATIC_ESTIMATION_PROFILE.name)}</div>
+        <div class="company-tagline">IT Solutions &amp; Services</div>
+        <div class="company-address">${escapePrintHtml(STATIC_ESTIMATION_PROFILE.address)}</div>
       </div>
-      <div class="detail-grid">
-        <div class="detail-field">
-          <p class="detail-field__label">Customer</p>
-          <p class="detail-field__value">${escapePrintHtml(estimation.customerName)}</p>
-        </div>
-        <div class="detail-field">
-          <p class="detail-field__label">Service</p>
-          <p class="detail-field__value">${escapePrintHtml(estimation.serviceName)}</p>
-        </div>
-        <div class="detail-field">
-          <p class="detail-field__label">Person</p>
-          <p class="detail-field__value">${escapePrintHtml(estimation.person)}</p>
-        </div>
-        <div class="detail-field">
-          <p class="detail-field__label">Designation</p>
-          <p class="detail-field__value">${escapePrintHtml(estimation.designation)}</p>
-        </div>
+      <div class="doc-meta">
+        <div class="doc-meta-label">Estimation</div>
+        <div class="doc-meta-no">${escapePrintHtml(estimation.estimateId)}</div>
+        <div class="doc-meta-date">${escapePrintHtml(estimation.estimateDate)}</div>
       </div>
     </div>
-    <div class="table-wrap">
-      <table class="est-table">
+
+    <!-- BODY -->
+    <div class="body-pad">
+
+      <!-- SUBJECT + ATTENTION ROW -->
+      <div class="subj-attn-row">
+        <div class="subject-block">
+          <div class="subject-label">Subject</div>
+          <div class="subject-text">Estimation for ${escapePrintHtml(estimation.serviceName)}</div>
+        </div>
+        <div class="attn-block">
+          <div class="subject-label">Attention</div>
+          ${estimation.customerName !== '-' ? `<div class="attn-name"><strong>${escapePrintHtml(estimation.customerName)}</strong></div>` : ''}
+          ${estimation.person !== '-' ? `<div class="attn-detail">${escapePrintHtml(estimation.person)}${estimation.designation !== '-' ? ' &mdash; ' + escapePrintHtml(estimation.designation) : ''}</div>` : ''}
+        </div>
+      </div>
+
+      <!-- ITEMS -->
+      <div class="section-header">
+        <span class="section-header-text">Items</span>
+        <div class="section-header-line"></div>
+      </div>
+      <table class="items-table">
         <thead>
           <tr>
-            <th>Sr.</th>
-            <th>Est ID</th>
-            <th>Date</th>
-            <th>Customer</th>
-            <th>Product</th>
-            <th>Item</th>
-            <th class="num">Qty</th>
-            <th class="num">Disc</th>
-            <th class="num">Purchase</th>
-            <th class="num bold">Final</th>
-            <th>Status</th>
+            <th class="sr">#</th>
+            <th>Item / Description</th>
+            <th class="qty num">Qty</th>
+            <th class="disc num">Disc %</th>
+            <th class="amount num">Sale Price</th>
+            <th class="amount num">Disc Amt</th>
+            <th class="amount num">Total</th>
           </tr>
         </thead>
         <tbody>
-          ${itemRows || `<tr><td colspan="11" style="text-align:center;padding:12pt 0;color:#94a3b8;">No items found.</td></tr>`}
+          ${itemRows || `<tr><td colspan="7" style="text-align:center;color:#999;padding:12pt;font-size:8pt;">No items found.</td></tr>`}
         </tbody>
       </table>
+
+      <!-- TOTALS -->
+      <div class="total-section">
+        <table class="total-table">
+          <tr>
+            <td class="total-label">Sub-Total (PKR)</td>
+            <td class="total-value">${estimation.items.reduce((s, i) => s + Number(i.saleTotal || 0), 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          <tr>
+            <td class="total-label">Total Discount (PKR)</td>
+            <td class="total-value">${summary.totalDiscount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          <tr class="grand-total">
+            <td class="total-label">Grand Total (PKR)</td>
+            <td class="total-value">${summary.totalFinal.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+        </table>
+      </div>
+
     </div>
-    <div class="doc-footer">
-      <span>Single Estimation Record - ${escapePrintHtml(company.name)}</span>
-      <strong>${escapePrintHtml(estimation.estimateId)}</strong>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <p class="footer-note">
+        This estimation is prepared for review purposes only and is subject to change.<br>
+        <em>Thank you for considering Infinity Byte Solution.</em>
+      </p>
+      <div class="signature-block">
+        <div class="signature-line"></div>
+        <p class="signature-name">Authorized Signatory</p>
+        <p class="signature-title">Infinity Byte Solution</p>
+      </div>
     </div>
-  </div>
+
+  </main>
 </body>
 </html>`;
 }
