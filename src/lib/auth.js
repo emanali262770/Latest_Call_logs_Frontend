@@ -236,6 +236,21 @@ export function extractPermissionsFromAuthData(authData) {
   return Array.from(permissionSet);
 }
 
+export function hasAuthPermissionPayload(authData) {
+  const resolvedAuthData = resolveAuthPayload(authData);
+  const user = resolvedAuthData?.user;
+
+  return (
+    Object.prototype.hasOwnProperty.call(resolvedAuthData, 'permissions') ||
+    Object.prototype.hasOwnProperty.call(resolvedAuthData, 'permission_keys') ||
+    Object.prototype.hasOwnProperty.call(resolvedAuthData, 'permissionKeys') ||
+    Object.prototype.hasOwnProperty.call(user || {}, 'permissions') ||
+    Object.prototype.hasOwnProperty.call(user || {}, 'permission_keys') ||
+    Object.prototype.hasOwnProperty.call(user || {}, 'permissionKeys') ||
+    (Array.isArray(user?.groups) && user.groups.some((group) => Object.prototype.hasOwnProperty.call(group || {}, 'permissions')))
+  );
+}
+
 export function extractTokenFromAuthData(authData) {
   const resolvedAuthData = resolveAuthPayload(authData);
   return String(
@@ -351,20 +366,28 @@ export function setStoredPermissions(permissions) {
     : [];
 
   localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(normalized));
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('auth-permissions-updated', { detail: normalized }));
+  }
 }
 
 export function clearStoredPermissions() {
   localStorage.removeItem(PERMISSIONS_KEY);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('auth-permissions-updated', { detail: [] }));
+  }
 }
 
 export function hasPermission(permissionName) {
   try {
     const permissions = getStoredPermissions();
-    if (!permissions.length) return true;
+    if (!permissions.length) return false;
 
     return permissions.some((permission) => permissionMatches(permissionName, permission));
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -372,7 +395,7 @@ export function hasAnyPermission(permissionNames = []) {
   if (!Array.isArray(permissionNames) || !permissionNames.length) return true;
 
   const permissions = getStoredPermissions();
-  if (!permissions.length) return true;
+  if (!permissions.length) return false;
 
   return permissionNames.some((permissionName) => hasPermission(permissionName));
 }

@@ -18,7 +18,9 @@ import TableLoader from '@/src/components/ui/TableLoader';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useAccessControl } from '@/src/context/AccessControlContext';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
+import { extractPermissionsFromAuthData, getStoredUser, hasAuthPermissionPayload, setStoredPermissions } from '@/src/lib/auth';
 import { cn } from '@/src/lib/utils';
+import { authService } from '@/src/services/auth.service';
 
 const ASSIGNED_DROP_ID = 'assigned-group-permissions';
 const ACTION_SEQUENCE = ['CREATE', 'READ', 'UPDATE', 'DELETE', 'ASSIGN'];
@@ -52,6 +54,56 @@ const ITEM_SETUP_SUBMODULES = new Set([
   'SUPPLIERS',
 ]);
 const CUSTOMER_SETUP_SUBMODULES = new Set(['CUSTOMER', 'CUSTOMERS', 'CUSTOMER_GROUP', 'CUSTOMER_GROUPS', 'GROUP', 'GROUPS']);
+
+function normalizeGroupIdentity(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function groupMatchesStoredUser(group, user) {
+  const userGroups = [
+    user?.role,
+    user?.group,
+    user?.groupName,
+    user?.group_name,
+  ].map(normalizeGroupIdentity).filter(Boolean);
+  const groupNames = [
+    group?.name,
+    group?.code,
+    group?.group_name,
+    group?.group_code,
+  ].map(normalizeGroupIdentity).filter(Boolean);
+
+  return userGroups.some((userGroup) => groupNames.includes(userGroup));
+}
+
+async function refreshCurrentSessionPermissions(sourceResponse) {
+  if (hasAuthPermissionPayload(sourceResponse)) {
+    setStoredPermissions(extractPermissionsFromAuthData(sourceResponse));
+    return true;
+  }
+
+  let sessionResponse;
+  try {
+    sessionResponse = await authService.checkToken();
+  } catch {
+    return false;
+  }
+
+  if (!hasAuthPermissionPayload(sessionResponse)) return false;
+
+  setStoredPermissions(extractPermissionsFromAuthData(sessionResponse));
+  return true;
+}
+
+function refreshCurrentGroupPermissionsFromLocalState(group, permissions) {
+  const storedUser = getStoredUser();
+  if (!groupMatchesStoredUser(group, storedUser)) return false;
+
+  const permissionKeys = permissions.map((permission) => permission.key).filter(Boolean);
+  setStoredPermissions(permissionKeys);
+  return true;
+}
+
 const LABEL_OVERRIDES = {
   EMPLOYEE: 'Employee',
   EMPLOYEES: 'Employees',
@@ -781,7 +833,17 @@ export default function Groups() {
     try {
       const response = await saveGroupPermissions(selectedGroup.id);
       await loadGroupPermissions(selectedGroup.id);
+      let sessionPermissionsRefreshed = await refreshCurrentSessionPermissions(response);
+      if (!sessionPermissionsRefreshed) {
+        sessionPermissionsRefreshed = refreshCurrentGroupPermissionsFromLocalState(
+          selectedGroup,
+          currentGroupPermissions.assignedItems,
+        );
+      }
       toast.success('Permissions saved', response?.message || 'Group permissions updated successfully.');
+      if (!sessionPermissionsRefreshed) {
+        toast.info('Session permissions not refreshed', 'Please login again if this change affects the current user.');
+      }
     } catch (requestError) {
       toast.error('Save failed', requestError.message || 'Could not update group permissions.');
     } finally {

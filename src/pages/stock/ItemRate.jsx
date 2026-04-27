@@ -630,11 +630,11 @@ export default function ItemRate() {
 
           <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1120px] border-separate border-spacing-0 text-left">
+              <table className="w-full min-w-[1320px] border-separate border-spacing-0 text-left">
                 <thead>
                   <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
-                    <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Sr#</th>
-                    <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Item</th>
+                    <th className="w-[90px] border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Sr#</th>
+                    <th className="w-[360px] border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Item</th>
                     <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Category</th>
                     <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Sub Category</th>
                     <th className="border-b border-gray-100/60 px-8 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Supplier</th>
@@ -658,12 +658,12 @@ export default function ItemRate() {
                     paginatedRows.map((row, index) => (
                       <tr key={row.id} className="group transition-all duration-300 hover:bg-brand-light/40">
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-500">{(currentPage - 1) * pageSize + index + 1}</td>
-                        <td className="border-b border-gray-50/30 px-8 py-6">
+                        <td className="w-[360px] border-b border-gray-50/30 px-8 py-6">
                           <div className="flex items-center gap-3">
                             <div className="flex h-9 w-9 items-center shrink-0 justify-center rounded-xl border border-brand/10 bg-brand-light text-brand">
                               <Package className="h-4 w-4" />
                             </div>
-                            <span className="text-sm font-semibold text-gray-900">{formatCellValue(row.item)}</span>
+                            <span className="min-w-0 text-sm font-semibold leading-5 text-gray-900">{formatCellValue(row.item)}</span>
                           </div>
                         </td>
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.category)}</td>

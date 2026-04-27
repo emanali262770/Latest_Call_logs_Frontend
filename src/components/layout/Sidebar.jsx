@@ -185,12 +185,13 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const navigate = useNavigate();
   const location = useLocation();
   const pathName = location.pathname;
+  const [, setPermissionsVersion] = useState(0);
   const [brandProfile, setBrandProfile] = useState({
     name: 'CMS',
     subtitle: 'Control Panel',
     logo: '',
   });
-  const visibleNavItems = useMemo(() => attachVisibleSubItems(navItems), []);
+  const visibleNavItems = attachVisibleSubItems(navItems);
 
   const autoExpandedSubMenu = useMemo(() => {
     const activeTrail = [];
@@ -271,6 +272,20 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     return () => {
       isMounted = false;
       window.removeEventListener('company-profile-updated', handleCompanyProfileUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handlePermissionsUpdated = () => {
+      setPermissionsVersion((version) => version + 1);
+    };
+
+    window.addEventListener('auth-permissions-updated', handlePermissionsUpdated);
+    window.addEventListener('storage', handlePermissionsUpdated);
+
+    return () => {
+      window.removeEventListener('auth-permissions-updated', handlePermissionsUpdated);
+      window.removeEventListener('storage', handlePermissionsUpdated);
     };
   }, []);
 

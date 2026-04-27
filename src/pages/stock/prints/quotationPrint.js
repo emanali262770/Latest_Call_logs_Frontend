@@ -26,6 +26,29 @@ function formatDate(value, options = { day: '2-digit', month: 'short', year: 'nu
   return d.toLocaleDateString('en-GB', options);
 }
 
+function resolveAssetUrl(value) {
+  const assetPath = String(value || '').trim();
+  if (!assetPath) return '';
+  if (/^https?:\/\//i.test(assetPath) || /^blob:/i.test(assetPath) || /^data:/i.test(assetPath)) return assetPath;
+
+  const baseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+  if (!baseUrl) {
+    if (typeof window === 'undefined') return assetPath;
+    try {
+      return new URL(assetPath, window.location.origin).toString();
+    } catch {
+      return assetPath;
+    }
+  }
+
+  try {
+    const apiUrl = new URL(baseUrl);
+    return new URL(assetPath, apiUrl.origin).toString();
+  } catch {
+    return assetPath;
+  }
+}
+
 function normalizeCompany(company) {
   return {
     name: v(company?.company_name || company?.name, 'Infinity Byte Solution'),
@@ -51,7 +74,9 @@ function normalizeItem(item) {
   const totalWithGst = Number(item?.totalWithGst ?? item?.total_with_gst ?? amount);
 
   return {
+    itemName: v(item?.itemName || item?.item_name || item?.item),
     description: v(item?.description || item?.itemName || item?.item_name || item?.item),
+    imageUrl: resolveAssetUrl(item?.itemImage || item?.item_image || item?.image || item?.image_url || ''),
     rate,
     qty,
     amount,
@@ -295,6 +320,40 @@ const QUOTATION_CSS = `
   .items-table .gst-amt { width: 22mm; }
   .items-table .rate-gst { width: 26mm; }
   .items-table .amount { width: 27mm; }
+  .item-cell {
+    display: flex;
+    align-items: flex-start;
+    gap: 7pt;
+    min-width: 0;
+  }
+  .item-photo {
+    width: 15mm;
+    height: 15mm;
+    border: 0.75pt solid #dddddd;
+    background: #ffffff;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+  .item-copy {
+    min-width: 0;
+  }
+  .item-name {
+    display: block;
+    color: #1a1a1a;
+    font-size: 8.4pt;
+    font-weight: 900;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .item-description {
+    display: block;
+    margin-top: 2pt;
+    color: #222222;
+    font-size: 7.7pt;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
   .bold { font-weight: 700; }
   .num {
     text-align: right;
@@ -448,14 +507,58 @@ function runPrint(frameId, html) {
   printDoc.write(html);
   printDoc.close();
 
-  window.setTimeout(() => {
+  let hasStartedPrint = false;
+  const startPrint = () => {
+    if (hasStartedPrint) return;
+    hasStartedPrint = true;
     try {
       frame.contentWindow.focus();
       frame.contentWindow.print();
     } finally {
       window.setTimeout(() => frame?.remove(), 1500);
     }
-  }, 180);
+  };
+
+  const images = Array.from(printDoc.images || []);
+  if (!images.length) {
+    window.setTimeout(startPrint, 180);
+    return;
+  }
+
+  let pendingImages = images.length;
+  const settleImage = () => {
+    pendingImages -= 1;
+    if (pendingImages <= 0) {
+      window.setTimeout(startPrint, 180);
+    }
+  };
+
+  window.setTimeout(startPrint, 2500);
+  images.forEach((image) => {
+    if (image.complete) {
+      settleImage();
+      return;
+    }
+
+    image.onload = settleImage;
+    image.onerror = settleImage;
+  });
+}
+
+function buildItemDescriptionMarkup(item) {
+  const imageMarkup = item.imageUrl
+    ? `<img src="${escapePrintHtml(item.imageUrl)}" alt="${escapePrintHtml(item.itemName)}" class="item-photo" />`
+    : '';
+
+  return `
+    <div class="item-cell">
+      ${imageMarkup}
+      <div class="item-copy">
+        <span class="item-name">${escapePrintHtml(item.itemName)}</span>
+        ${item.description !== '-' ? `<span class="item-description">${escapePrintHtml(item.description)}</span>` : ''}
+      </div>
+    </div>
+  `;
 }
 
 function buildQuotationHtml(company, quotation) {
@@ -467,7 +570,7 @@ function buildQuotationHtml(company, quotation) {
       return `
         <tr>
           <td class="sr">${index + 1}</td>
-          <td class="bold">${escapePrintHtml(item.description)}</td>
+          <td>${buildItemDescriptionMarkup(item)}</td>
           <td class="num">${formatMoney(item.rate)}</td>
           <td class="num">${formatMoney(item.qty)}</td>
           <td class="num">${formatMoney(item.gstAmount)}</td>
@@ -479,7 +582,7 @@ function buildQuotationHtml(company, quotation) {
     return `
       <tr>
         <td class="sr">${index + 1}</td>
-        <td class="bold">${escapePrintHtml(item.description)}</td>
+        <td>${buildItemDescriptionMarkup(item)}</td>
         <td class="num">${formatMoney(item.rate)}</td>
         <td class="num">${formatMoney(item.qty)}</td>
         <td class="num">${formatMoney(item.amount)}</td>

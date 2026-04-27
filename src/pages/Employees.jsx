@@ -221,6 +221,7 @@ export default function Employees() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [, setPermissionsVersion] = useState(0);
   const [setupOptions, setSetupOptions] = useState({
     departments: [],
     designations: [],
@@ -344,6 +345,20 @@ export default function Employees() {
   useEffect(() => {
     loadSetupOptions();
   }, [loadSetupOptions]);
+
+  useEffect(() => {
+    const handlePermissionsUpdated = () => {
+      setPermissionsVersion((version) => version + 1);
+    };
+
+    window.addEventListener('auth-permissions-updated', handlePermissionsUpdated);
+    window.addEventListener('storage', handlePermissionsUpdated);
+
+    return () => {
+      window.removeEventListener('auth-permissions-updated', handlePermissionsUpdated);
+      window.removeEventListener('storage', handlePermissionsUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     revealForm(tableContainerRef.current, formContainerRef.current, showForm);
@@ -538,16 +553,16 @@ export default function Employees() {
             <p className="mt-1 text-gray-500">Manage and monitor your organization&apos;s human resources.</p>
           </div>
         )}
-        {!showForm && (
+        {!showForm ? (
           <div className="flex items-center gap-3">
             <Button variant="outline" icon={<Download className="w-4 h-4" />}>Export Data</Button>
-            {canCreate && (
-              <Button onClick={handleOpenCreate} icon={<Plus className="w-4 h-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
+            {canCreate ? (
+              <Button type="button" onClick={handleOpenCreate} icon={<Plus className="w-4 h-4" />} className="bg-brand hover:bg-brand-hover shadow-brand/20">
                 Add New Employee
               </Button>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
       </div>
 
       {pageError && (
@@ -641,7 +656,7 @@ export default function Employees() {
                           </Badge>
                         </td>
                         <td className="px-6 py-6 text-right border-b border-gray-50/30 group-last:border-none">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-4 group-hover:translate-x-0">
+                          <div className="flex items-center justify-end gap-2">
                             {canEdit && (
                               <button
                                 onClick={() => handleOpenEdit(item.id)}

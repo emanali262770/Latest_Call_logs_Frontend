@@ -39,6 +39,8 @@ const EMPTY_FORM = {
 
 const INPUT_CLASS_NAME =
   'h-9 w-full rounded-xl border border-slate-300/80 bg-white px-4 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70';
+const SELECT_BUTTON_CLASS_NAME =
+  'min-h-9 w-full rounded-xl border border-slate-300/80 bg-white px-4 py-2 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70';
 const READ_ONLY_INPUT_CLASS_NAME =
   'h-9 w-full cursor-not-allowed rounded-xl border border-slate-300/80 bg-slate-100 px-4 text-sm text-slate-500 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] outline-none';
 const SECTION_PANEL_CLASS_NAME = 'rounded-[1.4rem] border border-slate-300/80 bg-slate-50/50';
@@ -109,9 +111,9 @@ function SearchableSelect({ selectId, label, value, options, placeholder, search
     <div className={`space-y-2 ${isOpen ? 'relative z-40' : 'relative z-0'}`} ref={containerRef}>
       <FieldLabel>{label}</FieldLabel>
       <div className="relative">
-        <button type="button" onClick={() => onToggle(selectId)} className={`mt-[2px] flex ${INPUT_CLASS_NAME} items-center justify-between text-left`}>
-          <span className={value ? 'text-gray-900' : 'text-gray-400'}>{value || placeholder}</span>
-          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <button type="button" onClick={() => onToggle(selectId)} className={`mt-[2px] flex ${SELECT_BUTTON_CLASS_NAME} items-start justify-between gap-3 text-left`}>
+          <span className={`min-w-0 whitespace-normal break-words leading-5 ${value ? 'text-gray-900' : 'text-gray-400'}`}>{value || placeholder}</span>
+          <ChevronDown className={`mt-0.5 h-4 w-4 shrink-0 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
         {isOpen ? (
           <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl shadow-gray-200/60">
@@ -213,6 +215,20 @@ export default function Quotation() {
       `${row.quotationNo} ${row.company} ${row.forProduct} ${row.createdBy} ${row.revisionId} ${row.estimationId}`.toLowerCase().includes(normalized),
     );
   }, [quotations, searchQuery]);
+
+  const draftItemTaxValues = useMemo(() => {
+    const price = Number(formData.price || 0);
+    const qty = Number(formData.qty || 0);
+    const gstAmount = (price * 18) / 100;
+    const rateWithGst = price + gstAmount;
+    const totalWithGst = rateWithGst * qty;
+
+    return {
+      gstAmount: gstAmount ? gstAmount.toFixed(2) : '',
+      rateWithGst: rateWithGst ? rateWithGst.toFixed(2) : '',
+      totalWithGst: totalWithGst ? totalWithGst.toFixed(2) : '',
+    };
+  }, [formData.price, formData.qty]);
 
   useEffect(() => {
     const qty = Number(formData.qty || 0);
@@ -607,6 +623,11 @@ export default function Quotation() {
     setQuotations(Array.isArray(response?.data) ? response.data : []);
   };
 
+  const getDeliveryFailureMessage = (channelName, delivery) => {
+    const detail = delivery?.message || delivery?.reason || delivery?.error || 'not sent';
+    return `${channelName} not sent${detail ? `: ${detail}` : ''}`;
+  };
+
   const handleSaveQuotation = async () => {
     const validationMessage = validateQuotation();
     if (validationMessage) {
@@ -633,20 +654,32 @@ export default function Quotation() {
       await refreshQuotations();
 
       const actionLabel = formMode === 'revision' ? 'Revision saved' : formMode === 'edit' ? 'Quotation updated' : 'Quotation saved';
-      const deliveryParts = [];
-      if (emailDelivery?.sent) deliveryParts.push(`Email sent to ${emailDelivery.to}`);
-      if (whatsappDelivery?.sent) deliveryParts.push(`WhatsApp sent to ${whatsappDelivery.to || whatsappDelivery.phone}`);
+      const successfulDeliveries = [];
+      const failedDeliveries = [];
 
-      if (deliveryParts.length) {
-        toast.success(actionLabel, deliveryParts.join(' · ') + '.');
+      if (emailDelivery) {
+        if (emailDelivery.sent) {
+          successfulDeliveries.push(`Email sent to ${emailDelivery.to || 'customer'}`);
+        } else {
+          failedDeliveries.push(getDeliveryFailureMessage('Email', emailDelivery));
+        }
+      }
+
+      if (whatsappDelivery) {
+        if (whatsappDelivery.sent) {
+          successfulDeliveries.push(`WhatsApp sent to ${whatsappDelivery.to || whatsappDelivery.phone || 'customer'}`);
+        } else {
+          failedDeliveries.push(getDeliveryFailureMessage('WhatsApp', whatsappDelivery));
+        }
+      }
+
+      if (failedDeliveries.length) {
+        const successMessage = successfulDeliveries.length ? `${successfulDeliveries.join(' | ')}. ` : '';
+        toast.error(`${actionLabel} with delivery issue`, `${successMessage}${failedDeliveries.join(' | ')}.`);
+      } else if (successfulDeliveries.length) {
+        toast.success(actionLabel, successfulDeliveries.join(' | ') + '.');
       } else {
-        const failReasons = [];
-        if (emailDelivery && !emailDelivery.sent) failReasons.push(`Email: ${emailDelivery.reason || emailDelivery.error || 'not sent'}`);
-        if (whatsappDelivery && !whatsappDelivery.sent) failReasons.push(`WhatsApp: ${whatsappDelivery.reason || whatsappDelivery.error || 'not sent'}`);
-        toast.error(
-          failReasons.length ? 'Delivery failed' : actionLabel,
-          failReasons.length ? failReasons.join(' · ') : 'Quotation saved, but delivery was not sent.',
-        );
+        toast.success(actionLabel, 'Quotation saved successfully.');
       }
       closeForm();
     } catch (requestError) {
@@ -924,21 +957,39 @@ export default function Quotation() {
 
               <div className="grid grid-cols-1 gap-6 p-6">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-                  <div className="md:col-span-5">
+                  <div className={formData.taxMode === 'withTax' ? 'md:col-span-4' : 'md:col-span-5'}>
                     <SearchableSelect selectId="item" label="Item" value={formData.item} options={itemOptions} placeholder="Select product" searchablePlaceholder="Search item" onChange={handleItemChange} isOpen={openSelectId === 'item'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className={formData.taxMode === 'withTax' ? 'space-y-2 md:col-span-2' : 'space-y-2 md:col-span-2'}>
                     <FieldLabel>Price</FieldLabel>
                     <input type="text" value={formData.price} onChange={(event) => updateField('price', event.target.value)} placeholder="0.00" className={INPUT_CLASS_NAME} />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
+                  <div className={formData.taxMode === 'withTax' ? 'space-y-2 md:col-span-2' : 'space-y-2 md:col-span-2'}>
                     <FieldLabel>Qty</FieldLabel>
                     <input type="text" value={formData.qty} onChange={(event) => updateField('qty', event.target.value)} placeholder="0" className={INPUT_CLASS_NAME} />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <FieldLabel>Total</FieldLabel>
-                    <input type="text" value={formData.total} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
-                  </div>
+                  {formData.taxMode === 'withTax' ? (
+                    <>
+                      <div className="space-y-2 md:col-span-2">
+                        <FieldLabel>18% GST</FieldLabel>
+                        <input type="text" value={draftItemTaxValues.gstAmount} readOnly placeholder="0.00" className={READ_ONLY_INPUT_CLASS_NAME} />
+                      </div>
+                      <div className="space-y-2 md:col-span-3">
+                        <FieldLabel>Rate With GST</FieldLabel>
+                        <input type="text" value={draftItemTaxValues.rateWithGst} readOnly placeholder="0.00" className={READ_ONLY_INPUT_CLASS_NAME} />
+                      </div>
+                      <div className="space-y-2 md:col-span-3">
+                        <FieldLabel>Total With GST</FieldLabel>
+                        <input type="text" value={draftItemTaxValues.totalWithGst} readOnly placeholder="0.00" className={READ_ONLY_INPUT_CLASS_NAME} />
+                      </div>
+                    </>
+                  ) : null}
+                  {formData.taxMode !== 'withTax' ? (
+                    <div className="space-y-2 md:col-span-2">
+                      <FieldLabel>Total</FieldLabel>
+                      <input type="text" value={formData.total} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
+                    </div>
+                  ) : null}
                   <div className="space-y-2 md:col-span-12">
                     <FieldLabel>Description</FieldLabel>
                     <textarea value={formData.description} onChange={(event) => updateField('description', event.target.value)} rows={3} placeholder="Description" className="min-h-[96px] w-full rounded-xl border border-slate-300/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70" />

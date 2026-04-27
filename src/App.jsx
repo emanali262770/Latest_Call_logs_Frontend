@@ -71,6 +71,7 @@ function PermissionRoute({ requiredPermissions }) {
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => getStoredAuthState() && !!getAuthToken());
+  const [, setAuthPermissionsVersion] = useState(0);
 
   const handleLogin = (authData) => {
     setAuthToken(extractTokenFromAuthData(authData));
@@ -111,6 +112,20 @@ export default function App() {
       isActive = false;
     };
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const handlePermissionsUpdated = () => {
+      setAuthPermissionsVersion((version) => version + 1);
+    };
+
+    window.addEventListener('auth-permissions-updated', handlePermissionsUpdated);
+    window.addEventListener('storage', handlePermissionsUpdated);
+
+    return () => {
+      window.removeEventListener('auth-permissions-updated', handlePermissionsUpdated);
+      window.removeEventListener('storage', handlePermissionsUpdated);
+    };
+  }, []);
 
   return (
     <Routes>
