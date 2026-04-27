@@ -552,6 +552,7 @@ export default function CustomersSetup() {
                           value={mobile}
                           onChange={(event) => {
                             setMobile(event.target.value);
+                            setWhatsappNo(event.target.value);
                             setValidationError("");
                           }}
                           placeholder="Mobile"

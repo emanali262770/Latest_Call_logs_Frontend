@@ -83,6 +83,14 @@ function normalizeRow(item) {
   };
 }
 
+function normalizeItem(item) {
+  return {
+    ...normalizeRow(item),
+    itemImage: resolveAssetUrl(item?.item_image ?? item?.itemImage ?? ''),
+    hasDiscount: Boolean(item?.hasDiscount ?? (Number(item?.discount_percent ?? item?.discountPercent ?? 0) > 0)),
+  };
+}
+
 function normalizeSummary(summary) {
   return {
     totalPurchases: Number(summary?.totalPurchases ?? summary?.purchaseTotal ?? 0),
@@ -97,7 +105,7 @@ function normalizeSingleEstimation(estimation) {
   const base = normalizeRow(estimation || {});
   const items = Array.isArray(estimation?.items)
     ? estimation.items.map((item) => ({
-        ...normalizeRow(item),
+        ...normalizeItem(item),
         estimateId: base.estimateId,
         estimateDate: base.estimateDate,
         customerName: base.customerName,
@@ -106,11 +114,15 @@ function normalizeSingleEstimation(estimation) {
       }))
     : [];
 
+  const anyDiscount = estimation?.anyDiscount ?? items.some((i) => i.hasDiscount);
+
   return {
     ...base,
     person: v(estimation?.person),
     designation: v(estimation?.designation),
     createdBy: v(estimation?.createdBy),
+    taxMode: estimation?.tax_mode || estimation?.taxMode || 'withoutTax',
+    anyDiscount,
     items,
     summary: normalizeSummary(estimation?.summary || estimation),
   };
@@ -284,6 +296,39 @@ const SHARED_CSS = `
   .items-table .qty { width: 13mm; }
   .items-table .disc { width: 16mm; }
   .items-table .amount { width: 27mm; }
+  .item-cell {
+    display: flex;
+    align-items: flex-start;
+    gap: 5pt;
+    min-width: 0;
+  }
+  .item-photo {
+    width: 28pt;
+    height: 28pt;
+    background: #ffffff;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+  .item-copy {
+    min-width: 0;
+  }
+  .item-name {
+    display: block;
+    color: #1a1a1a;
+    font-size: 8.5pt;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+  .item-description {
+    display: block;
+    margin-top: 2pt;
+    color: #666666;
+    font-size: 7.5pt;
+    font-weight: 400;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
   .bold { font-weight: 700; }
   .num {
     text-align: right;
@@ -426,17 +471,43 @@ const STATIC_ESTIMATION_PROFILE = {
 };
 
 function buildPrintSingleHtml(company, estimation) {
-  const itemRows = (estimation.items || []).map((row, index) => `
+  const withTax = estimation.taxMode === 'withTax';
+  const anyDiscount = estimation.anyDiscount;
+
+  // colspan: # | item/desc | qty | price | [tax] | [discAmt] | total
+  const colCount = 4 + (withTax ? 1 : 0) + (anyDiscount ? 1 : 0) + 1;
+
+  const itemRows = (estimation.items || []).map((row, index) => {
+    const unitPrice = withTax ? row.salePriceWithTax : row.salePrice;
+    const taxAmt = withTax
+      ? formatMoney(Number(row.salePriceWithTax || 0) - Number(row.salePrice || 0))
+      : '';
+    const imageHtml = row.itemImage
+      ? `<img src="${escapePrintHtml(row.itemImage)}" alt="${escapePrintHtml(row.itemName)}" class="item-photo" />`
+      : '';
+    const descHtml = row.description && row.description !== '-'
+      ? `<span class="item-description">${escapePrintHtml(row.description)}</span>`
+      : '';
+    return `
     <tr>
       <td class="sr">${index + 1}</td>
-      <td class="bold">${escapePrintHtml(row.itemName)}</td>
+      <td>
+        <div class="item-cell">
+          ${imageHtml}
+          <div class="item-copy">
+            <span class="item-name">${escapePrintHtml(row.itemName)}</span>
+            ${descHtml}
+          </div>
+        </div>
+      </td>
       <td class="num">${escapePrintHtml(row.qty)}</td>
-      <td class="num">${escapePrintHtml(row.discountPercent)}%</td>
-      <td class="num">${escapePrintHtml(row.salePrice)}</td>
-      <td class="num">${escapePrintHtml(row.discountAmount)}</td>
-      <td class="num bold">${escapePrintHtml(row.finalTotal)}</td>
+      <td class="num">${escapePrintHtml(unitPrice)}</td>
+      ${withTax ? `<td class="num">${taxAmt}</td>` : ''}
+      ${anyDiscount ? `<td class="num">${row.hasDiscount ? escapePrintHtml(row.discountAmount) : '0.00'}</td>` : ''}
+      <td class="num bold">${escapePrintHtml(withTax ? row.saleTotalWithTax : row.saleTotal)}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   const summary = estimation.summary;
 
@@ -493,14 +564,14 @@ function buildPrintSingleHtml(company, estimation) {
             <th class="sr">#</th>
             <th>Item / Description</th>
             <th class="qty num">Qty</th>
-            <th class="disc num">Disc %</th>
-            <th class="amount num">Sale Price</th>
-            <th class="amount num">Disc Amt</th>
-            <th class="amount num">Total</th>
+            <th class="amount num">${withTax ? 'Unit Price (w/ Tax)' : 'Unit Price'}</th>
+            ${withTax ? '<th class="amount num">Tax Amt</th>' : ''}
+            ${anyDiscount ? '<th class="amount num">Disc Amt</th>' : ''}
+            <th class="amount num">Final Total</th>
           </tr>
         </thead>
         <tbody>
-          ${itemRows || `<tr><td colspan="7" style="text-align:center;color:#999;padding:12pt;font-size:8pt;">No items found.</td></tr>`}
+          ${itemRows || `<tr><td colspan="${colCount}" style="text-align:center;color:#999;padding:12pt;font-size:8pt;">No items found.</td></tr>`}
         </tbody>
       </table>
 
@@ -508,13 +579,19 @@ function buildPrintSingleHtml(company, estimation) {
       <div class="total-section">
         <table class="total-table">
           <tr>
-            <td class="total-label">Sub-Total (PKR)</td>
-            <td class="total-value">${estimation.items.reduce((s, i) => s + Number(i.saleTotal || 0), 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td class="total-label">Sub Total (PKR)</td>
+            <td class="total-value">${estimation.items.reduce((s, i) => s + Number(withTax ? (i.saleTotalWithTax || 0) : (i.saleTotal || 0)), 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
+          ${withTax ? `
+          <tr>
+            <td class="total-label">Tax Total (PKR)</td>
+            <td class="total-value">${estimation.items.reduce((s, i) => s + (Number(i.saleTotalWithTax || 0) - Number(i.saleTotal || 0)), 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>` : ''}
+          ${anyDiscount ? `
           <tr>
             <td class="total-label">Total Discount (PKR)</td>
             <td class="total-value">${summary.totalDiscount.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          </tr>
+          </tr>` : ''}
           <tr class="grand-total">
             <td class="total-label">Grand Total (PKR)</td>
             <td class="total-value">${summary.totalFinal.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

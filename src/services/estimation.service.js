@@ -50,6 +50,7 @@ function normalize(item) {
     department: pickFirstDefined(item.department, item.customer_department, item.customerDepartment, item.customer?.department),
     serviceId: pickFirstDefined(item.service_id, item.serviceId),
     serviceName: pickFirstDefined(item.service, item.service_name, item.serviceName, item.service?.service_name),
+    taxMode: pickFirstDefined(item.tax_mode, item.taxMode),
     createdBy: pickFirstDefined(item.created_by, item.createdBy, item.created_by_name),
     status: pickFirstDefined(item.status, 'active'),
     purchasePrice: pickFirstDefined(item.purchase_price, item.purchasePrice),

@@ -323,13 +323,12 @@ const QUOTATION_CSS = `
   .item-cell {
     display: flex;
     align-items: flex-start;
-    gap: 7pt;
+    gap: 5pt;
     min-width: 0;
   }
   .item-photo {
-    width: 15mm;
-    height: 15mm;
-    border: 0.75pt solid #dddddd;
+    width: 28pt;
+    height: 28pt;
     background: #ffffff;
     object-fit: contain;
     flex-shrink: 0;
@@ -340,18 +339,18 @@ const QUOTATION_CSS = `
   .item-name {
     display: block;
     color: #1a1a1a;
-    font-size: 8.4pt;
-    font-weight: 900;
-    line-height: 1.35;
+    font-size: 8.5pt;
+    font-weight: 700;
+    line-height: 1.3;
     overflow-wrap: anywhere;
   }
   .item-description {
     display: block;
     margin-top: 2pt;
-    color: #222222;
-    font-size: 7.7pt;
-    font-weight: 600;
-    line-height: 1.4;
+    color: #666666;
+    font-size: 7.5pt;
+    font-weight: 400;
+    line-height: 1.3;
     overflow-wrap: anywhere;
   }
   .bold { font-weight: 700; }
@@ -413,20 +412,19 @@ const QUOTATION_CSS = `
 
   /* ══ TERMS ══ */
   .terms-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 14pt;
-    margin-top: 6pt;
+    display: flex;
+    flex-direction: column;
+    gap: 2pt;
+    margin-top: 4pt;
   }
   .terms-item {
     display: flex;
-    gap: 6pt;
+    gap: 5pt;
     align-items: flex-start;
-    padding: 2pt 0;
-    border-bottom: 0.5pt solid #eeeeee;
+    padding: 0;
     font-size: 7.8pt;
     color: #444444;
-    line-height: 1.6;
+    line-height: 1.35;
   }
   .terms-bullet {
     width: 4.5pt;

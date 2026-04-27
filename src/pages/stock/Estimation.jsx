@@ -23,6 +23,7 @@ const EMPTY_FORM = {
   person: '',
   createdBy: '',
   designation: '',
+  taxMode: 'withoutTax',
   itemRateId: '',
   item: '',
   qty: '',
@@ -37,6 +38,8 @@ const EMPTY_FORM = {
   discountAmount: '',
   finalPrice: '',
   finalTotal: '',
+  sendEmail: true,
+  sendWhatsapp: true,
 };
 
 function sanitizeNumericInput(value) {
@@ -327,9 +330,10 @@ export default function Estimation() {
     const purchaseTotal = qty * purchasePrice;
     const saleTotal = qty * salePrice;
     const saleTotalWithTax = qty * salePriceWithTax;
-    const discountPerUnit = discountPercentage ? (salePriceWithTax * discountPercentage) / 100 : 0;
+    const basePrice = formData.taxMode === 'withoutTax' ? salePrice : salePriceWithTax;
+    const discountPerUnit = discountPercentage ? (basePrice * discountPercentage) / 100 : 0;
     const discountAmount = discountPerUnit * qty;
-    const finalPrice = Math.max(salePriceWithTax - discountPerUnit, 0);
+    const finalPrice = Math.max(basePrice - discountPerUnit, 0);
     const finalTotal = finalPrice * qty;
 
     setFormData((prev) => {
@@ -356,7 +360,33 @@ export default function Estimation() {
 
       return nextState;
     });
-  }, [formData.qty, formData.purchasePrice, formData.salePrice, formData.salePriceWithTax, formData.discountPercentage]);
+  }, [formData.qty, formData.purchasePrice, formData.salePrice, formData.salePriceWithTax, formData.discountPercentage, formData.taxMode]);
+
+  // Recalculate all queued rows when taxMode changes
+  useEffect(() => {
+    if (!rows.length) return;
+    setRows((prev) =>
+      prev.map((row) => {
+        const qty = Number(row.qty || 0);
+        const salePrice = Number(row.salePrice || 0);
+        const salePriceWithTax = Number(row.salePriceWithTax || 0);
+        const discountPercentage = Number(row.discountPercentage || 0);
+        const basePrice = formData.taxMode === 'withoutTax' ? salePrice : salePriceWithTax;
+        const discountPerUnit = discountPercentage ? (basePrice * discountPercentage) / 100 : 0;
+        const discountAmount = discountPerUnit * qty;
+        const finalPrice = Math.max(basePrice - discountPerUnit, 0);
+        const finalTotal = finalPrice * qty;
+        return {
+          ...row,
+          taxMode: formData.taxMode,
+          discountAmount: discountAmount ? discountAmount.toFixed(2) : '',
+          finalPrice: finalPrice ? finalPrice.toFixed(2) : '',
+          finalTotal: finalTotal ? finalTotal.toFixed(2) : '',
+        };
+      })
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.taxMode]);
 
   const handleCustomerChange = (company) => {
     const found = setupOptions.customers.find((c) => c.company === company);
@@ -452,6 +482,7 @@ export default function Estimation() {
       person: prev.person,
       createdBy: prev.createdBy,
       designation: prev.designation,
+      taxMode: prev.taxMode,
     }));
     toast.success(editingRowId ? 'Item updated' : 'Item added', editingRowId ? 'Queued estimation item updated successfully.' : 'Estimation item has been added to the preview list.');
   };
@@ -506,6 +537,7 @@ export default function Estimation() {
       discountAmount: String(row.discountAmount || ''),
       finalPrice: String(row.finalPrice || ''),
       finalTotal: String(row.finalTotal || ''),
+      taxMode: row.taxMode || formData.taxMode || 'withoutTax',
     });
   };
 
@@ -540,6 +572,7 @@ export default function Estimation() {
             discountAmount: String(item.discountAmount || ''),
             finalPrice: String(item.finalPrice || ''),
             finalTotal: String(item.finalTotal || ''),
+            taxMode: estimation.taxMode || 'withoutTax',
           }))
         : [];
 
@@ -558,6 +591,7 @@ export default function Estimation() {
         person: estimation.person || '',
         designation: estimation.designation || '',
         createdBy: estimation.createdBy || loggedInUserName,
+        taxMode: estimation.taxMode || 'withoutTax',
       });
       setShowForm(true);
     } catch (requestError) {
@@ -565,6 +599,12 @@ export default function Estimation() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const getDeliveryFailureMessage = (channelName, delivery) => {
+    if (channelName === 'WhatsApp') return 'WhatsApp send unsuccessful';
+    const detail = delivery?.message || delivery?.reason || delivery?.error || 'not sent';
+    return `${channelName} not sent${detail ? `: ${detail}` : ''}`;
   };
 
   const handleSaveEstimation = async () => {
@@ -583,7 +623,10 @@ export default function Estimation() {
           estimate_date: formData.date,
           customer_id: formData.customerId ? Number(formData.customerId) : null,
           service_id: formData.serviceId ? Number(formData.serviceId) : null,
+          tax_mode: formData.taxMode,
           status: 'active',
+          sendEmail: formData.sendEmail,
+          sendWhatsapp: formData.sendWhatsapp,
           items: rowsToSave.map((row) => ({
             item_rate_id: Number(row.itemRateId),
             qty: Number(row.qty || 0),
@@ -591,8 +634,38 @@ export default function Estimation() {
             discount_percent: Number(row.discountPercentage || row.discountPercent || 0),
           })),
         };
-        await estimationService.update(editingItem.id, payload);
-        toast.success('Estimation updated', 'Record updated successfully.');
+        const response = await estimationService.update(editingItem.id, payload);
+        const saved = response?.data || {};
+        const emailDelivery = saved.delivery?.email;
+        const whatsappDelivery = saved.delivery?.whatsapp;
+        const successfulDeliveries = [];
+        const failedDeliveries = [];
+
+        if (emailDelivery) {
+          if (emailDelivery.sent) {
+            successfulDeliveries.push(`Email sent to ${emailDelivery.to || 'customer'}`);
+          } else {
+            failedDeliveries.push(getDeliveryFailureMessage('Email', emailDelivery));
+          }
+        }
+
+        if (whatsappDelivery) {
+          if (whatsappDelivery.sent) {
+            successfulDeliveries.push(`WhatsApp sent to ${whatsappDelivery.to || whatsappDelivery.phone || 'customer'}`);
+          } else {
+            failedDeliveries.push(getDeliveryFailureMessage('WhatsApp', whatsappDelivery));
+          }
+        }
+
+        if (failedDeliveries.length) {
+          const successMessage = successfulDeliveries.length ? `${successfulDeliveries.join(' | ')}. ` : '';
+          toast.error('Estimation updated with delivery issue', `${successMessage}${failedDeliveries.join(' | ')}.`);
+        } else if (successfulDeliveries.length) {
+          toast.success('Estimation updated', `${successfulDeliveries.join(' | ')}.`);
+        } else {
+          toast.success('Estimation updated', 'Estimation updated successfully.');
+        }
+
         setEditingItem(null);
         setEditingRowId(null);
         setShowForm(false);
@@ -613,7 +686,10 @@ export default function Estimation() {
         estimate_date: formData.date,
         customer_id: formData.customerId ? Number(formData.customerId) : null,
         service_id: formData.serviceId ? Number(formData.serviceId) : null,
+        tax_mode: formData.taxMode,
         status: 'active',
+        sendEmail: formData.sendEmail,
+        sendWhatsapp: formData.sendWhatsapp,
         items: rowsToSave.map((row) => ({
           item_rate_id: Number(row.itemRateId),
           qty: Number(row.qty || 0),
@@ -630,10 +706,42 @@ export default function Estimation() {
         lastResponse?.data?.estimateId ||
         '';
 
+      const saved = lastResponse?.data?.data || lastResponse?.data || {};
+      const emailDelivery = saved.delivery?.email;
+      const whatsappDelivery = saved.delivery?.whatsapp;
+      const successfulDeliveries = [];
+      const failedDeliveries = [];
+
+      if (emailDelivery) {
+        if (emailDelivery.sent) {
+          successfulDeliveries.push(`Email sent to ${emailDelivery.to || 'customer'}`);
+        } else {
+          failedDeliveries.push(getDeliveryFailureMessage('Email', emailDelivery));
+        }
+      }
+
+      if (whatsappDelivery) {
+        if (whatsappDelivery.sent) {
+          successfulDeliveries.push(`WhatsApp sent to ${whatsappDelivery.to || whatsappDelivery.phone || 'customer'}`);
+        } else {
+          failedDeliveries.push(getDeliveryFailureMessage('WhatsApp', whatsappDelivery));
+        }
+      }
+
       await loadEstimations();
       setRows([]);
       closeForm();
-      toast.success('Estimation saved', savedEstimateId ? `Saved as ${savedEstimateId}.` : 'Estimation saved successfully.');
+
+      if (failedDeliveries.length) {
+        const successMessage = successfulDeliveries.length ? `${successfulDeliveries.join(' | ')}. ` : '';
+        const savedMessage = savedEstimateId ? `Saved as ${savedEstimateId}. ` : '';
+        toast.error('Estimation saved with delivery issue', `${savedMessage}${successMessage}${failedDeliveries.join(' | ')}.`);
+      } else if (successfulDeliveries.length) {
+        const savedMessage = savedEstimateId ? `Saved as ${savedEstimateId}. ` : '';
+        toast.success('Estimation saved', `${savedMessage}${successfulDeliveries.join(' | ')}.`);
+      } else {
+        toast.success('Estimation saved', savedEstimateId ? `Saved as ${savedEstimateId}.` : 'Estimation saved successfully.');
+      }
     } catch (requestError) {
       toast.error('Save failed', requestError?.response?.data?.message || requestError.message || 'Failed to save estimation.');
     } finally {
@@ -896,6 +1004,16 @@ export default function Estimation() {
                       <div className={`md:col-span-2 ${COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME}`}>
                         <ReadOnlyField label="Designation" value={formData.designation} placeholder="Auto-filled from customer" />
                       </div>
+                      <div className="flex flex-wrap items-center gap-5 md:col-span-2">
+                        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                          <input type="radio" checked={formData.taxMode === 'withoutTax'} onChange={() => updateField('taxMode', 'withoutTax')} className="h-4 w-4 border-slate-300 text-slate-700 focus:ring-slate-300" />
+                          <span>Without Tax</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                          <input type="radio" checked={formData.taxMode === 'withTax'} onChange={() => updateField('taxMode', 'withTax')} className="h-4 w-4 border-slate-300 text-slate-700 focus:ring-slate-300" />
+                          <span>With Tax</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
 
@@ -987,14 +1105,18 @@ export default function Estimation() {
                             <FieldLabel>Sale Total</FieldLabel>
                             <input type="text" value={formData.saleTotal} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
                           </div>
-                          <div className="space-y-2">
-                            <FieldLabel>Sale Price With Tax</FieldLabel>
-                            <input type="text" value={formData.salePriceWithTax} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
-                          </div>
-                          <div className="space-y-2">
-                            <FieldLabel>Sale Total With Tax</FieldLabel>
-                            <input type="text" value={formData.saleTotalWithTax} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
-                          </div>
+                          {formData.taxMode !== 'withoutTax' ? (
+                            <>
+                              <div className="space-y-2">
+                                <FieldLabel>Sale Price With Tax</FieldLabel>
+                                <input type="text" value={formData.salePriceWithTax} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
+                              </div>
+                              <div className="space-y-2">
+                                <FieldLabel>Sale Total With Tax</FieldLabel>
+                                <input type="text" value={formData.saleTotalWithTax} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
+                              </div>
+                            </>
+                          ) : null}
                         </div>
                       </div>
 
@@ -1045,13 +1167,16 @@ export default function Estimation() {
                     <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
                       <thead>
                         <tr className="bg-slate-100/80">
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item Detail</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Unit Price</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Discount</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Final Total</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Actions</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Sr.</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Item Detail</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Qty</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">{formData.taxMode === 'withTax' ? 'Unit Price (w/ Tax)' : 'Unit Price'}</th>
+                          {formData.taxMode === 'withTax' ? (
+                            <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Tax Amt</th>
+                          ) : null}
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Discount</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Final Total</th>
+                          <th className="border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1065,7 +1190,10 @@ export default function Estimation() {
                               </div>
                             </td>
                             <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatIntegerOrDash(row.qty)}</td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatCellValue(row.salePriceWithTax || row.salePrice)}</td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatCellValue(formData.taxMode === 'withTax' ? row.salePriceWithTax : row.salePrice)}</td>
+                            {formData.taxMode === 'withTax' ? (
+                              <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-indigo-700">{formatCellValue((Number(row.salePriceWithTax || 0) - Number(row.salePrice || 0)).toFixed(2))}</td>
+                            ) : null}
                             <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-amber-700">{formatCellValue(row.discountAmount)}</td>
                             <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-brand">{formatCellValue(row.finalTotal)}</td>
                             <td className="border-b border-slate-100 px-4 py-4 text-right whitespace-nowrap">

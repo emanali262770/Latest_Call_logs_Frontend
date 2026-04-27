@@ -624,6 +624,7 @@ export default function Quotation() {
   };
 
   const getDeliveryFailureMessage = (channelName, delivery) => {
+    if (channelName === 'WhatsApp') return 'WhatsApp send unsuccessful';
     const detail = delivery?.message || delivery?.reason || delivery?.error || 'not sent';
     return `${channelName} not sent${detail ? `: ${detail}` : ''}`;
   };
@@ -1084,7 +1085,7 @@ export default function Quotation() {
             <div className="flex items-center justify-end rounded-2xl border border-slate-300/80 bg-slate-50/95 px-6 py-4">
               <button type="button" onClick={handleSaveQuotation} disabled={isSaving} className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover disabled:opacity-60">
                 <Save className="h-4.5 w-4.5" />
-                {isSaving ? 'Saving...' : editingQuotationId ? 'Update Quotation' : formMode === 'revision' ? 'Save Revision' : 'Save Quotation'}
+                {isSaving ? 'Updating...' : editingQuotationId ? 'Update Quotation' : formMode === 'revision' ? 'Save Revision' : 'Save Quotation'}
               </button>
             </div>
           </div>
