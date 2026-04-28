@@ -51,6 +51,7 @@ function normalizeRate(item) {
     manufacturer: item?.manufacturer_name || item?.manufacturerName || item?.manufacturer || '',
     item: item?.item_name || item?.itemName || item?.item || item?.item_definition_name || item?.itemDefinitionName || '',
     itemSpecification: item?.item_specification || item?.itemSpecification || item?.specification || '',
+    image: item?.image || item?.image_url || item?.imageUrl || '',
     reseller: item?.reseller_price ?? item?.resellerPrice ?? '',
     sale: item?.sale_price ?? item?.salePrice ?? '',
     salePrice: item?.sale_price ?? item?.salePrice ?? '',

@@ -333,6 +333,69 @@ export default function OpeningStock() {
     [items, draftValues, initialDraftValues],
   );
 
+  const handleSaveAll = async () => {
+    const dirtyItems = items.filter((item) => rowHasChanges(item.id));
+    if (!dirtyItems.length) return;
+
+    // Client-side validation before sending
+    for (const item of dirtyItems) {
+      const draft = draftValues[item.id] || {};
+      const purchasePrice = parseFloat(draft.purchasePrice) || 0;
+      const salePrice = parseFloat(draft.salePrice) || 0;
+      if (salePrice < purchasePrice) {
+        toast.error('Invalid price', `Sale price cannot be less than purchase price for "${item.itemName}".`);
+        return;
+      }
+    }
+
+    setIsSaving(true);
+
+    try {
+      const payload = dirtyItems.map((item) => {
+        const draft = draftValues[item.id] || {};
+        return {
+          id: item.id,
+          purchase_price: draft.purchasePrice,
+          sale_price: draft.salePrice,
+          stock: draft.stock,
+        };
+      });
+
+      const response = await axiosInstance.put('/opening-stock/bulk', { items: payload });
+      const updated = response?.data?.updated ?? response?.updated ?? [];
+      const errors = response?.data?.errors ?? response?.errors ?? [];
+
+      if (updated.length) {
+        setInitialDraftValues((prev) => {
+          const next = { ...prev };
+          updated.forEach((savedItem) => {
+            const id = savedItem.id ?? savedItem._id;
+            if (id && draftValues[id]) {
+              next[id] = { ...draftValues[id] };
+            }
+          });
+          return next;
+        });
+        window.dispatchEvent(new Event('low-stock-notifications:refresh'));
+      }
+
+      if (errors.length && updated.length) {
+        toast.error(
+          'Partial save',
+          `${updated.length} item(s) saved. ${errors.length} item(s) failed: ${errors.map((e) => e.reason || 'unknown error').join(', ')}.`,
+        );
+      } else if (errors.length && !updated.length) {
+        toast.error('Save failed', errors.map((e) => e.reason || 'unknown error').join(', '));
+      } else {
+        toast.success('Saved', `${updated.length} item(s) updated successfully.`);
+      }
+    } catch (requestError) {
+      toast.error('Save failed', requestError.message || 'Could not save opening stock values.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSaveDraft = async (itemId) => {
     const draft = draftValues[itemId] || {};
     const purchasePrice = parseFloat(draft.purchasePrice) || 0;
@@ -476,14 +539,24 @@ export default function OpeningStock() {
         ) : null}
 
         <div className="px-6 pb-6 pt-5">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-light text-brand">
-              <TableProperties className="h-4.5 w-4.5" />
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand-light text-brand">
+                <TableProperties className="h-4.5 w-4.5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold tracking-tight text-gray-900">Opening Stock Table</h2>
+                <p className="text-sm text-gray-500">Review the filtered items and update purchase, sale, and stock values.</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-gray-900">Opening Stock Table</h2>
-              <p className="text-sm text-gray-500">Review the filtered items and update purchase, sale, and stock values.</p>
-            </div>
+            <button
+              onClick={handleSaveAll}
+              disabled={isSaving || !hasAnyRowChanges}
+              className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Save className="h-4 w-4" />
+              Save All
+            </button>
           </div>
 
           <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">

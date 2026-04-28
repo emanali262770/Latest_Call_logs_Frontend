@@ -900,7 +900,7 @@ export default function Estimation() {
                           </td>
                           {hasRowActions ? (
                           <td className="border-b border-gray-50/30 px-5 py-6 text-start whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
+                            <div className="flex items-center justify-end gap-2">
                               {canPrint ? (
                                 <button
                                   type="button"

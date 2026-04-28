@@ -660,8 +660,26 @@ export default function ItemRate() {
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-500">{(currentPage - 1) * pageSize + index + 1}</td>
                         <td className="w-[360px] border-b border-gray-50/30 px-8 py-6">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center shrink-0 justify-center rounded-xl border border-brand/10 bg-brand-light text-brand">
-                              <Package className="h-4 w-4" />
+                            <div className={`flex h-9 w-9 items-center ${row.image ? '' : 'rounded-xl border border-brand/10'} shrink-0 justify-center  bg-brand-light text-brand overflow-hidden`}>
+                              {row.image ? (
+                                <img
+                                  src={(() => {
+                                    const p = String(row.image || '').trim();
+                                    if (!p || /^https?:\/\//i.test(p) || /^blob:/i.test(p)) return p;
+                                    const base = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+                                    try { return new URL(p, new URL(base).origin).toString(); } catch { return p; }
+                                  })()}
+                                  alt={row.item}
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                                />
+                              ) : null}
+                              <span
+                                className="h-full w-full items-center justify-center"
+                                style={{ display: row.image ? 'none' : 'flex' }}
+                              >
+                                <Package className="h-4 w-4" />
+                              </span>
                             </div>
                             <span className="min-w-0 text-sm font-semibold leading-5 text-gray-900">{formatCellValue(row.item)}</span>
                           </div>
@@ -673,7 +691,7 @@ export default function ItemRate() {
                         <td className="border-b border-gray-50/30 px-8 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{formatCellValue(row.sale)}</td>
                         {hasRowActions ? (
                           <td className="border-b border-gray-50/30 px-8 py-6 text-right">
-                            <div className="flex items-center justify-end gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
+                            <div className="flex items-center justify-end gap-2">
                               {canEdit ? (
                                 <button
                                   type="button"

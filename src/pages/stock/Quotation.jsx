@@ -817,7 +817,7 @@ export default function Quotation() {
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-brand whitespace-nowrap">{row.itemsTotal || '0.00'}</td>
                             {hasRowActions ? (
                             <td className="border-b border-gray-50/30 px-5 py-6 text-right whitespace-nowrap">
-                              <div className="flex items-center justify-end gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-within:opacity-100">
+                              <div className="flex items-center justify-end gap-2">
                                 {canPrint ? <button type="button" title="Print" onClick={() => handlePrintQuotation(row)} className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-violet-600 hover:shadow-xl hover:shadow-violet-100/50 active:scale-95">
                                   <Printer className="h-4.5 w-4.5" />
                                 </button> : null}

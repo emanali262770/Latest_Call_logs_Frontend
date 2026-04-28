@@ -214,8 +214,18 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     return activeTrail;
   }, [pathName, visibleNavItems]);
 
-  const [manualExpandedSubMenus, setManualExpandedSubMenus] = useState([]);
-  const expandedSubMenus = manualExpandedSubMenus.length ? manualExpandedSubMenus : autoExpandedSubMenu;
+  const [manualExpandedSubMenus, setManualExpandedSubMenus] = useState(null);
+
+  // Reset manual state on route change so auto-expand takes over again after navigation
+  const prevPathRef = useRef(pathName);
+  useEffect(() => {
+    if (prevPathRef.current !== pathName) {
+      prevPathRef.current = pathName;
+      setManualExpandedSubMenus(null);
+    }
+  }, [pathName]);
+
+  const expandedSubMenus = manualExpandedSubMenus !== null ? manualExpandedSubMenus : autoExpandedSubMenu;
 
   const applyBrandProfile = (company) => {
     if (company?.company_name || company?.logo_url) {
@@ -300,10 +310,11 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
 
       if (isCollapsed) {
         setIsCollapsed(false);
-        setManualExpandedSubMenus([...parentTrail, item.id]);
+        setManualExpandedSubMenus([...parentTrail, item.id].length ? [...parentTrail, item.id] : null);
       } else {
         const trailToItem = [...parentTrail, item.id];
         const isExpanded = expandedSubMenus.includes(item.id);
+        // Use [] (not null) when closing so autoExpandedSubMenu does NOT override
         setManualExpandedSubMenus(isExpanded ? parentTrail : trailToItem);
       }
 
