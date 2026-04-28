@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, Edit2, Package, Plus, Printer, ReceiptText, Save, Search as SearchIcon, Trash2, TrendingUp, TrendingDown, BadgeDollarSign, ShoppingCart, Tag } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion as Motion } from 'motion/react';
+import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Edit2, Eye, LayoutTemplate, Package, Plus, Printer, ReceiptText, Save, Search as SearchIcon, Trash2, TrendingUp, TrendingDown, BadgeDollarSign, Tag, X } from 'lucide-react';
 import { Button, Card } from '@/src/components/ui/Card';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import TableLoader from '@/src/components/ui/TableLoader';
@@ -40,6 +42,7 @@ const EMPTY_FORM = {
   finalTotal: '',
   sendEmail: true,
   sendWhatsapp: true,
+  printTemplateId: 'executive_letterhead',
 };
 
 function sanitizeNumericInput(value) {
@@ -73,15 +76,179 @@ function ReadOnlyField({ label, value, placeholder }) {
   );
 }
 
-function SummaryCard({ label, value, icon: Icon, colorClass, bgClass, borderClass }) {
-  return (
-    <div className={`flex flex-1 min-w-[180px] items-center gap-4 rounded-2xl border ${borderClass} ${bgClass} px-5 py-4 shadow-sm`}>
-      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${colorClass} bg-white/70 shadow-inner`}>
-        <Icon className="h-5 w-5" />
+const ESTIMATION_FALLBACK_PRINT_TEMPLATE_OPTIONS = [
+  { id: 'executive_letterhead', name: 'Executive Letterhead', category: 'Classic', description: 'Clean company header with strong totals and a formal estimation layout.' },
+  { id: 'technical_bid', name: 'Technical Bid', category: 'Detailed', description: 'Built for item-heavy estimations with product details and clear sections.' },
+  { id: 'premium_tax', name: 'Premium Tax', category: 'Tax Ready', description: 'Professional tax-focused print view with GST and grand total emphasis.' },
+  { id: 'modern_clean', name: 'Modern Clean', category: 'Modern', description: 'Balanced service proposal style with neat contact and item grouping.' },
+  { id: 'compact_commercial', name: 'Compact Commercial', category: 'Compact', description: 'Space-efficient estimation layout for quick review and direct printing.' },
+];
+
+const ESTIMATION_BACKEND_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/api\/?$/, '');
+
+function resolveEstimationPreviewPdfUrl(url) {
+  if (!url) return null;
+  if (/^https?:\/\//.test(url)) return url;
+  return `${ESTIMATION_BACKEND_BASE_URL}${url}`;
+}
+
+function normalizeEstimationPrintTemplate(template) {
+  return {
+    id: template.id,
+    name: template.name || template.title || template.id,
+    category: template.category || template.meta || 'Template',
+    description: template.description || '',
+    previewPdfUrl: resolveEstimationPreviewPdfUrl(template.previewPdfUrl || template.preview_pdf_url || null),
+  };
+}
+
+function EstimationTemplatePreview({ template, className = '' }) {
+  if (template.previewPdfUrl) {
+    return (
+      <div className={`h-full w-full overflow-hidden bg-white ${className}`}>
+        <iframe src={`${template.previewPdfUrl}#toolbar=0&navpanes=0&scrollbar=0`} title={template.name} className="h-full w-full border-0" />
       </div>
-      <div className="min-w-0">
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 truncate">{label}</p>
-        <p className={`mt-0.5 text-[17px] font-extrabold tabular-nums leading-tight ${colorClass}`}>{value}</p>
+    );
+  }
+  return (
+    <div className={`h-full w-full overflow-hidden bg-white flex items-center justify-center ${className}`}>
+      <div style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
+        <p style={{ fontSize: '16px' }}>{template.name || 'Template Preview'}</p>
+        <p style={{ fontSize: '13px', marginTop: '8px' }}>Preview not available</p>
+      </div>
+    </div>
+  );
+}
+
+function wrapEstimationIndex(min, max, value) {
+  const rangeSize = max - min;
+  return ((((value - min) % rangeSize) + rangeSize) % rangeSize) + min;
+}
+
+function EstimationPrintTemplatePickerModal({ isOpen, templates, selectedTemplateId, onClose, onSelect }) {
+  const initialIndex = Math.max(templates.findIndex((t) => t.id === selectedTemplateId), 0);
+  const [active, setActive] = useState(initialIndex);
+  const activeIndex = templates.length ? wrapEstimationIndex(0, templates.length, active) : 0;
+  const activeTemplate = templates[activeIndex] || templates[0];
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+      if (event.key === 'ArrowLeft') setActive((prev) => prev - 1);
+      if (event.key === 'ArrowRight') setActive((prev) => prev + 1);
+      if (event.key === 'Enter' && activeTemplate) onSelect(activeTemplate.id);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeTemplate, isOpen, onClose, onSelect]);
+
+  if (!isOpen || !activeTemplate) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[110] overflow-hidden bg-slate-950 text-white">
+      <button type="button" className="absolute inset-0 bg-slate-950/96" onClick={onClose} aria-label="Close print template modal" />
+      <AnimatePresence mode="wait">
+        <Motion.div key={activeTemplate.id} initial={{ opacity: 0 }} animate={{ opacity: 0.32 }} exit={{ opacity: 0 }} transition={{ duration: 0.55 }} className="absolute inset-0 pointer-events-none">
+          <EstimationTemplatePreview template={activeTemplate} className="blur-2xl saturate-150 opacity-80" />
+          <div className="absolute inset-0 bg-slate-950/70" />
+        </Motion.div>
+      </AnimatePresence>
+      <div className="relative z-10 flex h-full flex-col px-4 py-5 sm:px-8 sm:py-7">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white shadow-xl shadow-black/20">
+              <LayoutTemplate className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-lg font-bold tracking-tight">Print Template</p>
+              <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Select estimation print design</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-slate-300 transition-all hover:bg-white/15 hover:text-white" aria-label="Close modal">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col justify-center py-6">
+          <div className="relative flex h-[330px] w-full items-center justify-center overflow-hidden sm:h-[390px]" style={{ perspective: 1200 }}>
+            {[-2, -1, 0, 1, 2].map((offset) => {
+              const absoluteIndex = active + offset;
+              const index = wrapEstimationIndex(0, templates.length, absoluteIndex);
+              const template = templates[index];
+              const isCenter = offset === 0;
+              const distance = Math.abs(offset);
+              return (
+                <Motion.div
+                  key={`${template.id}-${absoluteIndex}`}
+                  role="button" tabIndex={0}
+                  initial={false}
+                  animate={{ x: offset * 270, scale: isCenter ? 1 : 0.84, rotateY: offset * -18, opacity: isCenter ? 1 : Math.max(0.16, 1 - distance * 0.42), filter: `blur(${isCenter ? 0 : distance * 3}px) brightness(${isCenter ? 1 : 0.62})` }}
+                  transition={{ type: 'spring', stiffness: 310, damping: isCenter ? 24 : 32, mass: 1 }}
+                  style={{ transformStyle: 'preserve-3d', cursor: 'pointer' }}
+                  onClick={() => (isCenter ? onSelect(template.id) : setActive((prev) => prev + offset))}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { isCenter ? onSelect(template.id) : setActive((prev) => prev + offset); } }}
+                  className={`absolute aspect-[3/4] w-[214px] overflow-hidden rounded-2xl text-left shadow-2xl transition-shadow sm:w-[270px] ${isCenter ? 'z-20 shadow-brand/25' : 'z-10 shadow-black/40'}`}
+                >
+                  <div className="pointer-events-none h-full w-full"><EstimationTemplatePreview template={template} /></div>
+                  <div className="absolute inset-0 bg-linear-to-t from-slate-950/92 via-slate-950/12 to-white/5" />
+                  <div className="absolute inset-x-0 bottom-0 p-4">
+                    <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-200 backdrop-blur">{template.category}</span>
+                    <p className="mt-2 text-lg font-bold leading-tight text-white">{template.name}</p>
+                  </div>
+                  {selectedTemplateId === template.id ? (
+                    <div className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white shadow-lg shadow-brand/30"><Check className="h-4 w-4" /></div>
+                  ) : null}
+                  {!template.previewPdfUrl ? (
+                    <div className="absolute left-3 top-3 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white shadow-lg shadow-amber-950/20">Preview missing</div>
+                  ) : null}
+                </Motion.div>
+              );
+            })}
+          </div>
+          <div className="mx-auto mt-7 flex w-full max-w-4xl flex-col items-center justify-between gap-5 rounded-3xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-md sm:flex-row sm:p-5">
+            <AnimatePresence mode="wait">
+              <Motion.div key={activeTemplate.id} initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }} animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }} exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }} transition={{ duration: 0.22 }} className="min-w-0 text-center sm:text-left">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-light">{activeTemplate.category}</p>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">{activeTemplate.name}</h2>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">{activeTemplate.description}</p>
+              </Motion.div>
+            </AnimatePresence>
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/70 p-1">
+                <button type="button" onClick={() => setActive((prev) => prev - 1)} className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-all hover:bg-white/10 hover:text-white" aria-label="Previous template"><ChevronLeft className="h-5 w-5" /></button>
+                <span className="min-w-12 text-center text-xs font-bold text-slate-400">{activeIndex + 1} / {templates.length}</span>
+                <button type="button" onClick={() => setActive((prev) => prev + 1)} className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-all hover:bg-white/10 hover:text-white" aria-label="Next template"><ChevronRight className="h-5 w-5" /></button>
+              </div>
+              <button type="button" onClick={() => onSelect(activeTemplate.id)} className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-slate-950 shadow-xl shadow-black/20 transition-all hover:scale-[1.02] active:scale-95">
+                <Check className="h-4 w-4" />
+                Use Template
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function SummaryCard({ label, value, icon, gradientClass }) {
+  const SummaryIcon = icon;
+
+  return (
+    <div className={`relative flex flex-1 min-w-[190px] flex-col gap-2 overflow-hidden rounded-2xl ${gradientClass} px-5 py-4 shadow-md`}>
+      <div className="absolute -top-4 -right-4 h-20 w-20 rounded-full bg-white/15" />
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+        <SummaryIcon className="h-4 w-4 text-white" />
+      </div>
+      <div className="relative">
+        <p className="text-[11px] font-semibold text-white/75">{label}</p>
+        <p className="mt-0.5 text-[19px] font-extrabold tabular-nums leading-tight text-white">{value}</p>
       </div>
     </div>
   );
@@ -93,7 +260,6 @@ function SearchableSelect({ selectId, label, value, options, placeholder, search
 
   useEffect(() => {
     if (!isOpen) {
-      setQuery('');
       return undefined;
     }
 
@@ -239,12 +405,13 @@ export default function Estimation() {
   const [searchQuery, setSearchQuery] = useState('');
   const [openSelectId, setOpenSelectId] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [isLoadingSetup, setIsLoadingSetup] = useState(true);
   const [isLoadingList, setIsLoadingList] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [editingRowId, setEditingRowId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isPrintTemplateModalOpen, setIsPrintTemplateModalOpen] = useState(false);
+  const [printTemplateOptions, setPrintTemplateOptions] = useState(() => ESTIMATION_FALLBACK_PRINT_TEMPLATE_OPTIONS.map(normalizeEstimationPrintTemplate));
   const [setupError, setSetupError] = useState('');
   const [setupOptions, setSetupOptions] = useState({ customers: [], services: [], itemRates: [] });
   const { toasts, toast, removeToast } = useThemeToast();
@@ -253,21 +420,29 @@ export default function Estimation() {
   const serviceOptions = useMemo(() => setupOptions.services.map((s) => s.serviceName), [setupOptions.services]);
   const itemOptions = useMemo(() => setupOptions.itemRates.map((r) => r.item), [setupOptions.itemRates]);
   const nextEstimateId = useMemo(() => buildNextEstimateId(estimations), [estimations]);
+  const selectedPrintTemplate = useMemo(
+    () => printTemplateOptions.find((t) => t.id === formData.printTemplateId) || printTemplateOptions[0],
+    [formData.printTemplateId, printTemplateOptions],
+  );
 
   const loadSetupOptions = useCallback(async () => {
-    setIsLoadingSetup(true);
     setSetupError('');
 
     try {
-      const [customersResult, servicesResult, itemRatesResult] = await Promise.allSettled([
+      const [customersResult, servicesResult, itemRatesResult, templatesResult] = await Promise.allSettled([
         customerService.list(),
         servicesService.list(),
         itemRateService.list(),
+        estimationService.getTemplates(),
       ]);
 
       const customersData = customersResult.status === 'fulfilled' ? (customersResult.value.data ?? []) : [];
       const servicesData = servicesResult.status === 'fulfilled' ? (servicesResult.value.data ?? []) : [];
       const itemRatesData = itemRatesResult.status === 'fulfilled' ? (itemRatesResult.value.data ?? []) : [];
+      if (templatesResult.status === 'fulfilled') {
+        const templatesData = Array.isArray(templatesResult.value?.data) ? templatesResult.value.data : [];
+        if (templatesData.length) setPrintTemplateOptions(templatesData.map(normalizeEstimationPrintTemplate));
+      }
 
       setSetupOptions({
         customers: customersData.map((c) => ({
@@ -295,8 +470,6 @@ export default function Estimation() {
       }
     } catch (requestError) {
       setSetupError(requestError.message || 'Failed to load estimation form setup options.');
-    } finally {
-      setIsLoadingSetup(false);
     }
   }, []);
 
@@ -592,6 +765,7 @@ export default function Estimation() {
         designation: estimation.designation || '',
         createdBy: estimation.createdBy || loggedInUserName,
         taxMode: estimation.taxMode || 'withoutTax',
+        printTemplateId: estimation.printTemplate || 'executive_letterhead',
       });
       setShowForm(true);
     } catch (requestError) {
@@ -627,6 +801,7 @@ export default function Estimation() {
           status: 'active',
           sendEmail: formData.sendEmail,
           sendWhatsapp: formData.sendWhatsapp,
+          print_template: formData.printTemplateId || 'executive_letterhead',
           items: rowsToSave.map((row) => ({
             item_rate_id: Number(row.itemRateId),
             qty: Number(row.qty || 0),
@@ -690,6 +865,7 @@ export default function Estimation() {
         status: 'active',
         sendEmail: formData.sendEmail,
         sendWhatsapp: formData.sendWhatsapp,
+        print_template: formData.printTemplateId || 'executive_letterhead',
         items: rowsToSave.map((row) => ({
           item_rate_id: Number(row.itemRateId),
           qty: Number(row.qty || 0),
@@ -787,7 +963,6 @@ export default function Estimation() {
     );
   }, [rows]);
 
-  const totalProfit = useMemo(() => Math.max(totals.final - totals.purchase, 0), [totals.final, totals.purchase]);
   const filteredEstimations = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     if (!normalizedQuery) return estimations;
@@ -843,10 +1018,10 @@ export default function Estimation() {
 
             <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-4">
           
-              <SummaryCard label="Total Purchases" value={formatCurrency(apiSummary.totalPurchases)} icon={BadgeDollarSign} colorClass="text-slate-700" bgClass="bg-slate-50/80" borderClass="border-slate-200" />
-              <SummaryCard label="Total Discount" value={formatCurrency(apiSummary.totalDiscount)} icon={Tag} colorClass="text-amber-600" bgClass="bg-amber-50/60" borderClass="border-amber-100" />
-              <SummaryCard label="Final Revenue" value={formatCurrency(apiSummary.totalFinal)} icon={TrendingUp} colorClass="text-brand" bgClass="bg-brand-light/50" borderClass="border-brand/10" />
-              <SummaryCard label="Net Profit" value={formatCurrency(apiSummary.profit)} icon={apiSummary.profit >= 0 ? TrendingUp : TrendingDown} colorClass={apiSummary.profit >= 0 ? 'text-emerald-600' : 'text-rose-600'} bgClass={apiSummary.profit >= 0 ? 'bg-emerald-50/60' : 'bg-rose-50/60'} borderClass={apiSummary.profit >= 0 ? 'border-emerald-100' : 'border-rose-100'} />
+              <SummaryCard label="Total Purchases" value={formatCurrency(apiSummary.totalPurchases)} icon={BadgeDollarSign} gradientClass="bg-gradient-to-br from-slate-600 to-slate-800" />
+              <SummaryCard label="Total Discount" value={formatCurrency(apiSummary.totalDiscount)} icon={Tag} gradientClass="bg-gradient-to-br from-amber-400 to-orange-500" />
+              <SummaryCard label="Final Revenue" value={formatCurrency(apiSummary.totalFinal)} icon={TrendingUp} gradientClass="bg-gradient-to-br from-violet-500 to-indigo-600" />
+              <SummaryCard label="Net Profit" value={formatCurrency(apiSummary.profit)} icon={apiSummary.profit >= 0 ? TrendingUp : TrendingDown} gradientClass={apiSummary.profit >= 0 ? 'bg-gradient-to-br from-emerald-400 to-teal-600' : 'bg-gradient-to-br from-rose-400 to-rose-600'} />
             </div>
 
             <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 shadow-2xl shadow-gray-200/30 backdrop-blur-xl">
@@ -1024,6 +1199,24 @@ export default function Estimation() {
                       </div>
                       <div className={`md:col-span-2 ${COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME}`}>
                         <ReadOnlyField label="Created By" value={formData.createdBy} placeholder="Creator name" />
+                      </div>
+                      <div className={`md:col-span-2 ${COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME}`}>
+                        <div className="space-y-2">
+                          <FieldLabel>Print Template</FieldLabel>
+                          <button
+                            type="button"
+                            onClick={() => setIsPrintTemplateModalOpen(true)}
+                            className="group flex h-9 w-full items-center justify-between gap-3 rounded-xl border border-slate-300/80 bg-white px-4 text-left text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:border-brand/30 hover:bg-brand-light/30 focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70"
+                          >
+                            <span className="flex min-w-0 items-center gap-2.5">
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand transition-all group-hover:bg-brand group-hover:text-white">
+                                <LayoutTemplate className="h-3.5 w-3.5" />
+                              </span>
+                              <span className="block truncate font-semibold leading-none">{selectedPrintTemplate?.name || 'Select template'}</span>
+                            </span>
+                            <Eye className="h-4 w-4 shrink-0 text-slate-400 transition-colors group-hover:text-brand" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1266,6 +1459,18 @@ export default function Estimation() {
         onConfirm={handleDeleteEstimation}
         isLoading={isSaving}
       />
+      {isPrintTemplateModalOpen ? (
+        <EstimationPrintTemplatePickerModal
+          isOpen={isPrintTemplateModalOpen}
+          templates={printTemplateOptions}
+          selectedTemplateId={formData.printTemplateId}
+          onClose={() => setIsPrintTemplateModalOpen(false)}
+          onSelect={(templateId) => {
+            setFormData((prev) => ({ ...prev, printTemplateId: templateId }));
+            setIsPrintTemplateModalOpen(false);
+          }}
+        />
+      ) : null}
       <ThemeToastViewport toasts={toasts} onClose={removeToast} />
     </div>
   );

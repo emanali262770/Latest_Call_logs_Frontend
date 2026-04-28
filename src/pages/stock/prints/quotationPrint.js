@@ -76,7 +76,7 @@ function normalizeItem(item) {
   return {
     itemName: v(item?.itemName || item?.item_name || item?.item),
     description: v(item?.description || item?.itemName || item?.item_name || item?.item),
-    imageUrl: resolveAssetUrl(item?.itemImage || item?.item_image || item?.image || item?.image_url || ''),
+    imageUrl: resolveAssetUrl(item?.itemImage || item?.item_image || item?.image || item?.image_url || '') || '/dummy.jpg',
     rate,
     qty,
     amount,
@@ -718,6 +718,10 @@ function buildQuotationHtml(company, quotation) {
 </html>`;
 }
 
+export function printQuotationFromHtml(html) {
+  runPrint('quotation-print-single-frame', html);
+}
+
 export function printSingleQuotation(payload) {
   const company = normalizeCompany(payload?.company);
   const quotation = normalizeQuotation(payload?.quotation || {});
@@ -726,26 +730,15 @@ export function printSingleQuotation(payload) {
 
 export function printQuotationPdfBlob(pdfBlob) {
   const blobUrl = URL.createObjectURL(pdfBlob);
-  let frame = document.getElementById('quotation-print-pdf-frame');
-  if (frame) frame.remove();
-
-  frame = document.createElement('iframe');
-  frame.id = 'quotation-print-pdf-frame';
-  frame.src = blobUrl;
-  frame.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:none;';
-  document.body.appendChild(frame);
-
-  frame.onload = () => {
-    window.setTimeout(() => {
-      try {
-        frame.contentWindow?.focus();
-        frame.contentWindow?.print();
-      } finally {
-        window.setTimeout(() => {
-          frame?.remove();
-          URL.revokeObjectURL(blobUrl);
-        }, 1500);
-      }
-    }, 180);
-  };
+  const printWindow = window.open(blobUrl, '_blank');
+  if (!printWindow) {
+    // Fallback if popup blocked: trigger download
+    const anchor = document.createElement('a');
+    anchor.href = blobUrl;
+    anchor.download = 'quotation.pdf';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
 }

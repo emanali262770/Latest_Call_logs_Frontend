@@ -1,12 +1,14 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { ArrowLeft, ChevronDown, Edit2, FileText, Package, Plus, Printer, Save, Search as SearchIcon, Trash2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { AnimatePresence, motion as Motion } from 'motion/react';
+import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Edit2, Eye, FileText, LayoutTemplate, Package, Plus, Printer, Save, Search as SearchIcon, Trash2, X } from 'lucide-react';
 import { Button, Card } from '@/src/components/ui/Card';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { getStoredUser, hasPermission } from '@/src/lib/auth';
 import AccessDenied from '@/src/pages/AccessDenied';
-import { printSingleQuotation } from '@/src/pages/stock/prints/quotationPrint';
+import { printSingleQuotation, printQuotationPdfBlob, printQuotationFromHtml } from '@/src/pages/stock/prints/quotationPrint';
 import { customerService } from '@/src/services/customer.service';
 import { estimationService } from '@/src/services/estimation.service';
 import { itemRateService } from '@/src/services/itemRate.service';
@@ -30,6 +32,7 @@ const EMPTY_FORM = {
   taxMode: '',
   forProduct: '',
   createdBy: '',
+  printTemplateId: 'executive_letterhead',
   item: '',
   price: '',
   qty: '',
@@ -48,6 +51,14 @@ const COMPACT_FIELD_WRAPPER_CLASS_NAME = 'w-full xl:max-w-[540px]';
 const COMPACT_SMALL_FIELD_WRAPPER_CLASS_NAME = 'w-full xl:max-w-[245px]';
 const COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME = 'w-full xl:max-w-[360px]';
 const FALLBACK_ITEM_OPTIONS = ['IP CCTV Camera 4MP Night Vision', 'HikVision 8 Channel NVR', 'Samsung TV', 'DVR 4 Channel'];
+const DEFAULT_PRINT_TEMPLATE_ID = 'executive_letterhead';
+const FALLBACK_PRINT_TEMPLATE_OPTIONS = [
+  { id: 'executive_letterhead', name: 'Executive Letterhead', category: 'Classic', description: 'Clean company header with strong totals and a formal quotation layout.' },
+  { id: 'technical_bid', name: 'Technical Bid', category: 'Detailed', description: 'Built for item-heavy quotations with product details and clear sections.' },
+  { id: 'premium_tax', name: 'Premium Tax', category: 'Tax Ready', description: 'Professional tax-focused print view with GST and grand total emphasis.' },
+  { id: 'modern_clean', name: 'Modern Clean', category: 'Modern', description: 'Balanced service proposal style with neat contact and item grouping.' },
+  { id: 'compact_commercial', name: 'Compact Commercial', category: 'Compact', description: 'Space-efficient quotation layout for quick review and direct printing.' },
+];
 
 const MONTH_NAME_TO_NUMBER = {
   January: '01',
@@ -68,6 +79,204 @@ const MONTH_NUMBER_TO_NAME = Object.fromEntries(Object.entries(MONTH_NAME_TO_NUM
 
 function FieldLabel({ children }) {
   return <label className="ml-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600">{children}</label>;
+}
+
+function wrapIndex(min, max, value) {
+  const rangeSize = max - min;
+  return ((((value - min) % rangeSize) + rangeSize) % rangeSize) + min;
+}
+
+const BACKEND_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/api\/?$/, '');
+
+function resolvePreviewPdfUrl(url) {
+  if (!url) return null;
+  if (/^https?:\/\//.test(url)) return url;
+  return `${BACKEND_BASE_URL}${url}`;
+}
+
+function normalizePrintTemplate(template) {
+  return {
+    id: template.id,
+    name: template.name || template.title || template.id,
+    category: template.category || template.meta || 'Template',
+    description: template.description || '',
+    previewPdfUrl: resolvePreviewPdfUrl(template.previewPdfUrl || template.preview_pdf_url || null),
+  };
+}
+
+function TemplatePreview({ template, className = '' }) {
+  if (template.previewPdfUrl) {
+    return (
+      <div className={`h-full w-full overflow-hidden bg-white ${className}`}>
+        <iframe
+          src={`${template.previewPdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+          title={template.name}
+          className="h-full w-full border-0"
+        />
+      </div>
+    );
+  }
+  return (
+    <div className={`h-full w-full overflow-hidden bg-white flex items-center justify-center ${className}`}>
+      <div style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>
+        <p style={{ fontSize: '16px' }}>{template.name || 'Template Preview'}</p>
+        <p style={{ fontSize: '13px', marginTop: '8px' }}>Preview not available</p>
+      </div>
+    </div>
+  );
+}
+
+function PrintTemplatePickerModal({ isOpen, templates, selectedTemplateId, onClose, onSelect }) {
+  const initialIndex = Math.max(templates.findIndex((template) => template.id === selectedTemplateId), 0);
+  const [active, setActive] = useState(initialIndex);
+  const activeIndex = templates.length ? wrapIndex(0, templates.length, active) : 0;
+  const activeTemplate = templates[activeIndex] || templates[0];
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+      if (event.key === 'ArrowLeft') setActive((prev) => prev - 1);
+      if (event.key === 'ArrowRight') setActive((prev) => prev + 1);
+      if (event.key === 'Enter' && activeTemplate) onSelect(activeTemplate.id);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeTemplate, isOpen, onClose, onSelect]);
+
+  if (!isOpen || !activeTemplate) return null;
+
+  const handlePrevious = () => setActive((prev) => prev - 1);
+  const handleNext = () => setActive((prev) => prev + 1);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[110] overflow-hidden bg-slate-950 text-white">
+      <button type="button" className="absolute inset-0 bg-slate-950/96" onClick={onClose} aria-label="Close print template modal" />
+
+      <AnimatePresence mode="wait">
+        <Motion.div
+          key={activeTemplate.id}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.32 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.55 }}
+          className="absolute inset-0 pointer-events-none"
+        >
+          <TemplatePreview template={activeTemplate} className="blur-2xl saturate-150 opacity-80" />
+          <div className="absolute inset-0 bg-slate-950/70" />
+        </Motion.div>
+      </AnimatePresence>
+
+      <div className="relative z-10 flex h-full flex-col px-4 py-5 sm:px-8 sm:py-7">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white shadow-xl shadow-black/20">
+              <LayoutTemplate className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-lg font-bold tracking-tight">Print Template</p>
+              <p className="mt-0.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Select quotation print design</p>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-slate-300 transition-all hover:bg-white/15 hover:text-white" aria-label="Close modal">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col justify-center py-6">
+          <div className="relative flex h-[330px] w-full items-center justify-center overflow-hidden sm:h-[390px]" style={{ perspective: 1200 }}>
+            {[-2, -1, 0, 1, 2].map((offset) => {
+              const absoluteIndex = active + offset;
+              const index = wrapIndex(0, templates.length, absoluteIndex);
+              const template = templates[index];
+              const isCenter = offset === 0;
+              const distance = Math.abs(offset);
+
+              return (
+                <Motion.div
+                  key={`${template.id}-${absoluteIndex}`}
+                  role="button"
+                  tabIndex={0}
+                  initial={false}
+                  animate={{
+                    x: offset * 270,
+                    scale: isCenter ? 1 : 0.84,
+                    rotateY: offset * -18,
+                    opacity: isCenter ? 1 : Math.max(0.16, 1 - distance * 0.42),
+                    filter: `blur(${isCenter ? 0 : distance * 3}px) brightness(${isCenter ? 1 : 0.62})`,
+                  }}
+                  transition={{ type: 'spring', stiffness: 310, damping: isCenter ? 24 : 32, mass: 1 }}
+                  style={{ transformStyle: 'preserve-3d', cursor: 'pointer' }}
+                  onClick={() => (isCenter ? onSelect(template.id) : setActive((prev) => prev + offset))}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { isCenter ? onSelect(template.id) : setActive((prev) => prev + offset); } }}
+                  className={`absolute aspect-[3/4] w-[214px] overflow-hidden rounded-2xl border text-left shadow-2xl transition-shadow sm:w-[270px] ${isCenter ? 'z-20 border-white/25 shadow-brand/25' : 'z-10 border-white/10 shadow-black/40'}`}
+                >
+                  <div className="pointer-events-none h-full w-full">
+                    <TemplatePreview template={template} />
+                  </div>
+                  <div className="absolute inset-0 bg-linear-to-t from-slate-950/92 via-slate-950/12 to-white/5" />
+                  <div className="absolute inset-x-0 bottom-0 p-4">
+                    <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-200 backdrop-blur">
+                      {template.category}
+                    </span>
+                    <p className="mt-2 text-lg font-bold leading-tight text-white">{template.name}</p>
+                  </div>
+                  {selectedTemplateId === template.id ? (
+                    <div className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-brand text-white shadow-lg shadow-brand/30">
+                      <Check className="h-4 w-4" />
+                    </div>
+                  ) : null}
+                  {!template.previewPdfUrl ? (
+                    <div className="absolute left-3 top-3 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white shadow-lg shadow-amber-950/20">
+                      Preview missing
+                    </div>
+                  ) : null}
+                </Motion.div>
+              );
+            })}
+          </div>
+
+          <div className="mx-auto mt-7 flex w-full max-w-4xl flex-col items-center justify-between gap-5 rounded-3xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur-md sm:flex-row sm:p-5">
+            <AnimatePresence mode="wait">
+              <Motion.div
+                key={activeTemplate.id}
+                initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                exit={{ opacity: 0, y: -8, filter: 'blur(4px)' }}
+                transition={{ duration: 0.22 }}
+                className="min-w-0 text-center sm:text-left"
+              >
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-light">{activeTemplate.category}</p>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">{activeTemplate.name}</h2>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-300">{activeTemplate.description}</p>
+              </Motion.div>
+            </AnimatePresence>
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/70 p-1">
+                <button type="button" onClick={handlePrevious} className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-all hover:bg-white/10 hover:text-white" aria-label="Previous template">
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <span className="min-w-12 text-center text-xs font-bold text-slate-400">{activeIndex + 1} / {templates.length}</span>
+                <button type="button" onClick={handleNext} className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-all hover:bg-white/10 hover:text-white" aria-label="Next template">
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
+              <button type="button" onClick={() => onSelect(activeTemplate.id)} className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-slate-950 shadow-xl shadow-black/20 transition-all hover:scale-[1.02] active:scale-95">
+                <Check className="h-4 w-4" />
+                Use Template
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 function ReadOnlyField({ label, value, placeholder }) {
@@ -171,6 +380,8 @@ export default function Quotation() {
   const [serviceOptions, setServiceOptions] = useState([]);
   const [estimationOptions, setEstimationOptions] = useState([]);
   const [itemRateOptions, setItemRateOptions] = useState([]);
+  const [printTemplateOptions, setPrintTemplateOptions] = useState(() => FALLBACK_PRINT_TEMPLATE_OPTIONS.map(normalizePrintTemplate));
+  const [defaultPrintTemplateId, setDefaultPrintTemplateId] = useState(DEFAULT_PRINT_TEMPLATE_ID);
   const [editingRowId, setEditingRowId] = useState(null);
   const [editingQuotationId, setEditingQuotationId] = useState(null);
   const [revisionSourceQuotationId, setRevisionSourceQuotationId] = useState(null);
@@ -180,6 +391,7 @@ export default function Quotation() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [itemDeleteTarget, setItemDeleteTarget] = useState(null);
   const [openSelectId, setOpenSelectId] = useState(null);
+  const [isPrintTemplateModalOpen, setIsPrintTemplateModalOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { toasts, toast, removeToast } = useThemeToast();
@@ -192,6 +404,10 @@ export default function Quotation() {
     [itemRateOptions],
   );
   const estimationSelectOptions = useMemo(() => estimationOptions.map((estimation) => estimation.estimateId).filter(Boolean), [estimationOptions]);
+  const selectedPrintTemplate = useMemo(
+    () => printTemplateOptions.find((template) => template.id === formData.printTemplateId) || printTemplateOptions[0],
+    [formData.printTemplateId, printTemplateOptions],
+  );
 
   const totals = useMemo(
     () =>
@@ -262,13 +478,14 @@ export default function Quotation() {
       if (!canCreate && !canEdit) return;
 
       try {
-        const [nextNoResult, nextRevisionResult, customersResult, servicesResult, estimationsResult, ratesResult] = await Promise.allSettled([
+        const [nextNoResult, nextRevisionResult, customersResult, servicesResult, estimationsResult, ratesResult, printTemplatesResult] = await Promise.allSettled([
           quotationService.getNextQuotationNo('Quotation'),
           quotationService.getNextRevisionId(),
           customerService.list(''),
           servicesService.list(''),
           estimationService.list(),
           itemRateService.list(),
+          quotationService.getPrintTemplates(),
         ]);
         if (!isActive) return;
 
@@ -278,11 +495,19 @@ export default function Quotation() {
         const ratesData = ratesResult.status === 'fulfilled' ? (ratesResult.value?.data ?? []) : [];
         const nextNo = nextNoResult.status === 'fulfilled' ? nextNoResult.value : null;
         const nextRevision = nextRevisionResult.status === 'fulfilled' ? nextRevisionResult.value : null;
+        const printTemplatesData = printTemplatesResult.status === 'fulfilled' ? printTemplatesResult.value?.data : null;
+        console.log('print templates:', printTemplatesData);
         const resolvedNextRevisionId = nextRevision?.data?.revisionId || '';
+        const resolvedPrintTemplates = Array.isArray(printTemplatesData?.templates) && printTemplatesData.templates.length
+          ? printTemplatesData.templates.map(normalizePrintTemplate)
+          : FALLBACK_PRINT_TEMPLATE_OPTIONS.map(normalizePrintTemplate);
+        const resolvedDefaultPrintTemplate = printTemplatesData?.defaultTemplate || DEFAULT_PRINT_TEMPLATE_ID;
 
         setCustomerOptions(Array.isArray(customersData) ? customersData : []);
         setServiceOptions(Array.isArray(servicesData) ? servicesData : []);
         setEstimationOptions(Array.isArray(estimationsData) ? estimationsData : []);
+        setPrintTemplateOptions(resolvedPrintTemplates);
+        setDefaultPrintTemplateId(resolvedDefaultPrintTemplate);
         setItemRateOptions(
           (Array.isArray(ratesData) ? ratesData : [])
             .map((item) => ({
@@ -298,6 +523,7 @@ export default function Quotation() {
           ...prev,
           quotationNo: prev.quotationNo || nextNo?.data?.quotationNo || '',
           revisionId: prev.revisionId || resolvedNextRevisionId,
+          printTemplateId: prev.printTemplateId && prev.printTemplateId !== DEFAULT_PRINT_TEMPLATE_ID ? prev.printTemplateId : resolvedDefaultPrintTemplate,
         }));
       } catch {
         if (isActive) {
@@ -396,6 +622,7 @@ export default function Quotation() {
       taxMode: quotation.taxMode || '',
       forProduct: quotation.forProduct || '',
       createdBy: quotation.createdBy || loggedInUserName,
+      printTemplateId: quotation.printTemplate || quotation.print_template || prev.printTemplateId || DEFAULT_PRINT_TEMPLATE_ID,
       item: '',
       price: '',
       qty: '',
@@ -559,7 +786,7 @@ export default function Quotation() {
     setFormMode('create');
     setEditingRowId(null);
     setRows([]);
-    setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
+    setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName, printTemplateId: defaultPrintTemplateId });
     setShowForm(true);
     try {
       const [nextNoResponse, nextRevisionResponse] = await Promise.all([
@@ -584,9 +811,10 @@ export default function Quotation() {
     setRevisionSourceQuotationId(null);
     setEditingRowId(null);
     setItemDeleteTarget(null);
+    setIsPrintTemplateModalOpen(false);
     setRows([]);
     setFormMode('create');
-    setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName });
+    setFormData({ ...EMPTY_FORM, createdBy: loggedInUserName, printTemplateId: defaultPrintTemplateId });
   };
 
   const buildQuotationPayload = () => ({
@@ -596,6 +824,7 @@ export default function Quotation() {
       serviceId: formData.serviceId || null,
       letterType: formData.letterType,
       taxMode: formData.taxMode,
+      printTemplate: formData.printTemplateId,
       sendEmail: true,
       status: 'active',
       items: rows.map((row) => ({
@@ -612,6 +841,7 @@ export default function Quotation() {
     if (!formData.customerId) return 'Customer is required.';
     if (!formData.letterType) return 'Letter type is required.';
     if (!formData.taxMode) return 'Tax mode is required.';
+    if (!printTemplateOptions.some((template) => template.id === formData.printTemplateId)) return 'Selected print template is invalid.';
     if (!rows.length) return 'At least one item is required.';
     if (rows.some((row) => !row.itemRateId)) return 'Each item must come from item rate.';
     if (rows.some((row) => Number(row.qty || 0) <= 0)) return 'Each item qty must be greater than 0.';
@@ -718,6 +948,7 @@ export default function Quotation() {
         taxMode: loadedQuotation.taxMode || '',
         forProduct: loadedQuotation.forProduct || '',
         createdBy: loadedQuotation.createdBy || loggedInUserName,
+        printTemplateId: loadedQuotation.printTemplate || loadedQuotation.print_template || DEFAULT_PRINT_TEMPLATE_ID,
       });
       setShowForm(true);
     } catch (requestError) {
@@ -746,7 +977,7 @@ export default function Quotation() {
       const payload = await quotationService.printSingle(quotation.id);
       printSingleQuotation(payload);
     } catch (requestError) {
-      toast.error('Print failed', requestError?.response?.data?.message || requestError.message || 'Could not load quotation print data.');
+      toast.error('Print failed', requestError?.response?.data?.message || requestError.message || 'Could not print quotation.');
     }
   }, [toast]);
 
@@ -940,6 +1171,26 @@ export default function Quotation() {
                     <div className={COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME}>
                       <ReadOnlyField label="Created By" value={formData.createdBy} placeholder="Logged in user" />
                     </div>
+                    <div className={COMPACT_MEDIUM_FIELD_WRAPPER_CLASS_NAME}>
+                      <div className="space-y-2">
+                        <FieldLabel>Print Template</FieldLabel>
+                        <button
+                          type="button"
+                          onClick={() => setIsPrintTemplateModalOpen(true)}
+                          className="group flex h-9 w-full items-center justify-between gap-3 rounded-xl border border-slate-300/80 bg-white px-4 text-left text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:border-brand/30 hover:bg-brand-light/30 focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70"
+                        >
+                          <span className="flex min-w-0 items-center gap-2.5">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand transition-all group-hover:bg-brand group-hover:text-white">
+                              <LayoutTemplate className="h-3.5 w-3.5" />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block truncate font-semibold leading-none">{selectedPrintTemplate?.name || 'Select template'}</span>
+                            </span>
+                          </span>
+                          <Eye className="h-4 w-4 shrink-0 text-slate-400 transition-colors group-hover:text-brand" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1111,6 +1362,18 @@ export default function Quotation() {
         onCancel={() => setItemDeleteTarget(null)}
         onConfirm={handleDeleteRow}
       />
+      {isPrintTemplateModalOpen ? (
+        <PrintTemplatePickerModal
+          isOpen={isPrintTemplateModalOpen}
+          templates={printTemplateOptions}
+          selectedTemplateId={formData.printTemplateId}
+          onClose={() => setIsPrintTemplateModalOpen(false)}
+          onSelect={(templateId) => {
+            updateField('printTemplateId', templateId);
+            setIsPrintTemplateModalOpen(false);
+          }}
+        />
+      ) : null}
       <ThemeToastViewport toasts={toasts} onClose={removeToast} />
     </div>
   );

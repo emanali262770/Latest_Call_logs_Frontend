@@ -70,6 +70,7 @@ function normalize(item) {
     forProduct: serviceName,
     letterType: pickFirstDefined(item.letterType, item.letter_type, 'Quotation'),
     taxMode: pickFirstDefined(item.taxMode, item.tax_mode),
+    printTemplate: pickFirstDefined(item.printTemplate, item.print_template, item.printTemplateId, item.print_template_id),
     createdBy: pickFirstDefined(item.createdBy, item.created_by, item.created_by_name),
     status: pickFirstDefined(item.status, 'active'),
     items,
@@ -148,6 +149,18 @@ export const quotationService = {
     };
   },
 
+  async getPrintTemplates() {
+    const response = await axiosInstance.get('/quotations/print-templates');
+    const payload = unwrapData(response);
+    return {
+      ...response,
+      data: {
+        defaultTemplate: pickFirstDefined(payload.defaultTemplate, payload.default_template, 'executive_letterhead'),
+        templates: Array.isArray(payload.templates) ? payload.templates : [],
+      },
+    };
+  },
+
   async create(values) {
     const response = await axiosInstance.post('/quotations', values);
     return {
@@ -179,6 +192,14 @@ export const quotationService = {
   async printSingle(id) {
     const response = await axiosInstance.get(`/quotations/${id}/print`);
     return response?.data?.data || response?.data || {};
+  },
+
+  async printPdf(id) {
+    return axiosInstance.get(`/quotations/${id}/print-pdf`, { responseType: 'arraybuffer' });
+  },
+
+  async printHtml(id) {
+    return axiosInstance.get(`/quotations/${id}/print-html`, { responseType: 'text' });
   },
 
   async remove(id) {

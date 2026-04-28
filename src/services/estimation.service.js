@@ -51,6 +51,7 @@ function normalize(item) {
     serviceId: pickFirstDefined(item.service_id, item.serviceId),
     serviceName: pickFirstDefined(item.service, item.service_name, item.serviceName, item.service?.service_name),
     taxMode: pickFirstDefined(item.tax_mode, item.taxMode),
+    printTemplate: pickFirstDefined(item.print_template, item.printTemplate),
     createdBy: pickFirstDefined(item.created_by, item.createdBy, item.created_by_name),
     status: pickFirstDefined(item.status, 'active'),
     purchasePrice: pickFirstDefined(item.purchase_price, item.purchasePrice),
@@ -114,5 +115,9 @@ export const estimationService = {
   async printSingle(id) {
     const response = await axiosInstance.get(`/estimations/${id}/print`);
     return response?.data?.data || response?.data || {};
+  },
+
+  async getTemplates() {
+    return axiosInstance.get('/estimations/print-templates');
   },
 };

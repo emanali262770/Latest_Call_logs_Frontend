@@ -29,7 +29,7 @@ function formatDate(value) {
 function resolveAssetUrl(value) {
   const assetPath = String(value || '').trim();
   if (!assetPath) return '';
-  if (/^https?:\/\//i.test(assetPath) || /^blob:/i.test(assetPath)) return assetPath;
+  if (/^https?:\/\//i.test(assetPath) || /^blob:/i.test(assetPath) || /^data:/i.test(assetPath)) return assetPath;
   const baseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim();
   if (!baseUrl) {
     if (typeof window === 'undefined') return assetPath;
@@ -86,7 +86,7 @@ function normalizeRow(item) {
 function normalizeItem(item) {
   return {
     ...normalizeRow(item),
-    itemImage: resolveAssetUrl(item?.item_image ?? item?.itemImage ?? ''),
+    itemImage: resolveAssetUrl(item?.item_image ?? item?.itemImage ?? item?.image ?? item?.image_url ?? '') || '/dummy.jpg',
     hasDiscount: Boolean(item?.hasDiscount ?? (Number(item?.discount_percent ?? item?.discountPercent ?? 0) > 0)),
   };
 }
@@ -151,7 +151,7 @@ const SHARED_CSS = `
     background: #1a1a1a;
   }
   .header {
-    padding: 7mm 16mm 6mm;
+    padding: 5mm 12mm 4mm;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -159,56 +159,56 @@ const SHARED_CSS = `
   }
   .company-name {
     color: #1a1a1a;
-    font-size: 18pt;
+    font-size: 15pt;
     font-weight: 900;
     letter-spacing: 0.01em;
     line-height: 1.05;
     text-transform: uppercase;
   }
   .company-tagline {
-    margin-top: 2.5pt;
+    margin-top: 1.5pt;
     color: #888888;
-    font-size: 7pt;
+    font-size: 5.8pt;
     letter-spacing: 0.26em;
     text-transform: uppercase;
   }
   .company-address {
-    margin-top: 4pt;
+    margin-top: 2pt;
     color: #555555;
-    font-size: 8pt;
-    line-height: 1.5;
+    font-size: 6.8pt;
+    line-height: 1.25;
   }
   .doc-meta {
     text-align: right;
     flex-shrink: 0;
-    padding-left: 14mm;
+    padding-left: 8mm;
   }
   .doc-meta-label {
-    font-size: 6.5pt;
+    font-size: 5.8pt;
     font-weight: 700;
     letter-spacing: 0.30em;
     text-transform: uppercase;
     color: #aaaaaa;
   }
   .doc-meta-no {
-    margin-top: 4pt;
-    font-size: 13pt;
+    margin-top: 2pt;
+    font-size: 10.5pt;
     font-weight: 900;
     color: #1a1a1a;
     letter-spacing: 0.05em;
     font-family: "Courier New", monospace;
   }
   .doc-meta-date {
-    margin-top: 3pt;
-    font-size: 8pt;
+    margin-top: 1.5pt;
+    font-size: 6.8pt;
     color: #555555;
   }
-  .body-pad { padding: 5mm 16mm 10mm; }
+  .body-pad { padding: 4mm 12mm 7mm; }
   .subj-attn-row {
     display: flex;
     gap: 10pt;
-    margin-bottom: 8pt;
-    padding: 6pt 0;
+    margin-bottom: 5pt;
+    padding: 4pt 0;
   }
   .subject-block {
     flex: 1;
@@ -220,7 +220,7 @@ const SHARED_CSS = `
     padding: 0 0 0 10pt;
   }
   .subject-label {
-    font-size: 6.5pt;
+    font-size: 5.8pt;
     font-weight: 700;
     letter-spacing: 0.22em;
     text-transform: uppercase;
@@ -229,26 +229,26 @@ const SHARED_CSS = `
   }
   .subject-text {
     color: #1a1a1a;
-    font-size: 9.5pt;
+    font-size: 7.5pt;
     font-weight: 700;
   }
   .attn-name {
     color: #1a1a1a;
-    font-size: 8.5pt;
+    font-size: 7pt;
   }
   .attn-detail {
     color: #555555;
-    font-size: 8pt;
+    font-size: 6.6pt;
   }
   .section-header {
     display: flex;
     align-items: center;
     gap: 8pt;
-    margin-bottom: 4pt;
+    margin-bottom: 2.5pt;
     margin-top: 0;
   }
   .section-header-text {
-    font-size: 6.5pt;
+    font-size: 5.8pt;
     font-weight: 900;
     letter-spacing: 0.26em;
     text-transform: uppercase;
@@ -269,10 +269,10 @@ const SHARED_CSS = `
   .items-table thead th {
     background: #f2f2f2;
     color: #1a1a1a;
-    font-size: 6.8pt;
+    font-size: 5.8pt;
     font-weight: 900;
-    letter-spacing: 0.12em;
-    padding: 6pt 8pt;
+    letter-spacing: 0.08em;
+    padding: 3pt 4pt;
     text-align: left;
     text-transform: uppercase;
     border-bottom: 1.5pt solid #1a1a1a;
@@ -285,26 +285,26 @@ const SHARED_CSS = `
     border-bottom: 0.5pt solid #e8e8e8;
     border-right: 0.75pt solid #e8e8e8;
     color: #1a1a1a;
-    font-size: 8.5pt;
+    font-size: 6.8pt;
     font-weight: 600;
-    padding: 6.5pt 8pt;
+    padding: 2.4pt 4pt;
     vertical-align: middle;
   }
   .items-table tbody td:last-child { border-right: none; }
   .items-table tbody tr:last-child td { border-bottom: none; }
-  .items-table .sr { width: 8mm; text-align: center; color: #999999; font-size: 8pt; }
-  .items-table .qty { width: 13mm; }
-  .items-table .disc { width: 16mm; }
-  .items-table .amount { width: 27mm; }
+  .items-table .sr { width: 6mm; text-align: center; color: #999999; font-size: 6.4pt; }
+  .items-table .qty { width: 10mm; }
+  .items-table .disc { width: 14mm; }
+  .items-table .amount { width: 22mm; }
   .item-cell {
     display: flex;
     align-items: flex-start;
-    gap: 5pt;
+    gap: 3pt;
     min-width: 0;
   }
   .item-photo {
-    width: 28pt;
-    height: 28pt;
+    width: 18pt;
+    height: 18pt;
     background: #ffffff;
     object-fit: contain;
     flex-shrink: 0;
@@ -315,18 +315,20 @@ const SHARED_CSS = `
   .item-name {
     display: block;
     color: #1a1a1a;
-    font-size: 8.5pt;
+    font-size: 6.9pt;
     font-weight: 700;
-    line-height: 1.3;
+    line-height: 1.12;
     overflow-wrap: anywhere;
   }
   .item-description {
     display: block;
-    margin-top: 2pt;
+    margin-top: 0.8pt;
     color: #666666;
-    font-size: 7.5pt;
+    font-size: 6.1pt;
     font-weight: 400;
-    line-height: 1.3;
+    line-height: 1.12;
+    max-height: 13.6pt;
+    overflow: hidden;
     overflow-wrap: anywhere;
   }
   .bold { font-weight: 700; }
@@ -334,28 +336,28 @@ const SHARED_CSS = `
     text-align: right;
     font-variant-numeric: tabular-nums;
     font-family: "Courier New", monospace;
-    font-size: 8.2pt;
+    font-size: 6.7pt;
   }
   .total-section {
     display: flex;
     justify-content: flex-end;
-    margin-top: 5pt;
-    margin-bottom: 5pt;
+    margin-top: 3pt;
+    margin-bottom: 3pt;
   }
   .total-table {
-    min-width: 72mm;
+    min-width: 60mm;
     border-collapse: collapse;
     border: 0.75pt solid #cccccc;
   }
   .total-table tr td {
-    padding: 4.5pt 9pt;
-    font-size: 8.3pt;
+    padding: 2.6pt 6pt;
+    font-size: 6.8pt;
     border-bottom: 0.5pt solid #e8e8e8;
   }
   .total-table tr:last-child td { border-bottom: none; }
   .total-label {
-    font-size: 7pt;
-    letter-spacing: 0.10em;
+    font-size: 6.2pt;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     color: #888888;
     text-align: left;
@@ -365,37 +367,37 @@ const SHARED_CSS = `
     font-family: "Courier New", monospace;
     font-variant-numeric: tabular-nums;
     color: #1a1a1a;
-    font-size: 8.5pt;
+    font-size: 6.9pt;
   }
   .total-table tr.grand-total td {
     background: #f2f2f2;
     border-top: 1.5pt solid #1a1a1a;
-    padding: 6pt 9pt;
+    padding: 3pt 6pt;
   }
   .total-table tr.grand-total .total-label {
     color: #1a1a1a;
-    font-size: 7.5pt;
+    font-size: 6.6pt;
     font-weight: 900;
     letter-spacing: 0.14em;
   }
   .total-table tr.grand-total .total-value {
     color: #1a1a1a;
-    font-size: 10pt;
+    font-size: 7.4pt;
     font-weight: 900;
   }
   .footer {
-    margin-top: 8pt;
-    padding: 6pt 16mm 14pt;
+    margin-top: 5pt;
+    padding: 4pt 16mm 10pt;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
   }
   .footer-note {
     color: #888888;
-    font-size: 7.5pt;
+    font-size: 6.4pt;
     font-style: italic;
     max-width: 95mm;
-    line-height: 1.55;
+    line-height: 1.25;
   }
   .signature-block { text-align: center; min-width: 55mm; }
   .signature-line {

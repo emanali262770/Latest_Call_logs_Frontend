@@ -30,11 +30,19 @@ axiosInstance.interceptors.response.use(
     return payload;
   },
   (error) => {
-    const payload = error?.response?.data;
     const status = error?.response?.status;
-    const isExpired = payload?.error?.isExpired === true;
 
-    if (status === 401 && isExpired) {
+    // For arraybuffer responses, parse the JSON error body manually
+    let payload = error?.response?.data;
+    if (payload instanceof ArrayBuffer) {
+      try {
+        payload = JSON.parse(new TextDecoder().decode(payload));
+      } catch {
+        payload = {};
+      }
+    }
+
+    if (status === 401) {
       redirectToLoginOnSessionExpiry();
     }
 
