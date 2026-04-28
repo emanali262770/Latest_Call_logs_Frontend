@@ -104,15 +104,30 @@ function normalizePrintTemplate(template) {
   };
 }
 
-function TemplatePreview({ template, className = '' }) {
+function TemplatePreview({ template, className = '', lazy = false }) {
+  const cacheBuster = useRef(`?v=${Date.now()}`);
+  const [visible, setVisible] = useState(!lazy);
+
+  useEffect(() => {
+    if (!lazy) return undefined;
+    const timer = setTimeout(() => setVisible(true), 120);
+    return () => clearTimeout(timer);
+  }, [lazy]);
+
   if (template.previewPdfUrl) {
+    const baseUrl = template.previewPdfUrl.split('?')[0];
     return (
       <div className={`h-full w-full overflow-hidden bg-white ${className}`}>
-        <iframe
-          src={`${template.previewPdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-          title={template.name}
-          className="h-full w-full border-0"
-        />
+        {visible ? (
+          <iframe
+            src={`${baseUrl}${cacheBuster.current}#toolbar=0&navpanes=0&scrollbar=0`}
+            title={template.name}
+            className="h-full w-full border-0"
+            loading="lazy"
+          />
+        ) : (
+          <div className="h-full w-full bg-slate-100 animate-pulse" />
+        )}
       </div>
     );
   }
@@ -217,7 +232,7 @@ function PrintTemplatePickerModal({ isOpen, templates, selectedTemplateId, onClo
                   className={`absolute aspect-[3/4] w-[214px] overflow-hidden rounded-2xl border text-left shadow-2xl transition-shadow sm:w-[270px] ${isCenter ? 'z-20 border-white/25 shadow-brand/25' : 'z-10 border-white/10 shadow-black/40'}`}
                 >
                   <div className="pointer-events-none h-full w-full">
-                    <TemplatePreview template={template} />
+                    <TemplatePreview template={template} lazy={!isCenter} />
                   </div>
                   <div className="absolute inset-0 bg-linear-to-t from-slate-950/92 via-slate-950/12 to-white/5" />
                   <div className="absolute inset-x-0 bottom-0 p-4">
@@ -461,10 +476,23 @@ export default function Quotation() {
     setFormData((prev) => (prev.createdBy === loggedInUserName ? prev : { ...prev, createdBy: loggedInUserName }));
   }, [loggedInUserName]);
 
+  const loadSetupOptions = useCallback(async () => {
+    try {
+      const printTemplatesResult = await quotationService.getPrintTemplates();
+      const printTemplatesData = printTemplatesResult?.data ?? null;
+      const resolvedPrintTemplates = Array.isArray(printTemplatesData?.templates) && printTemplatesData.templates.length
+        ? printTemplatesData.templates.map(normalizePrintTemplate)
+        : FALLBACK_PRINT_TEMPLATE_OPTIONS.map(normalizePrintTemplate);
+      setPrintTemplateOptions(resolvedPrintTemplates);
+    } catch {
+      // keep existing templates on error
+    }
+  }, []);
+
   useEffect(() => {
     let isActive = true;
 
-    const loadSetupOptions = async () => {
+    const loadInitialData = async () => {
       try {
         const quotationsResponse = await quotationService.list();
         if (!isActive) return;
@@ -535,7 +563,7 @@ export default function Quotation() {
       }
     };
 
-    loadSetupOptions();
+    loadInitialData();
 
     return () => {
       isActive = false;
@@ -1176,7 +1204,10 @@ export default function Quotation() {
                         <FieldLabel>Print Template</FieldLabel>
                         <button
                           type="button"
-                          onClick={() => setIsPrintTemplateModalOpen(true)}
+                          onClick={async () => {
+                            await loadSetupOptions();
+                            setIsPrintTemplateModalOpen(true);
+                          }}
                           className="group flex h-9 w-full items-center justify-between gap-3 rounded-xl border border-slate-300/80 bg-white px-4 text-left text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:border-brand/30 hover:bg-brand-light/30 focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70"
                         >
                           <span className="flex min-w-0 items-center gap-2.5">

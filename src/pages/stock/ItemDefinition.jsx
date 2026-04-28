@@ -1348,11 +1348,13 @@ export default function ItemDefinition() {
                       <FieldLabel>Item Specification</FieldLabel>
                       <textarea
                         value={formData.itemSpecification}
-                        onChange={(event) => updateField('itemSpecification', event.target.value)}
+                        onChange={(event) => updateField('itemSpecification', event.target.value.slice(0, 75))}
                         placeholder="Item specification"
                         rows={3}
+                        maxLength={75}
                         className="min-h-[96px] w-full rounded-xl border border-slate-300/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70"
                       />
+                      <p className="text-right text-xs text-slate-400">{(formData.itemSpecification || '').length}/75 characters</p>
                     </div>
                   </div>
                 </section>

@@ -135,8 +135,8 @@ const SHARED_CSS = `
     background: #ffffff;
     color: #1a1a1a;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 9.5pt;
-    line-height: 1.5;
+    font-size: 9pt;
+    line-height: 1.3;
     width: 210mm;
     min-height: 297mm;
   }
@@ -151,7 +151,7 @@ const SHARED_CSS = `
     background: #1a1a1a;
   }
   .header {
-    padding: 5mm 12mm 4mm;
+    padding: 3mm 10mm 2.5mm;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -159,7 +159,7 @@ const SHARED_CSS = `
   }
   .company-name {
     color: #1a1a1a;
-    font-size: 15pt;
+    font-size: 12pt;
     font-weight: 900;
     letter-spacing: 0.01em;
     line-height: 1.05;
@@ -191,8 +191,8 @@ const SHARED_CSS = `
     color: #aaaaaa;
   }
   .doc-meta-no {
-    margin-top: 2pt;
-    font-size: 10.5pt;
+    margin-top: 1pt;
+    font-size: 9pt;
     font-weight: 900;
     color: #1a1a1a;
     letter-spacing: 0.05em;
@@ -203,12 +203,12 @@ const SHARED_CSS = `
     font-size: 6.8pt;
     color: #555555;
   }
-  .body-pad { padding: 4mm 12mm 7mm; }
+  .body-pad { padding: 2.5mm 10mm 4mm; }
   .subj-attn-row {
     display: flex;
-    gap: 10pt;
-    margin-bottom: 5pt;
-    padding: 4pt 0;
+    gap: 8pt;
+    margin-bottom: 3pt;
+    padding: 2pt 0;
   }
   .subject-block {
     flex: 1;
@@ -244,7 +244,7 @@ const SHARED_CSS = `
     display: flex;
     align-items: center;
     gap: 8pt;
-    margin-bottom: 2.5pt;
+    margin-bottom: 1.5pt;
     margin-top: 0;
   }
   .section-header-text {
@@ -269,10 +269,10 @@ const SHARED_CSS = `
   .items-table thead th {
     background: #f2f2f2;
     color: #1a1a1a;
-    font-size: 5.8pt;
+    font-size: 6.5pt;
     font-weight: 900;
-    letter-spacing: 0.08em;
-    padding: 3pt 4pt;
+    letter-spacing: 0.06em;
+    padding: 2pt 3pt;
     text-align: left;
     text-transform: uppercase;
     border-bottom: 1.5pt solid #1a1a1a;
@@ -285,9 +285,9 @@ const SHARED_CSS = `
     border-bottom: 0.5pt solid #e8e8e8;
     border-right: 0.75pt solid #e8e8e8;
     color: #1a1a1a;
-    font-size: 6.8pt;
+    font-size: 7pt;
     font-weight: 600;
-    padding: 2.4pt 4pt;
+    padding: 1.4pt 3pt;
     vertical-align: middle;
   }
   .items-table tbody td:last-child { border-right: none; }
@@ -298,8 +298,8 @@ const SHARED_CSS = `
   .items-table .amount { width: 22mm; }
   .item-cell {
     display: flex;
-    align-items: flex-start;
-    gap: 3pt;
+    align-items: center;
+    gap: 2pt;
     min-width: 0;
   }
   .item-photo {
@@ -315,19 +315,19 @@ const SHARED_CSS = `
   .item-name {
     display: block;
     color: #1a1a1a;
-    font-size: 6.9pt;
+    font-size: 7pt;
     font-weight: 700;
-    line-height: 1.12;
+    line-height: 1.1;
     overflow-wrap: anywhere;
   }
   .item-description {
     display: block;
-    margin-top: 0.8pt;
+    margin-top: 0.5pt;
     color: #666666;
-    font-size: 6.1pt;
+    font-size: 6pt;
     font-weight: 400;
-    line-height: 1.12;
-    max-height: 13.6pt;
+    line-height: 1.1;
+    max-height: 11pt;
     overflow: hidden;
     overflow-wrap: anywhere;
   }
@@ -336,13 +336,13 @@ const SHARED_CSS = `
     text-align: right;
     font-variant-numeric: tabular-nums;
     font-family: "Courier New", monospace;
-    font-size: 6.7pt;
+    font-size: 7pt;
   }
   .total-section {
     display: flex;
     justify-content: flex-end;
-    margin-top: 3pt;
-    margin-bottom: 3pt;
+    margin-top: 2pt;
+    margin-bottom: 2pt;
   }
   .total-table {
     min-width: 60mm;
@@ -350,8 +350,8 @@ const SHARED_CSS = `
     border: 0.75pt solid #cccccc;
   }
   .total-table tr td {
-    padding: 2.6pt 6pt;
-    font-size: 6.8pt;
+    padding: 1.8pt 5pt;
+    font-size: 7pt;
     border-bottom: 0.5pt solid #e8e8e8;
   }
   .total-table tr:last-child td { border-bottom: none; }
@@ -372,7 +372,7 @@ const SHARED_CSS = `
   .total-table tr.grand-total td {
     background: #f2f2f2;
     border-top: 1.5pt solid #1a1a1a;
-    padding: 3pt 6pt;
+    padding: 2pt 5pt;
   }
   .total-table tr.grand-total .total-label {
     color: #1a1a1a;
@@ -386,8 +386,8 @@ const SHARED_CSS = `
     font-weight: 900;
   }
   .footer {
-    margin-top: 5pt;
-    padding: 4pt 16mm 10pt;
+    margin-top: 3pt;
+    padding: 3pt 10mm 6pt;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;

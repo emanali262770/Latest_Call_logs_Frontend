@@ -102,11 +102,25 @@ function normalizeEstimationPrintTemplate(template) {
   };
 }
 
-function EstimationTemplatePreview({ template, className = '' }) {
+function EstimationTemplatePreview({ template, className = '', lazy = false }) {
+  const cacheBuster = useRef(`?v=${Date.now()}`);
+  const [visible, setVisible] = useState(!lazy);
+
+  useEffect(() => {
+    if (!lazy) return undefined;
+    const timer = setTimeout(() => setVisible(true), 120);
+    return () => clearTimeout(timer);
+  }, [lazy]);
+
   if (template.previewPdfUrl) {
+    const baseUrl = template.previewPdfUrl.split('?')[0];
     return (
       <div className={`h-full w-full overflow-hidden bg-white ${className}`}>
-        <iframe src={`${template.previewPdfUrl}#toolbar=0&navpanes=0&scrollbar=0`} title={template.name} className="h-full w-full border-0" />
+        {visible ? (
+          <iframe src={`${baseUrl}${cacheBuster.current}#toolbar=0&navpanes=0&scrollbar=0`} title={template.name} className="h-full w-full border-0" loading="lazy" />
+        ) : (
+          <div className="h-full w-full bg-slate-100 animate-pulse" />
+        )}
       </div>
     );
   }
@@ -194,7 +208,7 @@ function EstimationPrintTemplatePickerModal({ isOpen, templates, selectedTemplat
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { isCenter ? onSelect(template.id) : setActive((prev) => prev + offset); } }}
                   className={`absolute aspect-[3/4] w-[214px] overflow-hidden rounded-2xl text-left shadow-2xl transition-shadow sm:w-[270px] ${isCenter ? 'z-20 shadow-brand/25' : 'z-10 shadow-black/40'}`}
                 >
-                  <div className="pointer-events-none h-full w-full"><EstimationTemplatePreview template={template} /></div>
+                  <div className="pointer-events-none h-full w-full"><EstimationTemplatePreview template={template} lazy={!isCenter} /></div>
                   <div className="absolute inset-0 bg-linear-to-t from-slate-950/92 via-slate-950/12 to-white/5" />
                   <div className="absolute inset-x-0 bottom-0 p-4">
                     <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-200 backdrop-blur">{template.category}</span>
@@ -1205,7 +1219,10 @@ export default function Estimation() {
                           <FieldLabel>Print Template</FieldLabel>
                           <button
                             type="button"
-                            onClick={() => setIsPrintTemplateModalOpen(true)}
+                            onClick={async () => {
+                              await loadSetupOptions();
+                              setIsPrintTemplateModalOpen(true);
+                            }}
                             className="group flex h-9 w-full items-center justify-between gap-3 rounded-xl border border-slate-300/80 bg-white px-4 text-left text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:border-brand/30 hover:bg-brand-light/30 focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70"
                           >
                             <span className="flex min-w-0 items-center gap-2.5">
@@ -1248,11 +1265,13 @@ export default function Estimation() {
                         <FieldLabel>Description</FieldLabel>
                         <textarea
                           value={formData.description}
-                          onChange={(event) => updateField('description', event.target.value)}
+                          onChange={(event) => updateField('description', event.target.value.slice(0, 75))}
                           placeholder="Enter description"
                           rows={8}
+                          maxLength={75}
                           className="min-h-[222px] w-full rounded-xl border border-slate-300/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70"
                         />
+                        <p className="text-right text-xs text-slate-400">{(formData.description || '').length}/75 characters</p>
                       </div>
                       <div className="md:col-span-12">
                         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">

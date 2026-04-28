@@ -116,8 +116,8 @@ const QUOTATION_CSS = `
     background: #ffffff;
     color: #1a1a1a;
     font-family: Arial, Helvetica, sans-serif;
-    font-size: 9.5pt;
-    line-height: 1.5;
+    font-size: 9pt;
+    line-height: 1.3;
     width: 210mm;
     min-height: 297mm;
   }
@@ -136,7 +136,7 @@ const QUOTATION_CSS = `
 
   /* ══ HEADER ══ */
   .header {
-    padding: 7mm 16mm 6mm;
+    padding: 3mm 10mm 2.5mm;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -144,53 +144,53 @@ const QUOTATION_CSS = `
   }
   .company-name {
     color: #1a1a1a;
-    font-size: 18pt;
+    font-size: 12pt;
     font-weight: 900;
     letter-spacing: 0.01em;
     line-height: 1.05;
     text-transform: uppercase;
   }
   .company-tagline {
-    margin-top: 2.5pt;
+    margin-top: 1.5pt;
     color: #888888;
-    font-size: 7pt;
+    font-size: 5.8pt;
     letter-spacing: 0.26em;
     text-transform: uppercase;
   }
   .company-address {
-    margin-top: 4pt;
+    margin-top: 2pt;
     color: #555555;
-    font-size: 8pt;
-    line-height: 1.5;
+    font-size: 6.8pt;
+    line-height: 1.25;
   }
   .doc-meta {
     text-align: right;
     flex-shrink: 0;
-    padding-left: 14mm;
+    padding-left: 8mm;
   }
   .doc-meta-label {
-    font-size: 6.5pt;
+    font-size: 5.8pt;
     font-weight: 700;
     letter-spacing: 0.30em;
     text-transform: uppercase;
     color: #aaaaaa;
   }
   .doc-meta-no {
-    margin-top: 4pt;
-    font-size: 13pt;
+    margin-top: 1pt;
+    font-size: 9pt;
     font-weight: 900;
     color: #1a1a1a;
     letter-spacing: 0.05em;
     font-family: "Courier New", monospace;
   }
   .doc-meta-date {
-    margin-top: 3pt;
-    font-size: 8pt;
+    margin-top: 1.5pt;
+    font-size: 6.8pt;
     color: #555555;
   }
 
   /* ══ BODY ══ */
-  .body-pad { padding: 5mm 16mm 10mm; }
+  .body-pad { padding: 2.5mm 10mm 4mm; }
 
   /* ══ ADDRESS ══ */
   .address-row {
@@ -220,11 +220,9 @@ const QUOTATION_CSS = `
   /* ══ SUBJECT + ATTENTION ══ */
   .subj-attn-row {
     display: flex;
-    gap: 10pt;
-    margin-bottom: 8pt;
-    
-  
-    padding: 6pt 0;
+    gap: 8pt;
+    margin-bottom: 3pt;
+    padding: 2pt 0;
   }
   .subject-block {
     flex: 1;
@@ -238,25 +236,25 @@ const QUOTATION_CSS = `
     background: transparent;
   }
   .subject-label {
-    font-size: 6.5pt;
+    font-size: 5.8pt;
     font-weight: 700;
     letter-spacing: 0.22em;
     text-transform: uppercase;
     color: #888888;
-    margin-bottom: 3pt;
+    margin-bottom: 2pt;
   }
   .subject-text {
     color: #1a1a1a;
-    font-size: 9.5pt;
+    font-size: 7.5pt;
     font-weight: 700;
   }
   .attn-name {
     color: #1a1a1a;
-    font-size: 8.5pt;
+    font-size: 7pt;
   }
   .attn-detail {
     color: #555555;
-    font-size: 8pt;
+    font-size: 6.6pt;
   }
 
   /* ══ SECTION HEADER ══ */
@@ -264,7 +262,7 @@ const QUOTATION_CSS = `
     display: flex;
     align-items: center;
     gap: 8pt;
-    margin-bottom: 4pt;
+    margin-bottom: 1.5pt;
     margin-top: 0;
   }
   .section-header-text {
@@ -291,10 +289,10 @@ const QUOTATION_CSS = `
   .items-table thead th {
     background: #f2f2f2;
     color: #1a1a1a;
-    font-size: 6.8pt;
+    font-size: 6.5pt;
     font-weight: 900;
-    letter-spacing: 0.12em;
-    padding: 6pt 8pt;
+    letter-spacing: 0.06em;
+    padding: 2pt 3pt;
     text-align: left;
     text-transform: uppercase;
     border-bottom: 1.5pt solid #1a1a1a;
@@ -307,9 +305,9 @@ const QUOTATION_CSS = `
     border-bottom: 0.5pt solid #e8e8e8;
     border-right: 0.75pt solid #e8e8e8;
     color: #1a1a1a;
-    font-size: 8.5pt;
+    font-size: 7pt;
     font-weight: 600;
-    padding: 6.5pt 8pt;
+    padding: 1.4pt 3pt;
     vertical-align: middle;
   }
   .items-table tbody td:last-child { border-right: none; }
@@ -322,13 +320,13 @@ const QUOTATION_CSS = `
   .items-table .amount { width: 27mm; }
   .item-cell {
     display: flex;
-    align-items: flex-start;
-    gap: 5pt;
+    align-items: center;
+    gap: 2pt;
     min-width: 0;
   }
   .item-photo {
-    width: 28pt;
-    height: 28pt;
+    width: 20pt;
+    height: 20pt;
     background: #ffffff;
     object-fit: contain;
     flex-shrink: 0;
@@ -339,18 +337,20 @@ const QUOTATION_CSS = `
   .item-name {
     display: block;
     color: #1a1a1a;
-    font-size: 8.5pt;
+    font-size: 7pt;
     font-weight: 700;
-    line-height: 1.3;
+    line-height: 1.1;
     overflow-wrap: anywhere;
   }
   .item-description {
     display: block;
-    margin-top: 2pt;
+    margin-top: 0.5pt;
     color: #666666;
-    font-size: 7.5pt;
+    font-size: 6pt;
     font-weight: 400;
-    line-height: 1.3;
+    line-height: 1.1;
+    max-height: 11pt;
+    overflow: hidden;
     overflow-wrap: anywhere;
   }
   .bold { font-weight: 700; }
@@ -358,15 +358,15 @@ const QUOTATION_CSS = `
     text-align: right;
     font-variant-numeric: tabular-nums;
     font-family: "Courier New", monospace;
-    font-size: 8.2pt;
+    font-size: 7pt;
   }
 
   /* ══ TOTALS ══ */
   .total-section {
     display: flex;
     justify-content: flex-end;
-    margin-top: 5pt;
-    margin-bottom: 5pt;
+    margin-top: 2pt;
+    margin-bottom: 2pt;
   }
   .total-table {
     min-width: 72mm;
@@ -374,8 +374,8 @@ const QUOTATION_CSS = `
     border: 0.75pt solid #cccccc;
   }
   .total-table tr td {
-    padding: 4.5pt 9pt;
-    font-size: 8.3pt;
+    padding: 1.8pt 5pt;
+    font-size: 7pt;
     border-bottom: 0.5pt solid #e8e8e8;
   }
   .total-table tr:last-child td { border-bottom: none; }
@@ -396,17 +396,17 @@ const QUOTATION_CSS = `
   .total-table tr.grand-total td {
     background: #f2f2f2;
     border-top: 1.5pt solid #1a1a1a;
-    padding: 6pt 9pt;
+    padding: 2pt 5pt;
   }
   .total-table tr.grand-total .total-label {
     color: #1a1a1a;
-    font-size: 7.5pt;
+    font-size: 6.6pt;
     font-weight: 900;
     letter-spacing: 0.14em;
   }
   .total-table tr.grand-total .total-value {
     color: #1a1a1a;
-    font-size: 10pt;
+    font-size: 7.4pt;
     font-weight: 900;
   }
 
@@ -414,60 +414,59 @@ const QUOTATION_CSS = `
   .terms-grid {
     display: flex;
     flex-direction: column;
-    gap: 2pt;
-    margin-top: 4pt;
+    gap: 0.8pt;
+    margin-top: 2pt;
   }
   .terms-item {
     display: flex;
-    gap: 5pt;
+    gap: 3pt;
     align-items: flex-start;
     padding: 0;
-    font-size: 7.8pt;
+    font-size: 6.8pt;
     color: #444444;
-    line-height: 1.35;
+    line-height: 1.2;
   }
   .terms-bullet {
-    width: 4.5pt;
-    height: 4.5pt;
+    width: 3.5pt;
+    height: 3.5pt;
     border: 1.5pt solid #1a1a1a;
     border-radius: 50%;
     flex-shrink: 0;
-    margin-top: 3.5pt;
+    margin-top: 2.5pt;
   }
 
   /* ══ FOOTER ══ */
   .footer {
-    margin-top: 8pt;
-    padding: 6pt 16mm 14pt;
-    
+    margin-top: 3pt;
+    padding: 3pt 10mm 6pt;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
   }
   .footer-note {
     color: #888888;
-    font-size: 7.5pt;
+    font-size: 6.4pt;
     font-style: italic;
     max-width: 95mm;
-    line-height: 1.55;
+    line-height: 1.25;
   }
-  .signature-block { text-align: center; min-width: 55mm; }
+  .signature-block { text-align: center; min-width: 45mm; }
   .signature-line {
-    width: 55mm;
+    width: 45mm;
     height: 0.75pt;
     background: #1a1a1a;
-    margin: 0 auto 4pt;
+    margin: 0 auto 3pt;
   }
   .signature-name {
-    font-size: 7.5pt;
+    font-size: 7pt;
     font-weight: 700;
     color: #1a1a1a;
     letter-spacing: 0.12em;
     text-transform: uppercase;
   }
   .signature-title {
-    margin-top: 1.5pt;
-    font-size: 6.5pt;
+    margin-top: 1pt;
+    font-size: 6pt;
     color: #888888;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -679,7 +678,7 @@ function buildQuotationHtml(company, quotation) {
       </div>
 
       <!-- TERMS & CONDITIONS -->
-      <div class="section-header" style="margin-top:6pt;">
+      <div class="section-header" style="margin-top:2pt;">
         <span class="section-header-text">Terms &amp; Conditions</span>
         <div class="section-header-line"></div>
       </div>
