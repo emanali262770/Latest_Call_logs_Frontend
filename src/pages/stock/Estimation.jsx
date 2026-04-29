@@ -13,7 +13,6 @@ import { customerService } from '@/src/services/customer.service';
 import { itemRateService } from '@/src/services/itemRate.service';
 import { servicesService } from '@/src/services/services.service';
 import { estimationService } from '@/src/services/estimation.service';
-import { printSingleEstimation } from '@/src/pages/stock/prints/estimationPrint';
 
 const EMPTY_FORM = {
   estimateId: '',
@@ -99,6 +98,31 @@ function normalizeEstimationPrintTemplate(template) {
     category: template.category || template.meta || 'Template',
     description: template.description || '',
     previewPdfUrl: resolveEstimationPreviewPdfUrl(template.previewPdfUrl || template.preview_pdf_url || null),
+  };
+}
+
+function printPdfBlob(blob) {
+  if (!(blob instanceof Blob)) {
+    throw new Error('Could not load print PDF.');
+  }
+
+  const url = URL.createObjectURL(blob);
+  const frame = document.createElement('iframe');
+
+  frame.style.cssText = 'position:fixed;top:-10000px;left:-10000px;width:0;height:0;border:none;';
+  frame.src = url;
+  document.body.appendChild(frame);
+
+  frame.onload = () => {
+    setTimeout(() => {
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+
+      setTimeout(() => {
+        frame.remove();
+        URL.revokeObjectURL(url);
+      }, 1500);
+    }, 300);
   };
 }
 
@@ -941,10 +965,10 @@ export default function Estimation() {
 
   const handlePrintSingle = useCallback(async (row) => {
     try {
-      const payload = await estimationService.printSingle(row.id);
-      printSingleEstimation(payload);
+      const response = await estimationService.printSinglePdf(row.id);
+      printPdfBlob(response.data);
     } catch (requestError) {
-      toast.error('Print failed', requestError?.response?.data?.message || requestError.message || 'Could not load print data.');
+      toast.error('Print failed', requestError?.payload?.message || requestError?.response?.data?.message || requestError.message || 'Could not load print PDF.');
     }
   }, [toast]);
 

@@ -28,7 +28,6 @@ import {
   FolderTree,
   FileBarChart2,
   ClipboardList,
-  ConciergeBell,
   PackageSearch,
   ReceiptText,
 } from 'lucide-react';
@@ -168,6 +167,9 @@ const navItems = [
   { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
+const SIDEBAR_WIDTH = 288;
+const SIDEBAR_COLLAPSED_WIDTH = 82;
+
 function attachVisibleSubItems(items = []) {
   return items.map((item) => ({
     ...item,
@@ -182,6 +184,8 @@ function hasActiveDescendant(item, pathName) {
 
 export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   const sidebarRef = useRef(null);
+  const navRef = useRef(null);
+  const brandRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
   const pathName = location.pathname;
@@ -191,7 +195,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     subtitle: 'Control Panel',
     logo: '',
   });
-  const visibleNavItems = attachVisibleSubItems(navItems);
+  const visibleNavItems = useMemo(() => attachVisibleSubItems(navItems), []);
 
   const autoExpandedSubMenu = useMemo(() => {
     const activeTrail = [];
@@ -215,17 +219,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   }, [pathName, visibleNavItems]);
 
   const [manualExpandedSubMenus, setManualExpandedSubMenus] = useState(null);
-
-  // Reset manual state on route change so auto-expand takes over again after navigation
-  const prevPathRef = useRef(pathName);
-  useEffect(() => {
-    if (prevPathRef.current !== pathName) {
-      prevPathRef.current = pathName;
-      setManualExpandedSubMenus(null);
-    }
-  }, [pathName]);
-
-  const expandedSubMenus = manualExpandedSubMenus !== null ? manualExpandedSubMenus : autoExpandedSubMenu;
+  const manualExpandedForPath = manualExpandedSubMenus?.path === pathName ? manualExpandedSubMenus.value : null;
+  const expandedSubMenus = manualExpandedForPath !== null ? manualExpandedForPath : autoExpandedSubMenu;
 
   const applyBrandProfile = (company) => {
     if (company?.company_name || company?.logo_url) {
@@ -247,13 +242,42 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   useEffect(() => {
     if (sidebarRef.current) {
       gsap.to(sidebarRef.current, {
-        width: isCollapsed ? 80 : 260,
-        duration: 0.4,
+        width: isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH,
+        duration: 0.36,
         ease: 'power3.inOut',
         overwrite: true,
       });
     }
+
+    if (brandRef.current) {
+      gsap.fromTo(
+        brandRef.current,
+        { scale: 0.985, opacity: 0.92 },
+        { scale: 1, opacity: 1, duration: 0.28, ease: 'power2.out', overwrite: true },
+      );
+    }
   }, [isCollapsed]);
+
+  useEffect(() => {
+    if (!navRef.current) return;
+
+    gsap.fromTo(
+      navRef.current.querySelectorAll('[data-sidebar-item]'),
+      { opacity: 0, x: -8 },
+      { opacity: 1, x: 0, duration: 0.3, stagger: 0.025, ease: 'power2.out', overwrite: true },
+    );
+  }, [isCollapsed]);
+
+  useEffect(() => {
+    const activeItem = navRef.current?.querySelector('[data-sidebar-active="true"]');
+    if (!activeItem) return;
+
+    gsap.fromTo(
+      activeItem,
+      { scale: 0.985 },
+      { scale: 1, duration: 0.24, ease: 'power2.out', overwrite: true },
+    );
+  }, [pathName]);
 
   useEffect(() => {
     let isMounted = true;
@@ -310,12 +334,12 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
 
       if (isCollapsed) {
         setIsCollapsed(false);
-        setManualExpandedSubMenus([...parentTrail, item.id].length ? [...parentTrail, item.id] : null);
+        setManualExpandedSubMenus({ path: pathName, value: [...parentTrail, item.id] });
       } else {
         const trailToItem = [...parentTrail, item.id];
         const isExpanded = expandedSubMenus.includes(item.id);
         // Use [] (not null) when closing so autoExpandedSubMenu does NOT override
-        setManualExpandedSubMenus(isExpanded ? parentTrail : trailToItem);
+        setManualExpandedSubMenus({ path: pathName, value: isExpanded ? parentTrail : trailToItem });
       }
 
       return;
@@ -333,8 +357,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
     <div
       className={cn(
         level === 0
-          ? 'ml-8 mt-2 space-y-1 overflow-hidden border-l border-indigo-100/70 pl-3'
-          : 'ml-5 mt-2 space-y-1 overflow-hidden border-l border-indigo-100/70 pl-3',
+          ? 'ml-6 mt-1.5 space-y-1 overflow-hidden border-l border-slate-200/80 pl-3'
+          : 'ml-4 mt-1.5 space-y-1 overflow-hidden border-l border-slate-200/80 pl-3',
       )}
     >
       {items.map((sub) => {
@@ -348,10 +372,10 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
               type="button"
               onClick={() => handleNavClick(sub, parentTrail)}
               className={cn(
-                'group w-full rounded-xl px-3 py-2 text-left text-sm transition-all duration-200',
+                'group w-full rounded-lg px-3 py-2 text-left text-sm transition-all duration-200',
                 isItemActive(sub)
-                  ? 'bg-transparent font-semibold text-brand'
-                  : 'text-slate-500 hover:bg-indigo-50/50 hover:text-slate-800',
+                  ? 'bg-white font-semibold text-brand shadow-[0_6px_18px_rgba(15,23,42,0.06),inset_0_0_0_1px_rgba(79,70,229,0.10)]'
+                  : 'text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-[0_5px_14px_rgba(15,23,42,0.05)]',
                 hasChildren ? 'flex items-center justify-between gap-2' : 'flex items-center gap-2.5',
               )}
             >
@@ -359,15 +383,15 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                 {SubIcon ? (
                   <SubIcon
                     className={cn(
-                      'h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-105',
-                      isItemActive(sub) ? 'text-brand' : 'text-gray-400',
+                      'h-4 w-4 shrink-0 transition-colors duration-200',
+                      isItemActive(sub) ? 'text-brand' : 'text-slate-400 group-hover:text-slate-600',
                     )}
                   />
                 ) : null}
                 <span className="font-medium leading-5">{sub.label}</span>
               </span>
               {hasChildren ? (
-                <ChevronRight className={cn('h-4 w-4 text-slate-400 transition-transform duration-200', isExpanded && 'rotate-90')} />
+                <ChevronRight className={cn('h-4 w-4 text-slate-400 transition-transform duration-200', isExpanded && 'rotate-90 text-brand')} />
               ) : null}
             </button>
 
@@ -393,58 +417,71 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
   return (
     <div
       ref={sidebarRef}
-      style={{ width: isCollapsed ? 80 : 260 }}
-      className="z-50 flex h-screen shrink-0 flex-col overflow-hidden border-r border-gray-200 bg-white"
+      style={{ width: isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_WIDTH }}
+      className="z-50 flex h-screen shrink-0 flex-col overflow-hidden border-r border-slate-200/80 bg-slate-50/95 shadow-[1px_0_0_rgba(15,23,42,0.03)]"
     >
-      <div className="px-5 pb-4 pt-5">
+      <div className="border-b border-slate-200/80 bg-white px-4 pb-4 pt-5">
         {!isCollapsed ? (
-          <div className="rounded-[1.5rem] border border-indigo-100 bg-white px-3.5 py-3 shadow-[0_14px_34px_rgba(79,70,229,0.10)]">
+          <div
+            ref={brandRef}
+            className="rounded-2xl border border-slate-200 bg-white px-3.5 py-3 shadow-[0_12px_28px_rgba(15,23,42,0.06)]"
+          >
             <div className="flex items-center gap-3">
-              <div className="flex h-15 w-10 items-center justify-center overflow-hidden rounded-2xl  text-white ">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
                 {brandProfile.logo ? (
-                  <img src={brandProfile.logo} alt={brandProfile.name} className="h-full w-full object-cover" />
+                  <img src={brandProfile.logo} alt={brandProfile.name} className="h-full w-full scale-[1.65] object-cover" />
                 ) : (
-                  <ShieldCheck className="h-5 w-5" />
+                  <div className="flex h-full w-full items-center justify-center rounded-xl border border-brand/15 bg-brand-light text-brand">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
                 )}
               </div>
-              <div className="min-w-0">
-                <span className="block truncate text-xl font-black tracking-tight text-brand uppercase">
+              <div className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-black uppercase tracking-tight text-brand">
                   {brandProfile.name}
                 </span>
-                <span className="block text-[11px] font-semibold uppercase tracking-[0.22em] text-indigo-400">
+                <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">
                   {brandProfile.subtitle}
                 </span>
               </div>
             </div>
           </div>
         ) : (
-          <div className="mx-auto flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-linear-to-br from-brand to-brand-hover text-white shadow-[0_12px_24px_rgba(79,70,229,0.35)]">
+          <div
+            ref={brandRef}
+            className="mx-auto flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl"
+          >
             {brandProfile.logo ? (
-              <img src={brandProfile.logo} alt={brandProfile.name} className="h-full w-full object-cover" />
+              <img src={brandProfile.logo} alt={brandProfile.name} className="h-full w-full scale-[1.65] object-cover" />
             ) : (
-              <ShieldCheck className="h-5 w-5" />
+              <div className="flex h-full w-full items-center justify-center rounded-xl border border-brand/15 bg-brand-light text-brand">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
             )}
           </div>
         )}
       </div>
 
-      <nav className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden px-4 pb-4">
+      <nav ref={navRef} className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-3 py-4 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.45)_transparent]">
         {!isCollapsed ? (
           <div className="px-2 pb-2 pt-1">
-            <span className="text-[11px] font-bold uppercase tracking-[0.24em] text-gray-400">Navigation</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Navigation</span>
           </div>
         ) : null}
 
         {visibleNavItems.map((item) => (
-          <div key={item.id}>
+          <div key={item.id} data-sidebar-item>
             <button
               type="button"
+              title={isCollapsed ? item.label : undefined}
               onClick={() => handleNavClick(item)}
+              data-sidebar-active={isItemActive(item) ? 'true' : undefined}
               className={cn(
-                'group relative flex w-full items-center gap-3 rounded-2xl border px-3.5 py-3 transition-all duration-200',
+                'group relative flex h-11 w-full items-center gap-3 rounded-xl border px-2.5 transition-all duration-200',
                 isItemActive(item)
-                  ? 'border-indigo-200 bg-indigo-50/90 text-brand shadow-[0_10px_26px_rgba(79,70,229,0.10)]'
-                  : 'border-transparent text-slate-500 hover:bg-gray-50 hover:text-slate-900',
+                  ? 'border-brand/20 bg-white text-slate-950 shadow-[0_10px_24px_rgba(15,23,42,0.08),inset_0_0_0_1px_rgba(79,70,229,0.08)]'
+                  : 'border-transparent text-slate-600 hover:border-slate-200 hover:bg-white hover:text-slate-950 hover:shadow-[0_8px_18px_rgba(15,23,42,0.05)]',
+                isCollapsed ? 'justify-center px-0' : '',
               )}
             >
               <span
@@ -453,20 +490,24 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
                   isItemActive(item) ? 'bg-brand opacity-100' : 'opacity-0',
                 )}
               />
-              <item.icon
+              <span
                 className={cn(
-                  'relative z-10 h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-105',
-                  isItemActive(item) ? 'text-brand' : 'text-gray-400 group-hover:text-gray-700',
+                  'relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200',
+                  isItemActive(item)
+                    ? 'bg-brand text-white shadow-[0_8px_18px_rgba(79,70,229,0.22)]'
+                    : 'bg-slate-100 text-slate-500 group-hover:bg-brand-light group-hover:text-brand',
                 )}
-              />
+              >
+                <item.icon className="h-4.5 w-4.5" />
+              </span>
               {!isCollapsed ? (
-                <span className="relative z-10 flex-1 text-left font-semibold tracking-tight">{item.label}</span>
+                <span className="relative z-10 flex-1 text-left text-[14px] font-semibold tracking-tight">{item.label}</span>
               ) : null}
               {!isCollapsed && item.visibleSubItems?.length > 0 ? (
                 <ChevronRight
                   className={cn(
-                    'relative z-10 h-4 w-4 text-slate-400 transition-transform duration-200',
-                    expandedSubMenus.includes(item.id) && 'rotate-90',
+                    'relative z-10 h-4 w-4 text-slate-400 transition-transform duration-200 group-hover:text-slate-600',
+                    expandedSubMenus.includes(item.id) && 'rotate-90 text-brand',
                   )}
                 />
               ) : null}
@@ -489,11 +530,11 @@ export default function Sidebar({ isCollapsed, setIsCollapsed }) {
         ))}
       </nav>
 
-      <div className="border-t border-gray-200 p-4">
+      <div className="border-t border-slate-200/80 bg-white p-4">
         <button
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white p-2.5 text-gray-500 shadow-[0_6px_18px_rgba(15,23,42,0.06)] transition-all duration-200 hover:bg-gray-50 hover:text-brand"
+          className="flex h-10 w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.04)] transition-all duration-200 hover:border-brand/20 hover:bg-brand-light/70 hover:text-brand"
         >
           {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </button>

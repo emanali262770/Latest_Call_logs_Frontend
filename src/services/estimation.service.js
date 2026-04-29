@@ -117,6 +117,13 @@ export const estimationService = {
     return response?.data?.data || response?.data || {};
   },
 
+  async printSinglePdf(id) {
+    const data = await axiosInstance.get(`/estimations/${id}/print-pdf`, {
+      responseType: 'blob',
+    });
+    return { data };
+  },
+
   async getTemplates() {
     return axiosInstance.get('/estimations/print-templates');
   },

@@ -960,7 +960,7 @@ export default function ItemDefinition() {
 
         {!showForm ? (
         <Card className="border-none p-0 shadow-xl shadow-gray-200/50">
-          <div className="flex flex-col gap-4 border-b border-gray-50 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="relative w-full sm:w-96">
                 <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
@@ -975,6 +975,7 @@ export default function ItemDefinition() {
                 <span className="font-bold text-gray-900">{items.length}</span> Records
               </p>
             </div>
+            <div className="mx-6 border-b border-gray-50" />
 
             {listError ? (
               <div className="mx-6 mb-6 rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
@@ -982,12 +983,12 @@ export default function ItemDefinition() {
               </div>
             ) : null}
 
-            <div className="w-full overflow-hidden rounded-4xl border border-gray-100 bg-white/80 backdrop-blur-xl">
+            <div className="mx-6 mb-6 mt-6 w-auto overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white/90 shadow-sm backdrop-blur-xl">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left">
                   <thead>
                     <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
-                      <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">
+                      <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
                         Item Code
                       </th>
                       <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
@@ -1007,7 +1008,7 @@ export default function ItemDefinition() {
                         Status
                       </th>
                       {hasRowActions ? (
-                        <th className="border-b border-gray-100/60 px-6 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">
+                        <th className="border-b border-gray-100/60 px-6 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
                           Actions
                         </th>
                       ) : null}

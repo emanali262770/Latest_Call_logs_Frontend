@@ -8,7 +8,7 @@ import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { getStoredUser, hasPermission } from '@/src/lib/auth';
 import AccessDenied from '@/src/pages/AccessDenied';
-import { printSingleQuotation, printQuotationPdfBlob, printQuotationFromHtml } from '@/src/pages/stock/prints/quotationPrint';
+import { printQuotationPdfBlob } from '@/src/pages/stock/prints/quotationPrint';
 import { customerService } from '@/src/services/customer.service';
 import { estimationService } from '@/src/services/estimation.service';
 import { itemRateService } from '@/src/services/itemRate.service';
@@ -1002,10 +1002,10 @@ export default function Quotation() {
 
   const handlePrintQuotation = useCallback(async (quotation) => {
     try {
-      const payload = await quotationService.printSingle(quotation.id);
-      printSingleQuotation(payload);
+      const response = await quotationService.printPdf(quotation.id);
+      printQuotationPdfBlob(response.data);
     } catch (requestError) {
-      toast.error('Print failed', requestError?.response?.data?.message || requestError.message || 'Could not print quotation.');
+      toast.error('Print failed', requestError?.payload?.message || requestError?.response?.data?.message || requestError.message || 'Could not print quotation.');
     }
   }, [toast]);
 
