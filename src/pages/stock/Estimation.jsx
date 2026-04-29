@@ -129,6 +129,7 @@ function printPdfBlob(blob) {
 function EstimationTemplatePreview({ template, className = '', lazy = false }) {
   const cacheBuster = useRef(`?v=${Date.now()}`);
   const [visible, setVisible] = useState(!lazy);
+  const [previewError, setPreviewError] = useState(false);
 
   useEffect(() => {
     if (!lazy) return undefined;
@@ -136,12 +137,18 @@ function EstimationTemplatePreview({ template, className = '', lazy = false }) {
     return () => clearTimeout(timer);
   }, [lazy]);
 
-  if (template.previewPdfUrl) {
+  if (template.previewPdfUrl && !previewError) {
     const baseUrl = template.previewPdfUrl.split('?')[0];
     return (
       <div className={`h-full w-full overflow-hidden bg-white ${className}`}>
         {visible ? (
-          <iframe src={`${baseUrl}${cacheBuster.current}#toolbar=0&navpanes=0&scrollbar=0`} title={template.name} className="h-full w-full border-0" loading="lazy" />
+          <iframe
+            src={`${baseUrl}${cacheBuster.current}#toolbar=0&navpanes=0&scrollbar=0`}
+            title={template.name}
+            className="h-full w-full border-0"
+            loading="lazy"
+            onError={() => setPreviewError(true)}
+          />
         ) : (
           <div className="h-full w-full bg-slate-100 animate-pulse" />
         )}
@@ -629,6 +636,7 @@ export default function Estimation() {
       purchasePrice: found ? String(found.resellerPrice ?? '') : '',
       salePrice: found ? String(found.salePrice ?? '') : '',
       salePriceWithTax: found ? String(found.salePriceWithTax ?? '') : '',
+      qty: found ? '1' : prev.qty,
     }));
   };
 
@@ -694,6 +702,7 @@ export default function Estimation() {
       createdBy: prev.createdBy,
       designation: prev.designation,
       taxMode: prev.taxMode,
+      printTemplateId: prev.printTemplateId,
     }));
     toast.success(editingRowId ? 'Item updated' : 'Item added', editingRowId ? 'Queued estimation item updated successfully.' : 'Estimation item has been added to the preview list.');
   };
@@ -749,6 +758,7 @@ export default function Estimation() {
       finalPrice: String(row.finalPrice || ''),
       finalTotal: String(row.finalTotal || ''),
       taxMode: row.taxMode || formData.taxMode || 'withoutTax',
+      printTemplateId: formData.printTemplateId || 'executive_letterhead',
     });
   };
 
@@ -803,7 +813,7 @@ export default function Estimation() {
         designation: estimation.designation || '',
         createdBy: estimation.createdBy || loggedInUserName,
         taxMode: estimation.taxMode || 'withoutTax',
-        printTemplateId: estimation.printTemplate || 'executive_letterhead',
+        printTemplateId: estimation.print_template || estimation.printTemplate || 'executive_letterhead',
       });
       setShowForm(true);
     } catch (requestError) {
