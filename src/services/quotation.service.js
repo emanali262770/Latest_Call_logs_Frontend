@@ -195,10 +195,9 @@ export const quotationService = {
   },
 
   async printPdf(id) {
-    const data = await axiosInstance.get(`/quotations/${id}/print-pdf`, {
+    return axiosInstance.get(`/quotations/${id}/print-pdf`, {
       responseType: 'blob',
     });
-    return { data };
   },
 
   async printHtml(id) {

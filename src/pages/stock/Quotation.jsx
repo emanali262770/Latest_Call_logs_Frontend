@@ -105,7 +105,7 @@ function normalizePrintTemplate(template) {
 }
 
 function TemplatePreview({ template, className = '', lazy = false }) {
-  const cacheBuster = useRef(`?v=${Date.now()}`);
+  const [cacheBuster] = useState(() => `?v=${Date.now()}`);
   const [visible, setVisible] = useState(!lazy);
 
   useEffect(() => {
@@ -120,7 +120,7 @@ function TemplatePreview({ template, className = '', lazy = false }) {
       <div className={`h-full w-full overflow-hidden bg-white ${className}`}>
         {visible ? (
           <iframe
-            src={`${baseUrl}${cacheBuster.current}#toolbar=0&navpanes=0&scrollbar=0`}
+            src={`${baseUrl}${cacheBuster}#toolbar=0&navpanes=0&scrollbar=0`}
             title={template.name}
             className="h-full w-full border-0"
             loading="lazy"
@@ -732,7 +732,7 @@ export default function Quotation() {
         department: estimation.department || '',
         serviceId: estimation.serviceId || '',
         forProduct: estimation.serviceName || '',
-        taxMode: prev.taxMode || 'withoutTax',
+        taxMode: estimation.taxMode || prev.taxMode || 'withoutTax',
       }));
     } catch (requestError) {
       toast.error('Estimation load failed', requestError.message || 'Could not load estimation details.');
@@ -1003,7 +1003,7 @@ export default function Quotation() {
   const handlePrintQuotation = useCallback(async (quotation) => {
     try {
       const response = await quotationService.printPdf(quotation.id);
-      printQuotationPdfBlob(response.data);
+      printQuotationPdfBlob(response?.data ?? response);
     } catch (requestError) {
       toast.error('Print failed', requestError?.payload?.message || requestError?.response?.data?.message || requestError.message || 'Could not print quotation.');
     }
@@ -1056,7 +1056,7 @@ export default function Quotation() {
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Customer</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">For Product</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Revision ID</th>
-                        <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Items Total</th>
+                        <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400"> Total</th>
                         {hasRowActions ? <th className="border-b border-gray-100/60 px-5 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 last:rounded-tr-4xl">Actions</th> : null}
                       </tr>
                     </thead>
@@ -1100,8 +1100,8 @@ export default function Quotation() {
           </Card>
         </>
       ) : (
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="overflow-hidden rounded-[1.75rem] border border-slate-300/80 bg-white">
+      <div className="mx-auto min-w-0 w-full max-w-6xl">
+        <div className="min-w-0 max-w-full rounded-[1.75rem] border border-slate-300/80 bg-white">
           <div className="border-b border-slate-300/80 bg-slate-100/30 px-8 py-6">
             <div className="flex items-start justify-between gap-6">
               <div className="flex items-start gap-4">
@@ -1120,8 +1120,8 @@ export default function Quotation() {
             </div>
           </div>
 
-          <div className="space-y-6 px-8 py-8">
-            <section className={SECTION_PANEL_CLASS_NAME}>
+          <div className="min-w-0 max-w-full space-y-6 px-8 py-8">
+            <section className={`${SECTION_PANEL_CLASS_NAME} min-w-0 max-w-full`}>
               <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Quotation Setup</h3>
@@ -1227,11 +1227,11 @@ export default function Quotation() {
               </div>
             </section>
 
-            <section className={SECTION_PANEL_CLASS_NAME}>
+            <section className={`${SECTION_PANEL_CLASS_NAME} min-w-0 max-w-full`}>
               <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
                 <div>
                   <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Item Details</h3>
-                  <p className="mt-1 text-xs text-slate-500">Item, price, qty, total, and description with add-item table flow.</p>
+                  <p className="mt-1 text-xs text-slate-500">Item, rate, qty, total, and description with add-item table flow.</p>
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200/70 text-brand">
                   <Package className="h-4 w-4" />
@@ -1239,45 +1239,46 @@ export default function Quotation() {
               </div>
 
               <div className="grid grid-cols-1 gap-6 p-6">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-                  <div className={formData.taxMode === 'withTax' ? 'md:col-span-4' : 'md:col-span-5'}>
+                <div className="flex min-w-0 flex-wrap gap-4">
+                  <div className={formData.taxMode === 'withTax' ? 'min-w-[260px] flex-[1_1_300px]' : 'min-w-[300px] flex-[1_1_420px]'}>
                     <SearchableSelect selectId="item" label="Item" value={formData.item} options={itemOptions} placeholder="Select product" searchablePlaceholder="Search item" onChange={handleItemChange} isOpen={openSelectId === 'item'} onToggle={(id) => setOpenSelectId((prev) => (prev === id ? null : id))} onClose={() => setOpenSelectId(null)} />
                   </div>
-                  <div className={formData.taxMode === 'withTax' ? 'space-y-2 md:col-span-2' : 'space-y-2 md:col-span-2'}>
-                    <FieldLabel>Price</FieldLabel>
+                  <div className="min-w-[150px] flex-[1_1_160px] space-y-2">
+                    <FieldLabel>Rate</FieldLabel>
                     <input type="text" value={formData.price} onChange={(event) => updateField('price', event.target.value)} placeholder="0.00" className={INPUT_CLASS_NAME} />
                   </div>
-                  <div className={formData.taxMode === 'withTax' ? 'space-y-2 md:col-span-2' : 'space-y-2 md:col-span-2'}>
+                  <div className="min-w-[92px] flex-[0_1_110px] space-y-2">
                     <FieldLabel>Qty</FieldLabel>
                     <input type="text" value={formData.qty} onChange={(event) => updateField('qty', event.target.value)} placeholder="0" className={INPUT_CLASS_NAME} />
                   </div>
                   {formData.taxMode === 'withTax' ? (
                     <>
-                      <div className="space-y-2 md:col-span-2">
-                        <FieldLabel>18% GST</FieldLabel>
-                        <input type="text" value={draftItemTaxValues.gstAmount} readOnly placeholder="0.00" className={READ_ONLY_INPUT_CLASS_NAME} />
+                      <div className="min-w-[150px] flex-[1_1_160px] space-y-2">
+                        <FieldLabel>Total</FieldLabel>
+                        <input type="text" value={formData.total} readOnly placeholder="0.00" className={READ_ONLY_INPUT_CLASS_NAME} />
                       </div>
-                      <div className="space-y-2 md:col-span-3">
-                        <FieldLabel>Rate With GST</FieldLabel>
+                      <div className="min-w-[160px] flex-[1_1_170px] space-y-2">
+                        <FieldLabel>18% GST Rate</FieldLabel>
                         <input type="text" value={draftItemTaxValues.rateWithGst} readOnly placeholder="0.00" className={READ_ONLY_INPUT_CLASS_NAME} />
                       </div>
-                      <div className="space-y-2 md:col-span-3">
-                        <FieldLabel>Total With GST</FieldLabel>
+                      <div className="w-[260px] max-w-full flex-none space-y-2">
+                        <label className="ml-0.5 block whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">Total Amount With GST</label>
                         <input type="text" value={draftItemTaxValues.totalWithGst} readOnly placeholder="0.00" className={READ_ONLY_INPUT_CLASS_NAME} />
                       </div>
                     </>
                   ) : null}
                   {formData.taxMode !== 'withTax' ? (
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="min-w-[150px] flex-[1_1_170px] space-y-2">
                       <FieldLabel>Total</FieldLabel>
                       <input type="text" value={formData.total} readOnly className={READ_ONLY_INPUT_CLASS_NAME} />
                     </div>
                   ) : null}
-                  <div className="space-y-2 md:col-span-12">
+                  <div className={formData.taxMode === 'withTax' ? 'min-w-[360px] flex-[1_1_520px] space-y-2' : 'min-w-full space-y-2'}>
                     <FieldLabel>Description</FieldLabel>
-                    <textarea value={formData.description} onChange={(event) => updateField('description', event.target.value)} rows={3} placeholder="Description" className="min-h-[96px] w-full rounded-xl border border-slate-300/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70" />
+                    <textarea value={formData.description} onChange={(event) => updateField('description', event.target.value.slice(0, 75))} rows={3} placeholder="Description" maxLength={75} className="min-h-[96px] w-full rounded-xl border border-slate-300/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] transition-all focus:border-slate-500 focus:outline-none focus:ring-4 focus:ring-slate-200/70" />
+                    <p className="text-right text-xs text-slate-400">{(formData.description || '').length}/75 characters</p>
                   </div>
-                  <div className="flex justify-end md:col-span-12">
+                  <div className="flex min-w-full justify-end">
                     <button
                       type="button"
                       onClick={handleAddItem}
@@ -1289,7 +1290,7 @@ export default function Quotation() {
                 </div>
 
                 {rows.length ? (
-                <section className={SECTION_PANEL_CLASS_NAME}>
+                <section className={`${SECTION_PANEL_CLASS_NAME} min-w-0 max-w-full`}>
                   <div className="flex items-center justify-between border-b border-slate-300/80 px-6 py-4">
                     <div>
                       <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Queued Items</h3>
@@ -1299,28 +1300,28 @@ export default function Quotation() {
                       {rows.length} {rows.length === 1 ? 'Item' : 'Items'}
                     </div>
                   </div>
-                  <div className="overflow-x-auto p-6">
-                  <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+                  <div className="min-w-0 max-w-full overflow-x-auto p-6">
+                  <table className="w-max min-w-full border-separate border-spacing-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
                     <thead>
                       {formData.taxMode === 'withTax' ? (
                         <tr className="bg-slate-100/80">
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">18% GST</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate With GST</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Total With GST</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Actions</th>
+                          <th className="w-14 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
+                          <th className="min-w-[240px] shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item</th>
+                          <th className="min-w-24 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
+                          <th className="min-w-16 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
+                          <th className="min-w-28 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Total</th>
+                          <th className="min-w-36 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">18% GST Rate</th>
+                          <th className="min-w-48 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Total Amount With GST</th>
+                          <th className="min-w-28 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Actions</th>
                         </tr>
                       ) : (
                         <tr className="bg-slate-100/80">
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Total</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Actions</th>
+                          <th className="w-14 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
+                          <th className="min-w-[320px] shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item</th>
+                          <th className="min-w-24 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
+                          <th className="min-w-16 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
+                          <th className="min-w-28 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Total</th>
+                          <th className="min-w-28 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Actions</th>
                         </tr>
                       )}
                     </thead>
@@ -1333,7 +1334,7 @@ export default function Quotation() {
                           <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{row.qty || '-'}</td>
                           {formData.taxMode === 'withTax' ? (
                             <>
-                              <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{Number(row.gst || 0).toFixed(2)}</td>
+                              <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{row.total || '-'}</td>
                               <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{Number(row.rateWithGst || 0).toFixed(2)}</td>
                               <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-brand">{Number(row.totalWithGst || 0).toFixed(2)}</td>
                             </>

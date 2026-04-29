@@ -1399,39 +1399,51 @@ export default function Estimation() {
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto p-6">
-                    <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+                  <div className="min-w-0 max-w-full overflow-x-auto p-6">
+                    <table className="w-max min-w-full border-separate border-spacing-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
                       <thead>
-                        <tr className="bg-slate-100/80">
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Sr.</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Item Detail</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Qty</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">{formData.taxMode === 'withTax' ? 'Unit Price (w/ Tax)' : 'Unit Price'}</th>
-                          {formData.taxMode === 'withTax' ? (
-                            <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Tax Amt</th>
-                          ) : null}
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Discount</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Final Total</th>
-                          <th className="border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 whitespace-nowrap">Actions</th>
-                        </tr>
+                        {formData.taxMode === 'withTax' ? (
+                          <tr className="bg-slate-100/80">
+                            <th className="w-14 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
+                            <th className="min-w-[240px] shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item Detail</th>
+                            <th className="min-w-24 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
+                            <th className="min-w-16 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
+                            <th className="min-w-28 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">GST Amt</th>
+                            <th className="min-w-32 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate + GST</th>
+                            <th className="min-w-48 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Total Amount With GST</th>
+                            <th className="min-w-28 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Actions</th>
+                          </tr>
+                        ) : (
+                          <tr className="bg-slate-100/80">
+                            <th className="w-14 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
+                            <th className="min-w-[320px] shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item Detail</th>
+                            <th className="min-w-24 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
+                            <th className="min-w-16 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
+                            <th className="min-w-28 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Disc Amt</th>
+                            <th className="min-w-28 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Total</th>
+                            <th className="min-w-28 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-right text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Actions</th>
+                          </tr>
+                        )}
                       </thead>
                       <tbody>
                         {rows.map((row, index) => (
                           <tr key={row.id} className="odd:bg-white even:bg-slate-50/45 transition-colors hover:bg-brand-light/30">
                             <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-600">{index + 1}</td>
-                            <td className="border-b border-slate-100 px-4 py-4">
-                              <div className="min-w-[260px]">
-                                <p className="text-sm font-semibold text-slate-900">{formatCellValue(row.item)}</p>
-                                
-                              </div>
-                            </td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-900">{formatCellValue(row.item)}</td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatCellValue(row.salePrice)}</td>
                             <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatIntegerOrDash(row.qty)}</td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatCellValue(formData.taxMode === 'withTax' ? row.salePriceWithTax : row.salePrice)}</td>
                             {formData.taxMode === 'withTax' ? (
-                              <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-indigo-700">{formatCellValue((Number(row.salePriceWithTax || 0) - Number(row.salePrice || 0)).toFixed(2))}</td>
-                            ) : null}
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-amber-700">{formatCellValue(row.discountAmount)}</td>
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-brand">{formatCellValue(row.finalTotal)}</td>
+                              <>
+                                <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-indigo-700">{formatCellValue((Number(row.salePriceWithTax || 0) - Number(row.salePrice || 0)).toFixed(2))}</td>
+                                <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatCellValue(row.salePriceWithTax)}</td>
+                                <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-brand">{formatCellValue(row.finalTotal)}</td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-amber-700">{formatCellValue(row.discountAmount) || '-'}</td>
+                                <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-brand">{formatCellValue(row.finalTotal)}</td>
+                              </>
+                            )}
                             <td className="border-b border-slate-100 px-4 py-4 text-right whitespace-nowrap">
                               <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                                 <button
