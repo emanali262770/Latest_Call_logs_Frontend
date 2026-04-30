@@ -457,7 +457,7 @@ export default function ItemReport() {
               <table className="w-full min-w-225 border-separate border-spacing-0 text-left">
                 <thead>
                   <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
-                    <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">
+                    <th className="w-px whitespace-nowrap border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">
                       Sr
                     </th>
                     <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">
@@ -510,7 +510,7 @@ export default function ItemReport() {
                   ) : (
                     paginatedItems.map((item, index) => (
                       <tr key={item.id} className="group transition-all duration-300 hover:bg-brand-light/40">
-                        <td className="border-b border-gray-50/30 px-6 py-5 text-sm font-semibold text-gray-500">
+                        <td className="border-b border-gray-50/30 px-6 py-5 text-sm font-semibold whitespace-nowrap text-gray-500">
                           {(currentPage - 1) * pageSize + index + 1}
                         </td>
                         <td className="border-b border-gray-50/30 px-6 py-5 text-sm font-bold text-gray-500 whitespace-nowrap">

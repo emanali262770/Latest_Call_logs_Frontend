@@ -190,7 +190,10 @@ export default function BankSetup() {
               <table className="w-full text-left border-separate border-spacing-0">
                 <thead>
                   <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
-                    <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60 first:rounded-tl-4xl">
+                    <th className="w-px whitespace-nowrap px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60 first:rounded-tl-4xl">
+                      Sr
+                    </th>
+                    <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60">
                       Bank Name
                     </th>
                     <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60 text-right last:rounded-tr-4xl">
@@ -201,19 +204,22 @@ export default function BankSetup() {
                 <tbody className="divide-y divide-gray-50/50">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={2} className="px-8 py-6 text-center">
+                      <td colSpan={3} className="px-8 py-6 text-center">
                         <TableLoader label="Loading bank records..." />
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={2} className="px-8 py-20 text-center text-sm text-gray-400 font-medium">
+                      <td colSpan={3} className="px-8 py-20 text-center text-sm text-gray-400 font-medium">
                         No bank records found.
                       </td>
                     </tr>
                   ) : (
-                    paginatedItems.map((item) => (
+                    paginatedItems.map((item, index) => (
                       <tr key={item.id} className="hover:bg-brand-light/40 transition-all duration-300 group">
+                        <td className="px-8 py-6 text-sm font-bold text-gray-500 border-b border-gray-50/30 group-last:border-none whitespace-nowrap">
+                          {(currentPage - 1) * pageSize + index + 1}
+                        </td>
                         <td className="px-8 py-6 text-sm text-gray-700 font-semibold border-b border-gray-50/30 group-last:border-none">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl bg-brand-light flex items-center justify-center text-brand border border-brand/10">

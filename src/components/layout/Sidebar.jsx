@@ -30,6 +30,8 @@ import {
   ClipboardList,
   PackageSearch,
   ReceiptText,
+  CalendarDays,
+  ListChecks,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { getReadPermissionsForPath, hasAnyPermission } from '@/src/lib/auth';
@@ -48,6 +50,25 @@ const navItems = [
       { id: 'groups', label: 'Groups', path: '/groups', icon: UsersRound },
       { id: 'users', label: 'Users', path: '/users', icon: UserCog },
       { id: 'permissions', label: 'Permissions', path: '/permissions', icon: KeyRound },
+    ],
+  },
+  {
+    id: 'meetings',
+    label: 'Meetings',
+    icon: CalendarDays,
+    subItems: [
+      {
+        id: 'meetings-detail',
+        label: 'Meeting Detail',
+        path: '/meetings/meeting-detail',
+        icon: ClipboardList,
+      },
+      {
+        id: 'meetings-follow-up',
+        label: 'Follow Up',
+        path: '/meetings/follow-up',
+        icon: ListChecks,
+      },
     ],
   },
   {

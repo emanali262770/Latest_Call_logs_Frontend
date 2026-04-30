@@ -623,7 +623,8 @@ export default function UsersPage() {
           <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left">
             <thead>
               <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
-                <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Full Name</th>
+                <th className="w-px whitespace-nowrap border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Sr</th>
+                <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Full Name</th>
                 <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Username</th>
                 <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Designation</th>
                 <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Status</th>
@@ -635,13 +636,13 @@ export default function UsersPage() {
             <tbody className="divide-y divide-gray-50/50">
               {usersLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-8 py-6 text-center">
+                  <td colSpan={8} className="px-8 py-6 text-center">
                     <TableLoader label="Loading users..." />
                   </td>
                 </tr>
               ) : usersError ? (
                 <tr>
-                  <td colSpan={7} className="px-8 py-6">
+                  <td colSpan={8} className="px-8 py-6">
                     <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
                       {usersError}
                     </div>
@@ -649,13 +650,16 @@ export default function UsersPage() {
                 </tr>
               ) : visibleUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
+                  <td colSpan={8} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
                     No users found.
                   </td>
                 </tr>
               ) : (
-                paginatedUsers.map((user) => (
+                paginatedUsers.map((user, index) => (
                   <tr key={user.id} className="group transition-all duration-300 hover:bg-brand-light/40">
+                    <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-bold text-gray-500 whitespace-nowrap">
+                      {(currentPage - 1) * pageSize + index + 1}
+                    </td>
                     <td className="border-b border-gray-50/30 px-6 py-6">
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-brand/10 bg-brand-light text-brand">

@@ -4,6 +4,7 @@ import { AnimatePresence, motion as Motion } from 'motion/react';
 import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Edit2, Eye, FileText, LayoutTemplate, Package, Plus, Printer, Save, Search as SearchIcon, Trash2, X } from 'lucide-react';
 import { Button, Card } from '@/src/components/ui/Card';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
+import TablePagination from '@/src/components/ui/TablePagination';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { getStoredUser, hasPermission } from '@/src/lib/auth';
@@ -409,6 +410,8 @@ export default function Quotation() {
   const [isPrintTemplateModalOpen, setIsPrintTemplateModalOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const { toasts, toast, removeToast } = useThemeToast();
 
   const letterTypeOptions = ['Letter', 'Quotation', 'Bill', 'Invoice'];
@@ -447,6 +450,13 @@ export default function Quotation() {
     );
   }, [quotations, searchQuery]);
 
+  const paginatedQuotations = useMemo(
+    () => filteredQuotations.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [currentPage, filteredQuotations, pageSize],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filteredQuotations.length / pageSize));
+
   const draftItemTaxValues = useMemo(() => {
     const price = Number(formData.price || 0);
     const qty = Number(formData.qty || 0);
@@ -475,6 +485,16 @@ export default function Quotation() {
   useEffect(() => {
     setFormData((prev) => (prev.createdBy === loggedInUserName ? prev : { ...prev, createdBy: loggedInUserName }));
   }, [loggedInUserName]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const loadSetupOptions = useCallback(async () => {
     try {
@@ -1051,7 +1071,7 @@ export default function Quotation() {
                   <table className="min-w-full border-separate border-spacing-0 text-left">
                     <thead>
                       <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
-                        <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Sr.#</th>
+                        <th className="w-px whitespace-nowrap border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Sr</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Quotation No</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Customer</th>
                         <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">For Product</th>
@@ -1066,9 +1086,11 @@ export default function Quotation() {
                           <td colSpan={hasRowActions ? 7 : 6} className="px-5 py-20 text-center text-sm font-medium text-gray-400">No quotation records found.</td>
                         </tr>
                       ) : (
-                        filteredQuotations.map((row, index) => (
+                        paginatedQuotations.map((row, index) => (
                           <tr key={row.id} className="group transition-all duration-300 hover:bg-brand-light/40">
-                            <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{index + 1}</td>
+                            <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">
+                              {(currentPage - 1) * pageSize + index + 1}
+                            </td>
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-900 whitespace-nowrap">{row.quotationNo}</td>
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{row.company || '-'}</td>
                             <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{row.forProduct || '-'}</td>
@@ -1095,6 +1117,21 @@ export default function Quotation() {
                     </tbody>
                   </table>
                 </div>
+                {filteredQuotations.length > pageSize ? (
+                  <div className="px-5 pb-5">
+                    <TablePagination
+                      currentPage={currentPage}
+                      pageSize={pageSize}
+                      totalItems={filteredQuotations.length}
+                      onPageChange={setCurrentPage}
+                      onPageSizeChange={(size) => {
+                        setPageSize(size);
+                        setCurrentPage(1);
+                      }}
+                      itemLabel="records"
+                    />
+                  </div>
+                ) : null}
               </div>
             </div>
           </Card>
@@ -1305,7 +1342,7 @@ export default function Quotation() {
                     <thead>
                       {formData.taxMode === 'withTax' ? (
                         <tr className="bg-slate-100/80">
-                          <th className="w-14 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
+                          <th className="w-px shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr</th>
                           <th className="min-w-[240px] shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item</th>
                           <th className="min-w-24 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
                           <th className="min-w-16 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
@@ -1316,7 +1353,7 @@ export default function Quotation() {
                         </tr>
                       ) : (
                         <tr className="bg-slate-100/80">
-                          <th className="w-14 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
+                          <th className="w-px shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr</th>
                           <th className="min-w-[320px] shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item</th>
                           <th className="min-w-24 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
                           <th className="min-w-16 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
@@ -1328,7 +1365,7 @@ export default function Quotation() {
                     <tbody>
                       {rows.map((row, index) => (
                         <tr key={row.id} className="odd:bg-white even:bg-slate-50/45 transition-colors hover:bg-brand-light/30">
-                          <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-600">{index + 1}</td>
+                          <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold whitespace-nowrap text-slate-600">{index + 1}</td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-900">{row.item}</td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{row.price || '-'}</td>
                           <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{row.qty || '-'}</td>

@@ -5,6 +5,7 @@ import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Edit2, Eye, L
 import { Button, Card } from '@/src/components/ui/Card';
 import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
 import TableLoader from '@/src/components/ui/TableLoader';
+import TablePagination from '@/src/components/ui/TablePagination';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { getStoredUser, hasPermission } from '@/src/lib/auth';
@@ -448,6 +449,8 @@ export default function Estimation() {
   const [estimations, setEstimations] = useState([]);
   const [apiSummary, setApiSummary] = useState({ totalPurchases: 0, totalDiscount: 0, totalFinal: 0, profit: 0 });
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [openSelectId, setOpenSelectId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [isLoadingList, setIsLoadingList] = useState(true);
@@ -1021,6 +1024,24 @@ export default function Estimation() {
         .includes(normalizedQuery),
     );
   }, [estimations, searchQuery]);
+
+  const paginatedEstimations = useMemo(
+    () => filteredEstimations.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [currentPage, filteredEstimations, pageSize],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filteredEstimations.length / pageSize));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const tableColumnCount = hasRowActions ? 8 : 7;
 
   return (
@@ -1077,7 +1098,7 @@ export default function Estimation() {
                 <table className="min-w-full border-separate border-spacing-0 text-left">
                   <thead>
                     <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
-                      <th className="border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Sr.#</th>
+                      <th className="w-px whitespace-nowrap border-b border-gray-100/60 px-5 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 first:rounded-tl-4xl">Sr</th>
                      
                      
                      
@@ -1103,9 +1124,11 @@ export default function Estimation() {
                         <td colSpan={tableColumnCount} className="px-5 py-20 text-center text-sm font-medium text-gray-400">No estimation records found.</td>
                       </tr>
                     ) : (
-                      filteredEstimations.map((row, index) => (
+                      paginatedEstimations.map((row, index) => (
                         <tr key={row.id} className="group transition-all duration-300 hover:bg-brand-light/40">
-                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{index + 1}</td>
+                          <td className="border-b border-gray-50/30 px-5 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">
+                            {(currentPage - 1) * pageSize + index + 1}
+                          </td>
                           
                           
                       
@@ -1164,6 +1187,21 @@ export default function Estimation() {
                   </tbody>
                 </table>
               </div>
+              {filteredEstimations.length > pageSize ? (
+                <div className="px-5 pb-5">
+                  <TablePagination
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    totalItems={filteredEstimations.length}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={(size) => {
+                      setPageSize(size);
+                      setCurrentPage(1);
+                    }}
+                    itemLabel="records"
+                  />
+                </div>
+              ) : null}
             </div>
 
 
@@ -1414,7 +1452,7 @@ export default function Estimation() {
                       <thead>
                         {formData.taxMode === 'withTax' ? (
                           <tr className="bg-slate-100/80">
-                            <th className="w-14 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
+                            <th className="w-px shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr</th>
                             <th className="min-w-[240px] shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item Detail</th>
                             <th className="min-w-24 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
                             <th className="min-w-16 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
@@ -1425,7 +1463,7 @@ export default function Estimation() {
                           </tr>
                         ) : (
                           <tr className="bg-slate-100/80">
-                            <th className="w-14 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr.</th>
+                            <th className="w-px shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Sr</th>
                             <th className="min-w-[320px] shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Item Detail</th>
                             <th className="min-w-24 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Rate</th>
                             <th className="min-w-16 shrink-0 whitespace-nowrap border-b border-slate-200/80 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Qty</th>
@@ -1438,7 +1476,7 @@ export default function Estimation() {
                       <tbody>
                         {rows.map((row, index) => (
                           <tr key={row.id} className="odd:bg-white even:bg-slate-50/45 transition-colors hover:bg-brand-light/30">
-                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-600">{index + 1}</td>
+                            <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold whitespace-nowrap text-slate-600">{index + 1}</td>
                             <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-900">{formatCellValue(row.item)}</td>
                             <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatCellValue(row.salePrice)}</td>
                             <td className="border-b border-slate-100 px-4 py-4 text-sm font-semibold text-slate-700">{formatIntegerOrDash(row.qty)}</td>

@@ -3,7 +3,7 @@ const TOKEN_KEY = 'cms_token';
 const LEGACY_TOKEN_KEYS = ['auth_token', 'token', 'access_token'];
 const PERMISSIONS_KEY = 'cms_permissions';
 const USER_KEY = 'cms_user';
-const UNPROTECTED_PATHS = new Set(['dashboard', 'settings', 'access-denied', 'login']);
+const UNPROTECTED_PATHS = new Set(['dashboard', 'settings', 'access-denied', 'login', 'meetings']);
 
 function resolveAuthPayload(authData) {
   if (authData?.token || authData?.user || authData?.permissions) {

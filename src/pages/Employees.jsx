@@ -597,7 +597,8 @@ export default function Employees() {
               <table className="w-full text-left border-separate border-spacing-0">
                 <thead>
                   <tr className="bg-linear-to-r from-gray-50/80 via-gray-50/40 to-transparent">
-                    <th className="px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60 first:rounded-tl-4xl">Photo</th>
+                    <th className="w-px whitespace-nowrap px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60 first:rounded-tl-4xl">Sr</th>
+                    <th className="px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60">Photo</th>
                     <th className="px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60">Employee</th>
                     <th className="px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60">Department</th>
                     <th className="px-6 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.25em] border-b border-gray-100/60">Designation</th>
@@ -611,13 +612,13 @@ export default function Employees() {
                 <tbody className="divide-y divide-gray-50/50">
                   {isListLoading ? (
                     <tr>
-                      <td colSpan={9} className="px-8 py-6 text-center">
+                      <td colSpan={10} className="px-8 py-6 text-center">
                         <TableLoader label="Loading employees..." />
                       </td>
                     </tr>
                   ) : visibleEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-8 py-32 text-center">
+                      <td colSpan={10} className="px-8 py-32 text-center">
                         <div className="flex flex-col items-center justify-center gap-6">
                           <div className="w-20 h-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center text-gray-200 shadow-inner">
                             <MoreHorizontal className="w-10 h-10" />
@@ -630,8 +631,11 @@ export default function Employees() {
                       </td>
                     </tr>
                   ) : (
-                    paginatedEmployees.map((item) => (
+                    paginatedEmployees.map((item, index) => (
                       <tr key={item.id} className="hover:bg-indigo-50/40 transition-all duration-500 group relative">
+                        <td className="px-6 py-6 text-sm font-bold text-gray-500 border-b border-gray-50/30 group-last:border-none whitespace-nowrap">
+                          {(currentPage - 1) * pageSize + index + 1}
+                        </td>
                         <td className="px-6 py-6 border-b border-gray-50/30 group-last:border-none">
                           <div className="w-10 h-10 rounded-xl overflow-hidden bg-brand-light border border-brand/10 flex items-center justify-center text-brand font-bold text-xs">
                             {item.profile_image ? (
