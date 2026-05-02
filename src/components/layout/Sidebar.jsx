@@ -32,6 +32,7 @@ import {
   ReceiptText,
   CalendarDays,
   ListChecks,
+  MessageSquareText,
 } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import { getReadPermissionsForPath, hasAnyPermission } from '@/src/lib/auth';
@@ -68,6 +69,12 @@ const navItems = [
         label: 'Follow Up',
         path: '/meetings/follow-up',
         icon: ListChecks,
+      },
+      {
+        id: 'meetings-messages',
+        label: 'Messages',
+        path: '/meetings/messages',
+        icon: MessageSquareText,
       },
     ],
   },

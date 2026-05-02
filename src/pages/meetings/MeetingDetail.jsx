@@ -509,7 +509,7 @@ function MeetingEditForm({ meeting, onClose, onSave }) {
   );
 }
 
-export default function MeetingDetail({ mode = 'meeting-detail' }) {
+export default function MeetingDetail() {
   const [meetings, setMeetings] = useState(MOCK_MEETINGS);
   const [query, setQuery] = useState('');
   const [editingMeeting, setEditingMeeting] = useState(null);
@@ -560,7 +560,7 @@ export default function MeetingDetail({ mode = 'meeting-detail' }) {
         {showForm ? null : (
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              {mode === 'follow-up' ? 'Follow Up' : 'Meeting Detail'}
+              Meeting Detail
             </h1>
             <p className="mt-1 text-gray-500">Book your meetings</p>
           </div>
@@ -588,7 +588,7 @@ export default function MeetingDetail({ mode = 'meeting-detail' }) {
         </div>
         <div className="mx-6 border-b border-gray-50" />
 
-        <div className="mx-6 mb-6 mt-6 w-auto overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white/90 shadow-sm backdrop-blur-xl">
+        <div className="mx-6 mb-6 mt-6 w-auto overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white/90  backdrop-blur-xl">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left">
               <thead>

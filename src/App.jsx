@@ -33,6 +33,8 @@ import ServicesProducts from './pages/stock/ServicesProducts';
 import ItemReport from './pages/reports/ItemReport';
 import PublicProductView from './pages/PublicProductView';
 import MeetingDetail from './pages/meetings/MeetingDetail';
+import FollowUp from './pages/meetings/FollowUp';
+import Messages from './pages/meetings/Messages';
 import { AccessControlProvider } from './context/AccessControlContext';
 import { authService } from './services/auth.service';
 import {
@@ -207,7 +209,10 @@ export default function App() {
             <Route path="/setup/customers/group" element={<CustomerGroupsSetup />} />
           </Route>
           <Route path="/meetings/meeting-detail" element={<MeetingDetail />} />
-          <Route path="/meetings/follow-up" element={<MeetingDetail mode="follow-up" />} />
+          <Route path="/meetings/follow-up" element={<FollowUp />} />
+          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/meetings/messages')} />}>
+            <Route path="/meetings/messages" element={<Messages />} />
+          </Route>
           <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-definition')} />}>
             <Route path="/stock/item-definition" element={<ItemDefinition />} />
           </Route>

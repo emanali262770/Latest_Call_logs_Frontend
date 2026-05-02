@@ -294,6 +294,10 @@ export function getReadPermissionForPath(path) {
 
   const [firstSegment, secondSegment, thirdSegment] = segments;
 
+  if (firstSegment === 'meetings' && secondSegment === 'messages') {
+    return 'INVENTORY.MESSAGE.READ';
+  }
+
   if (UNPROTECTED_PATHS.has(firstSegment)) {
     return null;
   }
