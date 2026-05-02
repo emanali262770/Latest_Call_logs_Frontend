@@ -1,10 +1,9 @@
-import { createElement, useEffect, useMemo, useRef, useState } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
   Calendar,
-  CheckCircle2,
   ChevronDown,
   Clock,
   Edit2,
@@ -17,14 +16,22 @@ import {
   User,
 } from 'lucide-react';
 import { Card } from '@/src/components/ui/Card';
+import ConfirmDialog from '@/src/components/ui/ConfirmDialog';
+import TableLoader from '@/src/components/ui/TableLoader';
 import TablePagination from '@/src/components/ui/TablePagination';
+import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
+import { useThemeToast } from '@/src/hooks/useThemeToast';
+import { hasPermission } from '@/src/lib/auth';
+import AccessDenied from '@/src/pages/AccessDenied';
+import { meetingDetailService } from '@/src/services/meetingDetail.service';
 
 const STATUS_OPTIONS = [
   { value: 'Follow Up Required', className: 'border-emerald-300 bg-emerald-50 text-emerald-700' },
   { value: 'Not Interested', className: 'border-rose-100 bg-rose-50 text-rose-600' },
   { value: 'Already Installed', className: 'border-blue-100 bg-blue-50 text-blue-600' },
-  { value: 'Phone Responding', className: 'border-amber-100 bg-amber-50 text-amber-600' },
+  { value: 'Phone Not Responding', className: 'border-amber-100 bg-amber-50 text-amber-600' },
 ];
+const REMARK_STATUSES = ['Not Interested', 'Already Installed', 'Phone Not Responding'];
 
 const ACTION_OPTIONS = ['Send Profile', 'Send Quotation', 'Product Information', 'Require Visit/Meeting'];
 const CONTACT_METHODS = [
@@ -33,77 +40,84 @@ const CONTACT_METHODS = [
   { value: 'By Email', icon: Mail },
 ];
 
-const STAFF_OPTIONS = ['Aimen Khan', 'Ali Raza', 'Sana Ahmed', 'Usman Tariq'];
-const PRODUCT_OPTIONS = ['shoes', 'Biometric', 'CCTV Camera', 'IP CCTV Camera 4MP Night Vision', 'HikVision 8 Channel NVR'];
+const STATUS_UI_TO_API = {
+  'Follow Up Required': 'follow_up_required',
+  'Not Interested': 'not_interested',
+  'Already Installed': 'already_installed',
+  'Phone Not Responding': 'phone_not_responding',
+};
 
-const CUSTOMER_OPTIONS = [
-  {
-    customerName: 'Burning Brownie Lahore DHA',
-    person: 'Hammad',
-    designation: 'Manager',
-  },
-  {
-    customerName: 'Extraction Coffee DHA',
-    person: 'Usman',
-    designation: 'Operations Lead',
-  },
-  {
-    customerName: 'Test Solutions 25',
-    person: 'Ali',
-    designation: 'Director',
-  },
-];
+const STATUS_API_TO_UI = {
+  follow_up_required: 'Follow Up Required',
+  not_interested: 'Not Interested',
+  already_installed: 'Already Installed',
+  phone_not_responding: 'Phone Not Responding',
+};
 
-const MOCK_MEETINGS = [
-  {
-    id: 1,
-    companyName: 'Burning Brownie Lahore DHA',
-    person: '',
-    designation: '',
-    product: 'shoes',
-    status: 'Follow Up Required',
-    assignedStaff: 'Aimen Khan',
-    nextFollowUpDate: '',
-    time: '',
-    nextVisitDetails: '',
-    action: 'Send Profile',
-    referenceProvidedBy: '',
-    referToStaff: '',
-    contactMethod: 'By Visit',
-  },
-  {
-    id: 2,
-    companyName: 'Extraction Coffee DHA',
-    person: '',
-    designation: '',
-    product: 'Biometric',
-    status: 'Follow Up Required',
-    assignedStaff: 'Aimen Khan',
-    nextFollowUpDate: '',
-    time: '',
-    nextVisitDetails: '',
-    action: 'Send Quotation',
-    referenceProvidedBy: '',
-    referToStaff: '',
-    contactMethod: 'By Phone',
-  },
-  {
-    id: 3,
-    companyName: 'Test Solutions 25',
-    person: 'Ali',
-    designation: '',
-    product: '',
-    status: 'Follow Up Required',
-    assignedStaff: '',
-    nextFollowUpDate: '',
-    time: '',
-    nextVisitDetails: '',
-    action: 'Product Information',
-    referenceProvidedBy: '',
-    referToStaff: '',
-    contactMethod: 'By Email',
-  },
-];
+const ACTION_UI_TO_API = {
+  'Send Profile': 'send_profile',
+  'Send Quotation': 'send_quotation',
+  'Product Information': 'product_information',
+  'Require Visit/Meeting': 'require_visit_meeting',
+};
+
+const ACTION_API_TO_UI = {
+  send_profile: 'Send Profile',
+  send_quotation: 'Send Quotation',
+  product_information: 'Product Information',
+  require_visit_meeting: 'Require Visit/Meeting',
+};
+
+const CONTACT_UI_TO_API = {
+  'By Visit': 'by_visit',
+  'By Phone': 'by_phone',
+  'By Email': 'by_email',
+};
+
+const CONTACT_API_TO_UI = {
+  by_visit: 'By Visit',
+  by_phone: 'By Phone',
+  by_email: 'By Email',
+};
+
+function apiToForm(data) {
+  return {
+    id: data.id,
+    companyName: data.customerName || '',
+    person: data.person || '',
+    designation: data.designation || '',
+    serviceId: data.serviceId || null,
+    product: data.forProduct || '',
+    status: STATUS_API_TO_UI[data.status] || 'Follow Up Required',
+    nextFollowUpDate: data.nextFollowupDate || '',
+    time: data.nextFollowupTime ? data.nextFollowupTime.slice(0, 5) : '',
+    nextVisitDetails: data.nextVisitDetails || '',
+    action: ACTION_API_TO_UI[data.action] || '',
+    referenceProvidedBy: data.referenceProvidedBy || '',
+    referToStaffId: data.referToStaffId || null,
+    referToStaff: data.referToStaffName || '',
+    contactMethod: CONTACT_API_TO_UI[data.contactMethod] || '',
+    remarks: data.remarks || '',
+  };
+}
+
+function buildPayload(form) {
+  const status = STATUS_UI_TO_API[form.status] || 'follow_up_required';
+  const base = { status, service_id: form.serviceId || null };
+  if (form.status === 'Follow Up Required') {
+    return {
+      ...base,
+      next_followup_date: form.nextFollowUpDate || null,
+      next_followup_time: form.time || null,
+      next_visit_details: form.nextVisitDetails || null,
+      action: ACTION_UI_TO_API[form.action] || null,
+      reference_provided_by: form.referenceProvidedBy || null,
+      refer_to_staff_id: form.referToStaffId || null,
+      contact_method: CONTACT_UI_TO_API[form.contactMethod] || null,
+    };
+  }
+  return { ...base, remarks: form.remarks || null };
+}
 
 const INPUT_CLASS =
   'mt-[2px] h-9 w-full rounded-xl border border-slate-300/80 bg-white px-4 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] outline-none transition-all focus:border-slate-500 focus:ring-4 focus:ring-slate-200/70';
@@ -121,13 +135,35 @@ function displayValue(value) {
   return !normalized || normalized === '?' ? '-' : normalized;
 }
 
+function formatDateTime(value) {
+  if (!value) return '-';
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '-';
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(parsed);
+}
+
 function displayDateTime(meeting) {
-  const date = displayValue(meeting?.nextFollowUpDate);
-  const time = displayValue(meeting?.time);
-  const hasDate = date !== '-';
-  const hasTime = time !== '-';
-  if (!hasDate && !hasTime) return '-';
-  return [hasDate ? date : '', hasTime ? time : ''].filter(Boolean).join(' ');
+  const nextFollowupDate = String(meeting?.nextFollowupDate || '').trim();
+  const nextFollowupTime = String(meeting?.nextFollowupTime || '').trim();
+
+  if (nextFollowupDate) {
+    const isoLikeValue = nextFollowupTime
+      ? `${nextFollowupDate}T${nextFollowupTime}`
+      : `${nextFollowupDate}T00:00:00`;
+    const formattedFollowup = formatDateTime(isoLikeValue);
+    if (formattedFollowup !== '-') return formattedFollowup;
+  }
+
+  return formatDateTime(meeting?.createdAt);
 }
 
 function StatusBadge({ status }) {
@@ -234,23 +270,24 @@ function SearchableSelect({ selectId, label, value, options, placeholder, search
   );
 }
 
-function MeetingEditForm({ meeting, onClose, onSave }) {
+function MeetingEditForm({ meeting, services, staff, onClose, onSave }) {
   const [form, setForm] = useState(meeting);
   const [openSelect, setOpenSelect] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!meeting) return null;
 
   const updateField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
   const shouldShowFollowUpDetails = form.status === 'Follow Up Required';
-  const handleCustomerChange = (customerName) => {
-    const selectedCustomer = CUSTOMER_OPTIONS.find((customer) => customer.customerName === customerName);
+  const shouldShowRemarks = REMARK_STATUSES.includes(form.status);
 
-    setForm((prev) => ({
-      ...prev,
-      companyName: customerName,
-      person: selectedCustomer?.person || '',
-      designation: selectedCustomer?.designation || '',
-    }));
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      await onSave(form);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -293,18 +330,10 @@ function MeetingEditForm({ meeting, onClose, onSave }) {
               </div>
               <div className="grid grid-cols-1 gap-4 p-6 xl:grid-cols-12">
                 <div className="space-y-2 xl:col-span-5">
-                  <SearchableSelect
-                    selectId="companyName"
-                    label="Customer Name"
-                    value={form.companyName}
-                    options={CUSTOMER_OPTIONS.map((item) => item.customerName)}
-                    placeholder="Select customer"
-                    searchablePlaceholder="Search customers..."
-                    isOpen={openSelect === 'companyName'}
-                    onToggle={(selectId) => setOpenSelect((current) => (current === selectId ? null : selectId))}
-                    onClose={() => setOpenSelect(null)}
-                    onChange={handleCustomerChange}
-                  />
+                  <FieldLabel>Customer Name</FieldLabel>
+                  <IconInput icon={Building2}>
+                    <input value={displayValue(form.companyName)} readOnly className={`${READONLY_CLASS} pl-10`} />
+                  </IconInput>
                 </div>
                 <div className="space-y-2 xl:col-span-3">
                   <FieldLabel>Person</FieldLabel>
@@ -323,13 +352,16 @@ function MeetingEditForm({ meeting, onClose, onSave }) {
                     selectId="product"
                     label="For Product"
                     value={form.product}
-                    options={PRODUCT_OPTIONS}
+                    options={services.map((s) => s.name)}
                     placeholder="Select product"
                     searchablePlaceholder="Search products..."
                     isOpen={openSelect === 'product'}
                     onToggle={(selectId) => setOpenSelect((current) => (current === selectId ? null : selectId))}
                     onClose={() => setOpenSelect(null)}
-                    onChange={(value) => updateField('product', value)}
+                    onChange={(value) => {
+                      const svc = services.find((s) => s.name === value);
+                      setForm((prev) => ({ ...prev, product: svc?.name || value, serviceId: svc?.id || null }));
+                    }}
                   />
                 </div>
               </div>
@@ -354,6 +386,28 @@ function MeetingEditForm({ meeting, onClose, onSave }) {
                 </button>
               ))}
             </section>
+
+            {shouldShowRemarks ? (
+              <section className={SECTION_PANEL_CLASS}>
+                <div className={SECTION_HEADER_CLASS}>
+                  <div>
+                    <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-800">Remarks</h3>
+                    <p className="mt-1 text-xs text-slate-500">Add a short note for this meeting outcome.</p>
+                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200/70 text-brand">
+                    <Edit2 className="h-4 w-4" />
+                  </div>
+                </div>
+                <div className="p-6">
+                  <textarea
+                    value={form.remarks || ''}
+                    onChange={(event) => updateField('remarks', event.target.value)}
+                    placeholder="Write remarks here..."
+                    className="mt-0.5 min-h-24 w-full rounded-xl border border-slate-300/80 bg-white px-4 py-3 text-sm text-slate-900 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)] outline-none transition-all focus:border-slate-500 focus:ring-4 focus:ring-slate-200/70"
+                  />
+                </div>
+              </section>
+            ) : null}
 
             {shouldShowFollowUpDetails ? (
               <>
@@ -444,13 +498,16 @@ function MeetingEditForm({ meeting, onClose, onSave }) {
                       selectId="referToStaff"
                       label="Refer To Staff"
                       value={form.referToStaff}
-                      options={STAFF_OPTIONS}
+                      options={staff.map((s) => s.name)}
                       placeholder="Select Staff"
                       searchablePlaceholder="Search staff..."
                       isOpen={openSelect === 'referToStaff'}
                       onToggle={(selectId) => setOpenSelect((current) => (current === selectId ? null : selectId))}
                       onClose={() => setOpenSelect(null)}
-                      onChange={(value) => updateField('referToStaff', value)}
+                      onChange={(value) => {
+                        const member = staff.find((s) => s.name === value);
+                        setForm((prev) => ({ ...prev, referToStaff: member?.name || value, referToStaffId: member?.id || null }));
+                      }}
                     />
                   </div>
                 </div>
@@ -495,11 +552,12 @@ function MeetingEditForm({ meeting, onClose, onSave }) {
               </button>
               <button
                 type="button"
-                onClick={() => onSave(form)}
-                className="inline-flex items-center gap-2 rounded-xl bg-brand px-7 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover"
+                disabled={isSubmitting}
+                onClick={handleSubmit}
+                className={`inline-flex items-center gap-2 rounded-xl bg-brand px-7 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover ${isSubmitting ? 'cursor-not-allowed opacity-70' : ''}`}
               >
                 <Send className="h-4 w-4" />
-                Update Meeting
+                {isSubmitting ? 'Saving...' : 'Update Meeting'}
               </button>
             </div>
           </div>
@@ -510,49 +568,135 @@ function MeetingEditForm({ meeting, onClose, onSave }) {
 }
 
 export default function MeetingDetail() {
-  const [meetings, setMeetings] = useState(MOCK_MEETINGS);
-  const [query, setQuery] = useState('');
+  const canRead = hasPermission('MEETINGS.MEETING_DETAIL.READ');
+  const canEdit = hasPermission('MEETINGS.MEETING_DETAIL.UPDATE');
+  const canDelete = hasPermission('MEETINGS.MEETING_DETAIL.DELETE');
+  const hasRowActions = canEdit || canDelete;
+
+  const [meetings, setMeetings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [listError, setListError] = useState('');
+  const [services, setServices] = useState([]);
+  const [staff, setStaff] = useState([]);
   const [editingMeeting, setEditingMeeting] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const { toasts, toast, removeToast } = useThemeToast();
   const showForm = !!editingMeeting;
 
-  const filteredMeetings = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    if (!normalized) return meetings;
-    return meetings.filter((meeting) =>
-      [meeting.companyName, meeting.person, meeting.product, meeting.status, meeting.assignedStaff]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalized),
-    );
-  }, [meetings, query]);
+  const loadMeetings = useCallback(async (query = '') => {
+    if (!canRead) {
+      setMeetings([]);
+      setListError('');
+      setIsLoading(false);
+      return;
+    }
 
-    const paginatedMeetings = useMemo(
-      () => filteredMeetings.slice((currentPage - 1) * pageSize, currentPage * pageSize),
-      [currentPage, filteredMeetings, pageSize],
-    );
+    setIsLoading(true);
+    setListError('');
+    try {
+      const response = await meetingDetailService.list(query);
+      setMeetings(Array.isArray(response?.data) ? response.data : []);
+    } catch (requestError) {
+      setListError(requestError.message || 'Could not load meetings.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [canRead]);
 
-    const totalPages = Math.max(1, Math.ceil(filteredMeetings.length / pageSize));
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadMeetings(searchQuery.trim());
+    }, 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchQuery, loadMeetings]);
 
-    useEffect(() => {
-      setCurrentPage(1);
-    }, [query]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
-    useEffect(() => {
-      if (currentPage > totalPages) {
-        setCurrentPage(totalPages);
-      }
-    }, [currentPage, totalPages]);
+  useEffect(() => {
+    let isActive = true;
 
-  const handleSave = (updatedMeeting) => {
-    setMeetings((prev) => prev.map((meeting) => (meeting.id === updatedMeeting.id ? updatedMeeting : meeting)));
-    setEditingMeeting(null);
+    if (!canRead) {
+      setStaff([]);
+      setServices([]);
+      return undefined;
+    }
+
+    Promise.all([
+      meetingDetailService.listStaff(),
+      meetingDetailService.listServices(),
+    ]).then(([staffRes, servicesRes]) => {
+      if (!isActive) return;
+      setStaff(Array.isArray(staffRes?.data) ? staffRes.data : []);
+      setServices(Array.isArray(servicesRes?.data) ? servicesRes.data : []);
+    }).catch(() => {});
+    return () => { isActive = false; };
+  }, [canRead]);
+ 
+  
+
+  const paginatedMeetings = useMemo(
+    () => meetings.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [currentPage, meetings, pageSize],
+  );
+
+  const totalPages = Math.max(1, Math.ceil(meetings.length / pageSize));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const handleEdit = async (meetingId) => {
+    setEditLoading(true);
+    try {
+      const response = await meetingDetailService.getById(meetingId);
+      setEditingMeeting(apiToForm(response.data));
+    } catch (requestError) {
+      toast.error('Could not load meeting', requestError.message || 'Please try again.');
+    } finally {
+      setEditLoading(false);
+    }
   };
 
-  const handleDelete = (meetingId) => {
-    setMeetings((prev) => prev.filter((meeting) => meeting.id !== meetingId));
+  const handleSave = async (form) => {
+    const payload = buildPayload(form);
+    try {
+      const response = await meetingDetailService.update(form.id, payload);
+      toast.success('Meeting updated', response?.message || 'Meeting details have been saved successfully.');
+      setEditingMeeting(null);
+      await loadMeetings(searchQuery.trim());
+    } catch (requestError) {
+      toast.error('Update failed', requestError.message || 'Could not update meeting.');
+      throw requestError;
+    }
   };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsSaving(true);
+    try {
+      await meetingDetailService.remove(deleteTarget.id);
+      toast.success('Meeting deleted', 'Meeting has been removed.');
+      setDeleteTarget(null);
+      await loadMeetings(searchQuery.trim());
+    } catch (requestError) {
+      toast.error('Delete failed', requestError.message || 'Could not delete meeting.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!canRead) {
+    return <AccessDenied />;
+  }
 
   return (
     <div className="space-y-8">
@@ -568,7 +712,7 @@ export default function MeetingDetail() {
       </div>
 
       {showForm ? (
-        <MeetingEditForm meeting={editingMeeting} onClose={() => setEditingMeeting(null)} onSave={handleSave} />
+        <MeetingEditForm meeting={editingMeeting} services={services} staff={staff} onClose={() => setEditingMeeting(null)} onSave={handleSave} />
       ) : (
       <Card className="border-none p-0 shadow-xl shadow-gray-200/50">
         <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
@@ -576,19 +720,27 @@ export default function MeetingDetail() {
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search meetings..."
               className="w-full rounded-2xl border border-gray-100 bg-gray-50/50 py-3 pl-11 pr-4 text-sm placeholder:text-gray-400 transition-all focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
             />
           </div>
           <p className="text-sm font-medium text-gray-400">
-            <span className="font-bold text-gray-900">{filteredMeetings.length}</span> Records
+            <span className="font-bold text-gray-900">{meetings.length}</span> Records
           </p>
         </div>
         <div className="mx-6 border-b border-gray-50" />
 
         <div className="mx-6 mb-6 mt-6 w-auto overflow-hidden rounded-[1.5rem] border border-gray-100 bg-white/90  backdrop-blur-xl">
+          {isLoading ? (
+            <TableLoader label="Loading meetings..." />
+          ) : listError ? (
+            <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+              <p className="text-sm font-medium text-rose-600">{listError}</p>
+              <button type="button" onClick={() => loadMeetings(searchQuery.trim())} className="rounded-xl border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50">Retry</button>
+            </div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] border-separate border-spacing-0 text-left">
               <thead>
@@ -600,7 +752,7 @@ export default function MeetingDetail() {
                   <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Status</th>
                   <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Assigned Staff</th>
                   <th className="border-b border-gray-100/60 px-6 py-6 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Date & Time</th>
-                  <th className="border-b border-gray-100/60 px-6 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Actions</th>
+                  {hasRowActions ? <th className="border-b border-gray-100/60 px-6 py-6 text-right text-[10px] font-black uppercase tracking-[0.25em] text-gray-400">Actions</th> : null}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50/50">
@@ -610,42 +762,50 @@ export default function MeetingDetail() {
                       {(currentPage - 1) * pageSize + index + 1}
                     </td>
                     <td className="max-w-[280px] truncate border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-900 whitespace-nowrap">
-                      {meeting.companyName}
+                      {displayValue(meeting.customerName)}
                     </td>
                     <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{displayValue(meeting.person)}</td>
-                    <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{displayValue(meeting.product)}</td>
+                    <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{displayValue(meeting.forProduct)}</td>
                     <td className="border-b border-gray-50/30 px-6 py-6 whitespace-nowrap">
-                      <StatusBadge status={meeting.status} />
+                      <StatusBadge status={STATUS_API_TO_UI[meeting.status] || meeting.status} />
                     </td>
-                    <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{displayValue(meeting.assignedStaff)}</td>
+                    <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">{displayValue(meeting.referToStaffName)}</td>
                     <td className="border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700 whitespace-nowrap">
                       {displayDateTime(meeting)}
                     </td>
-                    <td className="border-b border-gray-50/30 px-6 py-6 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setEditingMeeting(meeting)}
-                          className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95"
-                          title="Edit meeting"
-                        >
-                          <Edit2 className="h-4.5 w-4.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(meeting.id)}
-                          className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95"
-                          title="Delete meeting"
-                        >
-                          <Trash2 className="h-4.5 w-4.5" />
-                        </button>
-                      </div>
-                    </td>
+                    {hasRowActions ? (
+                      <td className="border-b border-gray-50/30 px-6 py-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              disabled={editLoading}
+                              onClick={() => handleEdit(meeting.id)}
+                              className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-brand hover:shadow-xl hover:shadow-brand/20 active:scale-95 disabled:opacity-50"
+                              title="Edit meeting"
+                            >
+                              <Edit2 className="h-4.5 w-4.5" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => setDeleteTarget(meeting)}
+                              className="flex h-10 w-10 items-center justify-center rounded-2xl text-gray-400 transition-all duration-300 hover:bg-white hover:text-rose-600 hover:shadow-xl hover:shadow-rose-100/50 active:scale-95 disabled:opacity-50"
+                              title="Delete meeting"
+                            >
+                              <Trash2 className="h-4.5 w-4.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
-                {!filteredMeetings.length ? (
+                {!paginatedMeetings.length ? (
                   <tr>
-                    <td colSpan={8} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
+                    <td colSpan={hasRowActions ? 8 : 7} className="px-8 py-20 text-center text-sm font-medium text-gray-400">
                       No meetings found.
                     </td>
                   </tr>
@@ -653,12 +813,13 @@ export default function MeetingDetail() {
               </tbody>
             </table>
           </div>
-          {filteredMeetings.length > pageSize ? (
+          )}
+          {!isLoading && !listError && meetings.length > pageSize ? (
             <div className="px-6 pb-6">
               <TablePagination
                 currentPage={currentPage}
                 pageSize={pageSize}
-                totalItems={filteredMeetings.length}
+                totalItems={meetings.length}
                 onPageChange={setCurrentPage}
                 onPageSizeChange={(size) => {
                   setPageSize(size);
@@ -671,6 +832,18 @@ export default function MeetingDetail() {
         </div>
       </Card>
       )}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="Delete Meeting"
+        message={`Are you sure you want to delete this meeting for "${deleteTarget?.customerName || ''}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        isDestructive
+        isLoading={isSaving}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+      <ThemeToastViewport toasts={toasts} onClose={removeToast} />
     </div>
   );
 }

@@ -54,7 +54,7 @@ function FloatingPaths({ position = 1, className = '' }) {
   );
 }
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, skipIntro = false }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -66,6 +66,12 @@ export default function Login({ onLogin }) {
   const formRef = useRef(null);
 
   useEffect(() => {
+    if (skipIntro) {
+      gsap.set([leftPaneRef.current, rightPaneRef.current], { opacity: 1, y: 0 });
+      gsap.set('.reveal-item', { opacity: 1, y: 0 });
+      return undefined;
+    }
+
     const tl = gsap.timeline();
 
     gsap.set([leftPaneRef.current, rightPaneRef.current], { opacity: 0 });
@@ -87,7 +93,11 @@ export default function Login({ onLogin }) {
       },
       '-=0.4',
     );
-  }, []);
+
+    return () => {
+      tl.kill();
+    };
+  }, [skipIntro]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

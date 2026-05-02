@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
@@ -74,9 +74,13 @@ function PermissionRoute({ requiredPermissions }) {
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => getStoredAuthState() && !!getAuthToken());
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [skipLoginIntro, setSkipLoginIntro] = useState(false);
   const [, setAuthPermissionsVersion] = useState(0);
+  const logoutTimerRef = useRef(null);
 
   const handleLogin = (authData) => {
+    setSkipLoginIntro(false);
     setAuthToken(extractTokenFromAuthData(authData));
     setStoredPermissions(extractPermissionsFromAuthData(authData));
     setStoredUser(authData);
@@ -85,8 +89,17 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    clearAuthSession();
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    setSkipLoginIntro(true);
+
+    logoutTimerRef.current = window.setTimeout(() => {
+      clearAuthSession();
+      setIsAuthenticated(false);
+      setIsLoggingOut(false);
+      logoutTimerRef.current = null;
+    }, 180);
   };
 
   useEffect(() => {
@@ -130,115 +143,134 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => () => {
+    if (logoutTimerRef.current) {
+      window.clearTimeout(logoutTimerRef.current);
+    }
+  }, []);
+
   return (
-    <Routes>
-      <Route path="/product/:barcode" element={<PublicProductView />} />
+    <>
+      <Routes>
+        <Route path="/product/:barcode" element={<PublicProductView />} />
 
-      <Route
-        path="/login"
-        element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />}
-      />
-
-      <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} />}>
         <Route
-          element={
-            <AccessControlProvider>
-              <Layout onLogout={handleLogout} />
-            </AccessControlProvider>
-          }
-        >
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/employees')} />}>
-            <Route path="/employees" element={<Employees />} />
-          </Route>
-          <Route path="/access-denied" element={<AccessDenied />} />
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/users')} />}>
-            <Route path="/users" element={<Users />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/groups')} />}>
-            <Route path="/groups" element={<Groups />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/permissions')} />}>
-            <Route path="/permissions" element={<Permissions />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/departments')} />}>
-            <Route path="/setup/departments" element={<DepartmentSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/designations')} />}>
-            <Route path="/setup/designations" element={<DesignationSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/employee-types')} />}>
-            <Route path="/setup/employee-types" element={<EmployeeTypeSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/duty-shifts')} />}>
-            <Route path="/setup/duty-shifts" element={<DutyShiftSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/banks')} />}>
-            <Route path="/setup/banks" element={<BankSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/company')} />}>
-            <Route path="/setup/company" element={<CompanySetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/item-types')} />}>
-            <Route path="/setup/items/item-types" element={<ItemTypesSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/categories')} />}>
-            <Route path="/setup/items/categories" element={<CategoriesSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/sub-categories')} />}>
-            <Route path="/setup/items/sub-categories" element={<SubCategoriesSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/manufacturers')} />}>
-            <Route path="/setup/items/manufacturers" element={<ManufacturersSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/units')} />}>
-            <Route path="/setup/items/units" element={<UnitsSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/locations')} />}>
-            <Route path="/setup/items/locations" element={<LocationsSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/suppliers')} />}>
-            <Route path="/setup/items/suppliers" element={<SuppliersSetup />} />
-          </Route>
-          <Route path="/setup/customers" element={<Navigate to="/setup/customers/customer" replace />} />
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/customers/customer')} />}>
-            <Route path="/setup/customers/customer" element={<CustomersSetup />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/customers/group')} />}>
-            <Route path="/setup/customers/group" element={<CustomerGroupsSetup />} />
-          </Route>
-          <Route path="/meetings/meeting-detail" element={<MeetingDetail />} />
-          <Route path="/meetings/follow-up" element={<FollowUp />} />
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/meetings/messages')} />}>
-            <Route path="/meetings/messages" element={<Messages />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-definition')} />}>
-            <Route path="/stock/item-definition" element={<ItemDefinition />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-rate')} />}>
-            <Route path="/stock/item-rate" element={<ItemRate />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/estimation')} />}>
-            <Route path="/stock/estimation" element={<Estimation />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/quotation')} />}>
-            <Route path="/stock/quotation" element={<Quotation />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/opening-stock')} />}>
-            <Route path="/stock/opening-stock" element={<OpeningStock />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/services-products')} />}>
-            <Route path="/services-products" element={<ServicesProducts />} />
-          </Route>
-          <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/reports/item-report')} />}>
-            <Route path="/reports/item-report" element={<ItemReport />} />
-          </Route>
-          <Route path="/settings" element={<Settings />} />
-        </Route>
-      </Route>
+          path="/login"
+          element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} skipIntro={skipLoginIntro} />}
+        />
 
-      <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
-    </Routes>
+        <Route element={<ProtectedRoute isAuthenticated={isAuthenticated} />}>
+          <Route
+            element={
+              <AccessControlProvider>
+                <Layout onLogout={handleLogout} />
+              </AccessControlProvider>
+            }
+          >
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/employees')} />}>
+              <Route path="/employees" element={<Employees />} />
+            </Route>
+            <Route path="/access-denied" element={<AccessDenied />} />
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/users')} />}>
+              <Route path="/users" element={<Users />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/groups')} />}>
+              <Route path="/groups" element={<Groups />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/permissions')} />}>
+              <Route path="/permissions" element={<Permissions />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/departments')} />}>
+              <Route path="/setup/departments" element={<DepartmentSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/designations')} />}>
+              <Route path="/setup/designations" element={<DesignationSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/employee-types')} />}>
+              <Route path="/setup/employee-types" element={<EmployeeTypeSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/duty-shifts')} />}>
+              <Route path="/setup/duty-shifts" element={<DutyShiftSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/banks')} />}>
+              <Route path="/setup/banks" element={<BankSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/company')} />}>
+              <Route path="/setup/company" element={<CompanySetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/item-types')} />}>
+              <Route path="/setup/items/item-types" element={<ItemTypesSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/categories')} />}>
+              <Route path="/setup/items/categories" element={<CategoriesSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/sub-categories')} />}>
+              <Route path="/setup/items/sub-categories" element={<SubCategoriesSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/manufacturers')} />}>
+              <Route path="/setup/items/manufacturers" element={<ManufacturersSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/units')} />}>
+              <Route path="/setup/items/units" element={<UnitsSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/locations')} />}>
+              <Route path="/setup/items/locations" element={<LocationsSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/items/suppliers')} />}>
+              <Route path="/setup/items/suppliers" element={<SuppliersSetup />} />
+            </Route>
+            <Route path="/setup/customers" element={<Navigate to="/setup/customers/customer" replace />} />
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/customers/customer')} />}>
+              <Route path="/setup/customers/customer" element={<CustomersSetup />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/customers/group')} />}>
+              <Route path="/setup/customers/group" element={<CustomerGroupsSetup />} />
+            </Route>
+            <Route path="/meetings/meeting-detail" element={<MeetingDetail />} />
+            <Route path="/meetings/follow-up" element={<FollowUp />} />
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/meetings/messages')} />}>
+              <Route path="/meetings/messages" element={<Messages />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-definition')} />}>
+              <Route path="/stock/item-definition" element={<ItemDefinition />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/item-rate')} />}>
+              <Route path="/stock/item-rate" element={<ItemRate />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/estimation')} />}>
+              <Route path="/stock/estimation" element={<Estimation />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/quotation')} />}>
+              <Route path="/stock/quotation" element={<Quotation />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/stock/opening-stock')} />}>
+              <Route path="/stock/opening-stock" element={<OpeningStock />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/services-products')} />}>
+              <Route path="/services-products" element={<ServicesProducts />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/reports/item-report')} />}>
+              <Route path="/reports/item-report" element={<ItemReport />} />
+            </Route>
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+        </Route>
+
+        <Route path="*" element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />} />
+      </Routes>
+
+      <div
+        className={`pointer-events-none fixed inset-0 z-200 bg-slate-950/8 backdrop-blur-[2px] transition-opacity duration-200 ${isLoggingOut ? 'opacity-100' : 'opacity-0'}`}
+        aria-hidden="true"
+      >
+        <div className="flex h-full items-center justify-center">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 px-5 py-4 text-sm font-semibold text-slate-700 shadow-xl shadow-slate-200/60">
+            Signing out...
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

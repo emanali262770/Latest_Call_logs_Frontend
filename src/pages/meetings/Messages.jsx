@@ -20,6 +20,7 @@ import TablePagination from '@/src/components/ui/TablePagination';
 import ThemeToastViewport from '@/src/components/ui/ThemeToastViewport';
 import { useThemeToast } from '@/src/hooks/useThemeToast';
 import { hasPermission } from '@/src/lib/auth';
+import AccessDenied from '@/src/pages/AccessDenied';
 import { messageService } from '@/src/services/message.service';
 
 const INPUT_CLASS =
@@ -444,12 +445,12 @@ function MessageTemplatePickerModal({ isOpen, templates, selectedTemplateId, onC
         </div>
 
         <div className="mx-auto grid min-h-0 w-full max-w-7xl flex-1 grid-cols-1 gap-5 py-6 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <aside className="min-h-0 overflow-hidden rounded-3xl border border-white/10 bg-white/6 backdrop-blur-md">
+          <aside className="flex min-h-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/6 backdrop-blur-md">
             <div className="border-b border-white/10 px-5 py-4">
               <p className="text-sm font-bold text-white">Available Templates</p>
               <p className="mt-1 text-xs text-slate-400">Choose one template, then edit its content on the right.</p>
             </div>
-            <div className={`max-h-full overflow-y-auto p-3 ${HIDE_SCROLLBAR_CLASS}`}>
+            <div className={`min-h-0 flex-1 overflow-y-auto p-3 pb-6 ${HIDE_SCROLLBAR_CLASS}`}>
             {templates.map((template) => (
               <button
                 key={template.id}
@@ -883,13 +884,14 @@ function MessageForm({ groups, templates, onClose, onSend }) {
 }
 
 export default function Messages() {
-  const canSend = hasPermission('INVENTORY.MESSAGE.SEND');
+  const canRead = hasPermission('MEETINGS.MESSAGE.READ');
+  const canCreate = hasPermission('MEETINGS.MESSAGE.CREATE');
   const [messages, setMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(true);
   const [messagesError, setMessagesError] = useState('');
   const [groups, setGroups] = useState([]);
   const [templates, setTemplates] = useState([]);
-  const [composerLoading, setComposerLoading] = useState(canSend);
+  const [composerLoading, setComposerLoading] = useState(canCreate);
   const [query, setQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -897,6 +899,13 @@ export default function Messages() {
   const { toasts, toast, removeToast } = useThemeToast();
 
   const loadMessages = async () => {
+    if (!canRead) {
+      setMessages([]);
+      setMessagesLoading(false);
+      setMessagesError('');
+      return;
+    }
+
     setMessagesLoading(true);
     setMessagesError('');
 
@@ -912,12 +921,12 @@ export default function Messages() {
 
   useEffect(() => {
     loadMessages();
-  }, []);
+  }, [canRead]);
 
   useEffect(() => {
     let isActive = true;
 
-    if (!canSend) {
+    if (!canCreate) {
       setComposerLoading(false);
       return undefined;
     }
@@ -950,7 +959,7 @@ export default function Messages() {
     return () => {
       isActive = false;
     };
-  }, [canSend, toast]);
+  }, [canCreate, toast]);
 
   const filteredMessages = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -973,6 +982,10 @@ export default function Messages() {
     toast.success('Message sent', response?.message || 'WhatsApp message sent successfully.');
   };
 
+  if (!canRead) {
+    return <AccessDenied />;
+  }
+
   if (showForm) {
     return <MessageForm groups={groups} templates={templates} onClose={() => setShowForm(false)} onSend={handleSend} />;
   }
@@ -984,7 +997,7 @@ export default function Messages() {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Messages</h1>
           <p className="mt-1 text-gray-500">Manage WhatsApp message templates and sending history.</p>
         </div>
-        {canSend ? (
+        {canCreate ? (
           <button type="button" disabled={composerLoading} onClick={() => setShowForm(true)} className={`inline-flex w-fit items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-brand/20 transition-all hover:bg-brand-hover ${composerLoading ? 'cursor-not-allowed opacity-70' : ''}`}>
             <Plus className="h-4 w-4" />
             {composerLoading ? 'Loading...' : 'Add Message'}
