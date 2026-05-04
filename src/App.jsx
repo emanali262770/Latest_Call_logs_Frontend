@@ -228,8 +228,12 @@ export default function App() {
             <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/setup/customers/group')} />}>
               <Route path="/setup/customers/group" element={<CustomerGroupsSetup />} />
             </Route>
-            <Route path="/meetings/meeting-detail" element={<MeetingDetail />} />
-            <Route path="/meetings/follow-up" element={<FollowUp />} />
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/meetings/meeting-detail')} />}>
+              <Route path="/meetings/meeting-detail" element={<MeetingDetail />} />
+            </Route>
+            <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/meetings/follow-up')} />}>
+              <Route path="/meetings/follow-up" element={<FollowUp />} />
+            </Route>
             <Route element={<PermissionRoute requiredPermissions={getReadPermissionsForPath('/meetings/messages')} />}>
               <Route path="/meetings/messages" element={<Messages />} />
             </Route>

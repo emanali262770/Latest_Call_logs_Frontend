@@ -3,7 +3,7 @@ const TOKEN_KEY = 'cms_token';
 const LEGACY_TOKEN_KEYS = ['auth_token', 'token', 'access_token'];
 const PERMISSIONS_KEY = 'cms_permissions';
 const USER_KEY = 'cms_user';
-const UNPROTECTED_PATHS = new Set(['dashboard', 'settings', 'access-denied', 'login', 'meetings']);
+const UNPROTECTED_PATHS = new Set(['dashboard', 'settings', 'access-denied', 'login']);
 
 function resolveAuthPayload(authData) {
   if (authData?.token || authData?.user || authData?.permissions) {
@@ -294,8 +294,20 @@ export function getReadPermissionForPath(path) {
 
   const [firstSegment, secondSegment, thirdSegment] = segments;
 
-  if (firstSegment === 'meetings' && secondSegment === 'messages') {
-    return 'INVENTORY.MESSAGE.READ';
+  if (firstSegment === 'meetings') {
+    if (secondSegment === 'meeting-detail') {
+      return 'MEETINGS.MEETING_DETAIL.READ';
+    }
+
+    if (secondSegment === 'follow-up') {
+      return 'MEETINGS.FOLLOW_UP.READ';
+    }
+
+    if (secondSegment === 'messages') {
+      return 'MEETINGS.MESSAGE.READ';
+    }
+
+    return null;
   }
 
   if (UNPROTECTED_PATHS.has(firstSegment)) {
