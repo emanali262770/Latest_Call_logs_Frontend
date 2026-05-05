@@ -539,10 +539,10 @@ export default function FollowUp() {
                   </td>
                   <td className="truncate whitespace-nowrap border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700">{displayValue(followUp.customerRemarks)}</td>
                   <td className="whitespace-nowrap border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700">
-                    <IconText icon={Calendar}>{displayValue(displayFollowUpDate(followUp))}</IconText>
+                    <IconText icon={Calendar}>{displayValue(formatDate(followUp.nextFollowupDate))}</IconText>
                   </td>
                   <td className="whitespace-nowrap border-b border-gray-50/30 px-6 py-6 text-sm font-semibold text-gray-700">
-                    <IconText icon={Clock}>{displayValue(formatTime(followUp.meetingTime))}</IconText>
+                    <IconText icon={Clock}>{displayValue(formatTime(followUp.nextFollowupTime))}</IconText>
                   </td>
                   <td className="whitespace-nowrap border-b border-gray-50/30 px-6 py-6">
                     <StatusBadge status={normalizeStatus(followUp.status)} />
